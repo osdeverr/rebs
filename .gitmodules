@@ -1,0 +1,18 @@
+[submodule "3rdparty/ninja"]
+	path = 3rdparty/ninja
+	url = https://github.com/ninja-build/ninja.git
+[submodule "3rdparty/ghc-filesystem"]
+	path = 3rdparty/ghc-filesystem
+	url = https://github.com/gulrak/filesystem.git
+[submodule "3rdparty/nlohmann-json"]
+	path = 3rdparty/nlohmann-json
+	url = https://github.com/nlohmann/json.git
+[submodule "3rdparty/magic-enum"]
+	path = 3rdparty/magic-enum
+	url = https://github.com/Neargye/magic_enum.git
+[submodule "3rdparty/fmt"]
+	path = 3rdparty/fmt
+	url = https://github.com/fmtlib/fmt.git
+[submodule "3rdparty/reproc"]
+	path = 3rdparty/reproc
+	url = https://github.com/DaanDeMeyer/reproc.git
