@@ -1,0 +1,17 @@
+#
+# Custom targets do not create any arfifacts on their own but allow for custom actions to be taken at their build time.
+#
+type: custom
+name: resources
+
+#
+# The actions for this build are simple - we just copy all .txt files in this target's directory into the out directory of all targets that depend on it.
+# You can specify actions using this field even in non-custom targets: we only use a custom one here because nothing is being "built".
+#
+actions:
+    #
+    # This action copies the specified files from the target's source directory to the output directories of all targets that depend on it.
+    #
+    - copy-to-deps:
+        from: "*" # The root directory for this parameter is the source directory of the current target.
+        to: "resources/" # The root directory for this parameter is the output directory of the target that depends on it.

@@ -1,0 +1,14 @@
+#
+# Static library targets create .lib/.a files that are then linked to other targets.
+#
+type: static-library
+
+#
+# The name field is optional in subtargets - not specifying a name will make Re fall back to using the directory name.
+# This is not final behavior, so you're still advised to explicitly specify the name in all cases.
+#
+name: libhello
+
+#
+# You don't have to specify any source files by hand: Re finds them automatically for you!
+#
