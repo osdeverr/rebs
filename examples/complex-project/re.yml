@@ -1,0 +1,25 @@
+#
+# Supported values: project|executable|static-library|shared-library
+#
+type: project
+
+#
+# The name field is _mandatory_ in root-level project targets.
+#
+name: complex-project
+
+#
+# The version field is optional in all targets.
+#
+version: 0.0.1
+
+#
+# The langs field is optional and refers to all child targets recursively.
+#
+# Re supplies 'c' and 'cpp' language providers with it and enables them by default - there is no need to explicitly specify them.
+# If you wish to (for some reason) exclude C/C++ builds from the target, you can use use the ~ sign before them here.
+#
+# Look up the documentation (https://rebs.github.io/docs/custom-lang-provider) to learn how to create your own language provider.
+#
+langs:
+    - cpp

@@ -1,0 +1,23 @@
+#
+# Executable targets create executables. (duh)
+#
+type: executable
+
+name: greeter
+
+#
+# Dependencies are resolved from most internal to most external - i.e. libhello will always refer to the local library in this context.
+# If the target is not found in the local project, globally installed dependencies are being searched. 
+#
+# Dependency namespaces are used to distinguish between dependencies from different sources, like GitHub or package managers.
+# To force-refer to a globally installed target, use the "global:" namespace prefix before the target name. (No spaces!)
+#
+deps:
+    - libhello
+    - resources
+
+# Namespaced Deps Example:
+deps-example:
+    - global:fmt
+    - github:K2Rate/ulib-re
+    - vcpkg:nlohmann-json@>=1.0.2

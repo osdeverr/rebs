@@ -1,0 +1,61 @@
+#pragma once
+#include <vector>
+#include <yaml-cpp/yaml.h>
+
+#include <re/list.h>
+#include <re/string.h>
+
+namespace re
+{
+    enum class TargetType
+    {
+        Project,
+        Executable,
+        StaticLibrary,
+        SharedLibrary
+    };
+
+    TargetType TargetTypeFromString(const String &type);
+
+    struct SourceFile
+    {
+        String path;
+        String module;
+    };
+
+    inline String ModulePathCombine(const String &a, const String &b)
+    {
+        if (a.empty())
+            return b;
+        else if (b.empty())
+            return a;
+        else
+            return a + "." + b;
+    }
+
+    struct Target
+    {
+        String path;
+        String name;
+
+        TargetType type;
+        String type_str;
+
+        String module;
+
+        YAML::Node config;
+
+        List<String> deps;
+
+        List<Target> children;
+        List<SourceFile> sources;
+
+        Target();
+        Target(const Target &) = default;
+        Target(Target &&) = default;
+
+        Target& operator=(const Target&) = default;
+    };
+
+    Target LoadTargetFromDir(const String &path, Target *pParent = nullptr);
+} // namespace re
