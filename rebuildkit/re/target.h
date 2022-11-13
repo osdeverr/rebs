@@ -46,6 +46,8 @@ namespace re
         std::string ns;
         std::string name;
         std::string version;
+
+        Target* resolved = nullptr;
     };
 
     inline std::string ModulePathCombine(const std::string& a, const std::string& b)
@@ -94,7 +96,7 @@ namespace re
         //////////////////////////////////////////////////////////////
 
         template<class T>
-        std::optional<T> GetCfgEntry(std::string_view key, CfgEntryKind kind = CfgEntryKind::NonRecursive)
+        std::optional<T> GetCfgEntry(std::string_view key, CfgEntryKind kind = CfgEntryKind::NonRecursive) const
         {
             if (auto node = config[key.data()])
             {
@@ -110,7 +112,7 @@ namespace re
         }
 
         template<class T>
-        T GetCfgEntryOrThrow(std::string_view key, std::string_view message, CfgEntryKind kind = CfgEntryKind::NonRecursive)
+        T GetCfgEntryOrThrow(std::string_view key, std::string_view message, CfgEntryKind kind = CfgEntryKind::NonRecursive) const
         {
             if (auto value = GetCfgEntry<T>(key, kind))
                 return *value;

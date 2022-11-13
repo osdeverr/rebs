@@ -102,10 +102,22 @@ namespace re
                 throw TargetLoadException("language locator not specified - 'langs' config entries may not be processed correctly");
 
             for (const auto& lang : *langs)
-                if (auto provider = lang_locator->GetLangProvider(lang.as<std::string>()))
-                    lang_providers.push_back(provider);
-                else
-                    throw TargetLoadException("language provider " + lang.as<std::string>() + " not found");
+            {
+                auto id = lang.as<std::string>();
+                auto found = false;
+
+                for (auto& provider : lang_providers)
+                    if (provider->GetLangId() == id)
+                        found = true;
+
+                if (!found)
+                {
+                    if (auto provider = lang_locator->GetLangProvider(id))
+                        lang_providers.push_back(provider);
+                    else
+                        throw TargetLoadException("language provider " + lang.as<std::string>() + " not found");
+                }
+            }
         }
     }
 
@@ -125,11 +137,16 @@ namespace re
             {
                 if (DoesDirContainTarget(entry.path().string()))
                 {
-                    auto& target = children.emplace_back(Target{ entry.path().string(), this });
+                    auto target = Target{ entry.path().string(), this };
 
-                    target.LoadDependencies();
-                    target.LoadMiscConfig();
-                    target.LoadSourceTree();
+                    if (target.GetCfgEntry<bool>("enabled").value_or(true))
+                    {
+                        target.LoadDependencies();
+                        target.LoadMiscConfig();
+                        target.LoadSourceTree();
+
+                        children.emplace_back(std::move(target));
+                    }
                 }
                 else
                     LoadSourceTree(entry.path().string());
