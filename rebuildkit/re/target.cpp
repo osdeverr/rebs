@@ -56,7 +56,9 @@ namespace re
     {
         ghc::filesystem::path fspath{ path };
 
-        config = YAML::LoadFile((fspath / kTargetConfigFilename).string());
+        config_path = (fspath / kTargetConfigFilename).string();
+        config = YAML::LoadFile(config_path);
+
         name = GetCfgEntry<std::string>("name").value_or(fspath.filename().string());
 
         auto type_str = GetCfgEntryOrThrow<std::string>("type", "target type not specified");
@@ -137,13 +139,13 @@ namespace re
             {
                 if (DoesDirContainTarget(entry.path().string()))
                 {
-                    auto target = Target{ entry.path().string(), this };
+                    auto target = std::make_unique<Target>(entry.path().string(), this);
 
-                    if (target.GetCfgEntry<bool>("enabled").value_or(true))
+                    if (target->GetCfgEntry<bool>("enabled").value_or(true))
                     {
-                        target.LoadDependencies();
-                        target.LoadMiscConfig();
-                        target.LoadSourceTree();
+                        target->LoadDependencies();
+                        target->LoadMiscConfig();
+                        target->LoadSourceTree();
 
                         children.emplace_back(std::move(target));
                     }

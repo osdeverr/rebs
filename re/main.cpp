@@ -32,7 +32,7 @@ namespace re
             desc.tools.push_back(BuildTool{ "msvc_link", "link.exe" });
             desc.tools.push_back(BuildTool{ "msvc_lib", "lib.exe" });
 
-            desc.vars["msvc_cflags"] = "/nologo /std:c++latest /experimental:module /EHsc /MD";
+            desc.vars["msvc_cflags"] = "/nologo /interface /MP /std:c++latest /experimental:module /EHsc /MD";
             desc.vars["msvc_lflags"] = "/nologo";
         }
 
@@ -47,9 +47,12 @@ namespace re
             TargetConfig link_flags = GetRecursiveMapCfg(target, "cxx-link-flags");
 
             TargetConfig definitions = GetRecursiveMapCfg(target, "cxx-compile-definitions");
-            definitions["WIN32"] = true;
+            TargetConfig definitions_pub = GetRecursiveMapCfg(target, "cxx-compile-definitions-public");
+            definitions_pub["WIN32"] = true;
 
             std::string flags_base = "$msvc_cflags $target_custom_flags";
+
+            flags_base += fmt::format(" /ifcOutput $builddir/{}", target.module);
 
             // flags_base += " /I\"" + target.path + "\"";
 
@@ -57,7 +60,33 @@ namespace re
             PopulateTargetDependencySetNoResolve(&target, include_deps);
 
             for (auto& target : include_deps)
+            {
                 flags_base += " /I\"" + target->path + "\"";
+                flags_base += fmt::format(" /ifcSearchDir $builddir/{}", target->module);
+            }
+
+            for (auto& target : include_deps)
+            {
+                auto dependency_defines = GetRecursiveMapCfg(*target, "cxx-compile-definitions-public");
+
+                for (const std::pair<YAML::Node, YAML::Node>& kv : dependency_defines)
+                {
+                    auto name = kv.first.as<std::string>();
+                    auto value = kv.second.as<std::string>();
+
+                    if (!definitions_pub[name])
+                        definitions_pub[name] = value;
+                }
+            }
+
+            for (const std::pair<YAML::Node, YAML::Node>& kv : definitions_pub)
+            {
+                auto name = kv.first.as<std::string>();
+                auto value = kv.second.as<std::string>();
+
+                if (!definitions[name])
+                    definitions[name] = value;
+            }
 
             for (const std::pair<YAML::Node, YAML::Node>& kv : definitions)
             {
@@ -139,7 +168,8 @@ namespace re
             desc.rules.emplace_back(std::move(rule_link));
             desc.rules.emplace_back(std::move(rule_lib));
 
-            desc.vars["path_" + path] = target.path;
+            desc.vars["msvc_path_" + path] = target.path;
+            desc.vars["msvc_config_path_" + path] = target.config_path;
 
             return true;
         }
@@ -154,7 +184,7 @@ namespace re
             BuildTarget build_target;
             auto local_path = file.path.substr(target.path.size() + 1);
 
-            build_target.in = "$path_" + path + "/" + local_path;
+            build_target.in = "$msvc_path_" + path + "/" + local_path;
             build_target.out = fmt::format("$builddir/{}/{}.obj", target.module, local_path);
 
             if (file.extension == ".ixx")
@@ -171,7 +201,7 @@ namespace re
 
             BuildTarget link_target;
 
-            link_target.out = "$builddir/" + target.name;
+            link_target.out = "$builddir/artifacts/" + target.module;
             link_target.rule = "msvc_link_" + path;
 
             switch (target.type)
@@ -203,6 +233,8 @@ namespace re
             for (auto& dep : target.dependencies)
                 if (dep.resolved && dep.resolved->type != TargetType::Custom)
                     link_target.deps.push_back(dep.resolved->module);
+
+            link_target.deps.push_back("$msvc_config_path_" + path);
 
             BuildTarget alias_target;
 
@@ -278,7 +310,7 @@ namespace re
         fmt::print("\x1b[0m");
 
         for (auto& child : target.children)
-            DumpTargetStructure(child, tabs + 1);
+            DumpTargetStructure(*child, tabs + 1);
 
         for (auto& source : target.sources)
         {
