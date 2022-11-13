@@ -86,11 +86,12 @@ namespace re
 
         std::vector<TargetDependency> dependencies;
         std::vector<SourceFile> sources;
-        std::vector<Target> children;
+        std::vector<std::unique_ptr<Target>> children;
 
         std::vector<ILangProvider*> lang_providers;
         ILangLocator* lang_locator = nullptr;
 
+        std::string config_path;
         TargetConfig config;
 
         //////////////////////////////////////////////////////////////

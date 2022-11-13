@@ -27,7 +27,7 @@ namespace re
 		NinjaBuildDesc GenerateBuildDesc();
 
 	private:
-		std::vector<Target> mRootTargets;
+		std::vector<std::unique_ptr<Target>> mRootTargets;
 		std::unordered_map<std::string, Target*> mTargetMap;
 
 		std::unordered_map<std::string, ILangProvider*> mLangProviders;

@@ -18,7 +18,7 @@ namespace re
 		to.push_back(pTarget);
 
 		for (auto& child : pTarget->children)
-			PopulateTargetDependencySet(&child, to, dep_resolver);
+			PopulateTargetDependencySet(child.get(), to, dep_resolver);
 	}
 
 	void PopulateTargetDependencySetNoResolve(const Target* pTarget, std::vector<const Target*>& to)
@@ -37,24 +37,26 @@ namespace re
 		to.push_back(pTarget);
 
 		for (auto& child : pTarget->children)
-			PopulateTargetDependencySetNoResolve(&child, to);
+			PopulateTargetDependencySetNoResolve(child.get(), to);
 	}
 
 	Target& BuildEnv::LoadRootTarget(const std::string& path)
 	{
-		auto& target = mRootTargets.emplace_back(Target{ path });
+		auto target = std::make_unique<Target>(path);
 
-		target.lang_locator = this;
+		target->lang_locator = this;
 
-		target.lang_providers.push_back(GetLangProvider("cpp"));
+		target->lang_providers.push_back(GetLangProvider("cpp"));
 
-		target.LoadDependencies();
-		target.LoadMiscConfig();
-		target.LoadSourceTree();
+		target->LoadDependencies();
+		target->LoadMiscConfig();
+		target->LoadSourceTree();
 
 		// mTargetMap.clear();
-		PopulateTargetMap(&target);
-		return target;
+		PopulateTargetMap(target.get());
+
+		auto& moved = mRootTargets.emplace_back(std::move(target));
+		return *moved.get();
 	}
 
 	std::vector<Target*> BuildEnv::GetTargetsInDependencyOrder()
@@ -62,7 +64,7 @@ namespace re
 		std::vector<Target*> result;
 
 		for (auto& target : mRootTargets)
-			AppendDepsAndSelf(&target, result);
+			AppendDepsAndSelf(target.get(), result);
 
 		return result;
 	}
@@ -109,7 +111,7 @@ namespace re
 		mTargetMap[pTarget->module] = pTarget;
 
 		for (auto& child : pTarget->children)
-			PopulateTargetMap(&child);
+			PopulateTargetMap(child.get());
 	}
 
 	void BuildEnv::AppendDepsAndSelf(Target* pTarget, std::vector<Target*>& to)
@@ -118,7 +120,7 @@ namespace re
 		{
 			for (auto& root : mRootTargets)
 			{
-				if (auto target = GetTargetOrNull(ModulePathCombine(root.module, dep.name)))
+				if (auto target = GetTargetOrNull(ModulePathCombine(root->module, dep.name)))
 				{
 					AppendDepsAndSelf(target, to);
 					return target;
