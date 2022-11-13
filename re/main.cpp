@@ -201,7 +201,7 @@ namespace re
 
             BuildTarget link_target;
 
-            link_target.out = "$builddir/artifacts/" + target.module;
+            link_target.out = "$builddir/build/" + target.module;
             link_target.rule = "msvc_link_" + path;
 
             switch (target.type)
@@ -465,17 +465,21 @@ int main(int argc, const char** argv)
 
         re::MsvcCCppLangProvider provider;
         env.AddLangProvider("cpp", &provider);
+        
+        std::string target_dir = ".";
 
-        auto& root = env.LoadRootTarget(RE_TEST_EXAMPLES_FOLDER "/complex-project");
+        if (argc > 1)
+            target_dir = argv[1];
 
-        // re::DumpTargetStructure(root);
+        if (!re::DoesDirContainTarget(target_dir))
+        {
+            fmt::print(stderr, " ! Directory '{}' does not contain a valid Re target. Quitting.\n", target_dir);
+            return -1;
+        }
 
-        auto targets = env.GetTargetsInDependencyOrder();
-        for (auto& target : targets)
-            fmt::print("{} v\n", target->module);
+        auto& root = env.LoadRootTarget(target_dir);
 
-        auto out_dir = root.GetCfgEntry<std::string>("out-dir").value_or("out");
-
+        auto out_dir = root.GetCfgEntry<std::string>("output-directory").value_or("out");
         std::filesystem::create_directories(out_dir);
 
         auto desc = env.GenerateBuildDesc();
@@ -492,30 +496,31 @@ int main(int argc, const char** argv)
 
         cmdline.push_back(path_to_ninja.string());
         cmdline.push_back("-C");
-        cmdline.push_back("./out");
+        cmdline.push_back(out_dir);
 
-        for(auto i = 1; i < argc; i++)
-            cmdline.push_back(argv[i]);
+        if (argc > 2)
+            for (auto i = 2; i < argc; i++)
+                cmdline.push_back(argv[i]);
 
         auto start_ec = ninja_process.start(cmdline, options);
         if (start_ec)
         {
             fmt::print("[{}] ! Failed to start Ninja: {}\n", root.module, start_ec.message());
-            return -1;
+            return -255;
         }
 
         auto [exit_code, end_ec] = ninja_process.wait(reproc::infinite);
 
         if (end_ec)
         {
-            fmt::print("[{}] ! Failed to run Ninja with error code: {} (exit_code={})\n", root.module, end_ec.message(), exit_code);
-            return -1;
+            fmt::print(stderr, "[{}] ! Failed to run Ninja with error code: {} (exit_code={})\n", root.module, end_ec.message(), exit_code);
+            return exit_code;
         }
 
         if (exit_code)
         {
-            fmt::print("\n [{}] Build failed! (exit_code={})\n", root.module, exit_code);
-            return -1;
+            fmt::print(stderr, "\n [{}] Build failed! (exit_code={})\n", root.module, exit_code);
+            return exit_code;
         }
     }
     catch (const re::TargetLoadException& e)

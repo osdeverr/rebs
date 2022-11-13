@@ -18,3 +18,7 @@ target_compile_definitions(${RE_TARGET} PRIVATE RE_TEST_EXAMPLES_FOLDER="${PROJE
 add_custom_command(TARGET ${RE_TARGET} 
                    POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:ninja> ${CMAKE_CURRENT_BINARY_DIR})
+
+install(TARGETS ${RE_TARGET}
+        DESTINATION bin)
+install(FILES $<TARGET_FILE:ninja> DESTINATION bin)
