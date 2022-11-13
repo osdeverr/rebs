@@ -5,6 +5,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 project ("re" CXX)
 
+if(WIN32)
+	set(CMAKE_INSTALL_PREFIX "D:/Programs/ReBS")
+endif()
+
 set(NINJA_BUILD_BINARY ON)
 set(BUILD_TESTING OFF)
 add_subdirectory(3rdparty/ninja)

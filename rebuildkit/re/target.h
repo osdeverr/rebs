@@ -2,6 +2,7 @@
 #include <string>
 #include <string_view>
 #include <optional>
+#include <filesystem>
 
 #include <yaml-cpp/yaml.h>
 
@@ -135,4 +136,17 @@ namespace re
 
         void LoadSourceTree(std::string path = "");
 	};
+
+    inline static bool DoesDirContainTarget(std::string_view path)
+    {
+        std::filesystem::path fspath{ path };
+
+        if (FILE* file = std::fopen((fspath / Target::kTargetConfigFilename).string().c_str(), "r"))
+        {
+            std::fclose(file);
+            return true;
+        }
+        else
+            return false;
+    }
 }

@@ -7,19 +7,6 @@
 
 namespace re
 {
-    inline static bool DoesDirContainTarget(std::string_view path)
-    {
-        ghc::filesystem::path fspath{ path };
-
-        if (FILE* file = std::fopen((fspath / Target::kTargetConfigFilename).string().c_str(), "r"))
-        {
-            std::fclose(file);
-            return true;
-        }
-        else
-            return false;
-    }
-
     inline static constexpr auto kCaseInsensitiveComparePred = [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); };
 
     TargetType TargetTypeFromString(const std::string& type)
@@ -40,7 +27,7 @@ namespace re
 
 	Target::Target(std::string_view dir_path, Target* pParent)
 	{
-        path = dir_path;
+        path = std::filesystem::canonical(dir_path).string();
         parent = pParent;
 
         if (pParent)
