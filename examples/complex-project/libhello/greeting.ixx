@@ -1,20 +1,12 @@
 export module libhello.greeting;
 
-/*
-import <string_view>;
-import <fstream>;
-import <string>;
-import <streambuf>;
-import <cstdio>;
-*/
+import std.core;
 
-export void GreetSomeone(const char* template_path, const char* name)
+export void GreetSomeone(std::string_view template_path, std::string_view name)
 {
-	/*
-	std::ifstream t{ template_path };
+	std::ifstream t{ template_path.data() };
 	std::string str((std::istreambuf_iterator<char>(t)),
 		std::istreambuf_iterator<char>());
 
 	std::printf(str.data(), name.data());
-	*/
 }

@@ -1,14 +1,19 @@
 #pragma once
 #include "target.h"
+#include "build_desc.h"
 
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <functional>
 
 #include <unordered_set>
 
 namespace re
 {
+	void PopulateTargetDependencySet(Target* pTarget, std::vector<Target*>& to, std::function<Target* (const TargetDependency&)> dep_resolver = {});
+	void PopulateTargetDependencySetNoResolve(const Target* pTarget, std::vector<const Target*>& to);
+
 	class BuildEnv : public ILangLocator
 	{
 	public:
@@ -18,6 +23,8 @@ namespace re
 
 		void AddLangProvider(std::string_view name, ILangProvider* provider);
 		ILangProvider* GetLangProvider(std::string_view name) override;
+
+		NinjaBuildDesc GenerateBuildDesc();
 
 	private:
 		std::vector<Target> mRootTargets;

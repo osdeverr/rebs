@@ -2,3 +2,5 @@
 /build
 .DS_Store
 /out
+
+/examples/complex-project/k2

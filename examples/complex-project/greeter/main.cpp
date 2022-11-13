@@ -6,7 +6,13 @@ int main()
 }
 */
 
+#include "stuff.h"
+
+import std.core;
+
 int main()
-{
+{ 
+	std::printf("ky!\n");
+	PrintHello();
 	return 36;
 }
