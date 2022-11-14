@@ -17,7 +17,9 @@ namespace re
 	class BuildEnv : public ILangLocator
 	{
 	public:
-		Target& LoadRootTarget(const std::string& path);
+		Target& LoadCoreProjectTarget(const std::string& path);
+
+		Target& LoadTarget(const std::string& path);
 
 		std::vector<Target*> GetTargetsInDependencyOrder();
 
@@ -27,6 +29,8 @@ namespace re
 		NinjaBuildDesc GenerateBuildDesc();
 
 	private:
+		std::unique_ptr<Target> mTheCoreProjectTarget;
+
 		std::vector<std::unique_ptr<Target>> mRootTargets;
 		std::unordered_map<std::string, Target*> mTargetMap;
 

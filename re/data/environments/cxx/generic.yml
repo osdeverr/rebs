@@ -1,0 +1,14 @@
+#
+# Generic C++ build environment
+#
+
+#
+# Specifies the file extensions this build environment supports.
+#
+supported-extensions:
+    - c
+    - cpp
+    - cc
+    - c++
+    - cxx
+    - ixx

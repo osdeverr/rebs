@@ -1,5 +1,6 @@
 #include <re/buildenv.h>
 #include <re/build_desc.h>
+#include <re/cxx_lang_provider.h>
 
 #include <magic_enum.hpp>
 #include <filesystem>
@@ -9,6 +10,7 @@
 
 #include <reproc++/reproc.hpp>
 
+/*
 namespace re
 {
     class CCppLangProvider : public ILangProvider
@@ -20,11 +22,7 @@ namespace re
         {
             return extension == ".c" || extension == ".cpp" || extension == ".cc" || extension == ".cxx" || extension == ".ixx";
         }
-    };
 
-    class MsvcCCppLangProvider : public CCppLangProvider
-    {
-    public:
         void InitInBuildDesc(NinjaBuildDesc& desc)
         {
             // TODO: Implement proper searches for the toolchain
@@ -280,8 +278,11 @@ namespace re
             std::replace(module_escaped.begin(), module_escaped.end(), '.', '_');
             return module_escaped;
         }
+
+        YAML::Node mEnvConfig;
     };
 }
+*/
 
 namespace re
 {
@@ -455,29 +456,23 @@ namespace re
         }
         */
     }
-}
 
-int main(int argc, const char** argv)
-{
-    try
+    int BuildReTargetAt(const std::filesystem::path& path_to_me, std::string_view path)
     {
         re::BuildEnv env;
 
-        re::MsvcCCppLangProvider provider;
+        re::CxxLangProvider provider{ (path_to_me / "data" / "environments" / "cxx").string() };
         env.AddLangProvider("cpp", &provider);
-        
-        std::string target_dir = ".";
 
-        if (argc > 1)
-            target_dir = argv[1];
+        env.LoadCoreProjectTarget((path_to_me / "data" / "core-project").string());
 
-        if (!re::DoesDirContainTarget(target_dir))
+        if (!re::DoesDirContainTarget(path))
         {
-            fmt::print(stderr, " ! Directory '{}' does not contain a valid Re target. Quitting.\n", target_dir);
+            fmt::print(stderr, " ! Directory '{}' does not contain a valid Re target. Quitting.\n", path);
             return -1;
         }
 
-        auto& root = env.LoadRootTarget(target_dir);
+        auto& root = env.LoadTarget(path.data());
 
         auto out_dir = root.GetCfgEntry<std::string>("output-directory").value_or("out");
         std::filesystem::create_directories(out_dir);
@@ -485,7 +480,6 @@ int main(int argc, const char** argv)
         auto desc = env.GenerateBuildDesc();
         re::GenerateNinjaBuildFile(desc, out_dir);
 
-        auto path_to_me = std::filesystem::path{ argv[0] }.parent_path();
         auto path_to_ninja = path_to_me / "ninja.exe";
 
         reproc::options options;
@@ -497,10 +491,6 @@ int main(int argc, const char** argv)
         cmdline.push_back(path_to_ninja.string());
         cmdline.push_back("-C");
         cmdline.push_back(out_dir);
-
-        if (argc > 2)
-            for (auto i = 2; i < argc; i++)
-                cmdline.push_back(argv[i]);
 
         auto start_ec = ninja_process.start(cmdline, options);
         if (start_ec)
@@ -522,9 +512,55 @@ int main(int argc, const char** argv)
             fmt::print(stderr, "\n [{}] Build failed! (exit_code={})\n", root.module, exit_code);
             return exit_code;
         }
+
+        return 0;
     }
-    catch (const re::TargetLoadException& e)
+}
+
+int main(int argc, const char** argv)
+{
+    try
     {
-        fmt::print("\n!!! [FATAL] Failed to load target: {}\n", e.what());
+        auto path_to_me = std::filesystem::path{ argv[0] }.parent_path();
+
+        std::vector<std::string_view> args(argv, argv + argc);
+
+        if (args.size() == 1)
+        {
+            return re::BuildReTargetAt(path_to_me, ".");
+        }
+        else
+        {
+            auto& second_arg = args[1];
+
+            if (second_arg == "build")
+            {
+                return re::BuildReTargetAt(path_to_me, args[2]);
+            }
+            else if (second_arg == "new")
+            {
+                auto& type = args[2];
+                auto& name = args[3];
+                auto path = name;
+
+                if (args.size() > 4)
+                    path = args[4];
+
+                re::Target::CreateEmptyTarget(path, re::TargetTypeFromString(type.data()), name);
+                fmt::print("\n");
+                fmt::print("Created new {} target '{}' in directory '{}'.\n", type, name, path);
+                fmt::print("\n");
+                fmt::print("    To build the new target, type:\n");
+                fmt::print("        > cd {}\n", path);
+                fmt::print("        > re\n");
+                fmt::print("\n");
+                fmt::print("    To edit the new target, modify the {}/re.yml file.\n", path);
+                fmt::print("\n");
+            }
+        }
+    }
+    catch (const int& e)
+    {
+        // fmt::print("\n!!! [FATAL] Failed: {}\n", e.what());
     }
 }

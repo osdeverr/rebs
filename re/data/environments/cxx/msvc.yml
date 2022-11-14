@@ -1,0 +1,76 @@
+#
+# This file defines a Re build environment for the MSVC toolchain.
+# The built-in C/C++ language provider is "taught" to use MSVC using this build environment.
+#
+
+#
+# Inherits from the specified build environment - in this example, the 'generic' C++ build environment 
+#
+inherits:
+    - generic
+
+#
+# Custom rules can be used to specify special toolchain setup or anything else you'd like to do before building stuff.
+#
+custom-rules:
+    - name: init-msvc-toolchain
+      placement: before-all
+      run: always
+      command: "{re-command-path}/scripts/windows/fwd-vcvarsall.cmd {build-platform}"
+
+#
+# Specifies the paths to build tools. Can be absolute or relative - it doesn't matter - but the paths obviously need to resolve properly.
+# The MSVC build environment runs vcvarsall to allow invoking the tools without the need to specify paths at all.
+#
+tools:
+    compiler:  cl.exe
+    linker:    link.exe
+    archiver:  lib.exe
+
+#
+# Default tool invoke flags. Can be overridden in targets using the 'build-flags' map property.
+#
+default-flags:
+    compiler:  "/nologo /interface /MP /experimental:module /EHsc /MD"
+    linker:    "/nologo"
+    archiver:  "/nologo"
+
+#
+# Platform-specific C preprocessor macros. They will be defined in all source files using this environment.
+#
+platform-definitions:
+    WIN32: true
+
+#
+# Templates for the build system's rules and other stuff.
+#
+templates:
+    cxx-standard: "/std:c++{version}"
+
+    compiler-cmdline: "{flags} /c {input} /Fo:{output}"
+    link-cmdline: "{flags} {link_deps} {input} /OUT:{output}"
+
+    cxx-module-output: "/ifcOutput {directory}"
+    cxx-module-lookup-dir: "/ifcSearchDir {directory}"
+    cxx-include-dir: "/I {directory}"
+
+    cxx-compile-definition: "/D{name}={value}"
+
+    link-as-shared-library: "/DLL"
+
+#
+# Default file extensions for build outputs.
+# Can be overridden using the 'output-extension' property in targets.
+#
+default-extensions:
+    object: obj
+    executable: exe
+    static-library: lib
+    shared-library: dll
+    
+#
+# The keys and values from this field will be appended verbatim to all rules created using this build environment.
+# Here, we make sure the underlying build system (Ninja in particular) knows we're building with MSVC and works with header deps accordingly.
+#
+custom-rule-vars:
+    deps: msvc
