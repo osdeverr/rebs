@@ -7,6 +7,9 @@ namespace re
 {
 	using BuildVars = std::unordered_map<std::string, std::string>;
 
+	class Target;
+	struct SourceFile;
+
 	struct BuildTool
 	{
 		std::string name;
@@ -32,12 +35,15 @@ namespace re
 		BuildVars vars;
 
 		std::vector<std::string> deps;
+
+		const Target* pSourceTarget = nullptr;
+		const SourceFile* pSourceFile = nullptr;
 	};
 
 	struct NinjaBuildDesc
 	{
 		// std::string name;
-
+		
 		BuildVars vars;
 
 		std::vector<BuildTool> tools;

@@ -1,0 +1,29 @@
+#
+# *** Re Core Project ***
+#
+# This file defines the "root" project target for all Re targets.
+# Its purpose is to take out some default settings that would've otherwise been hardcoded in the Re executable into an easily modifiable file.
+# You can specify your own core project path while invoking re instead of using this file.
+#
+
+type: project
+
+name: "re-core-project"
+root: true
+
+# Re includes the C++ language provider by default
+langs:
+    - cpp
+
+cxx-env:
+    windows: msvc
+    apple: clang
+    unix: gcc
+
+#
+# Project and custom targets do not need linking.
+#
+link-with:
+    project: null
+    custom: null
+    default: cpp

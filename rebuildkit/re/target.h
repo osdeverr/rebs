@@ -20,6 +20,9 @@ namespace re
         Custom
     };
 
+    TargetType TargetTypeFromString(const std::string& type);
+    const char* TargetTypeToString(TargetType type);
+
     using TargetConfig = YAML::Node;
 
     enum class CfgEntryKind
@@ -38,8 +41,6 @@ namespace re
     {
         std::string path;
         std::string extension;
-
-        ILangProvider* provider;
     };
 
     struct TargetDependency
@@ -89,9 +90,6 @@ namespace re
         std::vector<SourceFile> sources;
         std::vector<std::unique_ptr<Target>> children;
 
-        std::vector<ILangProvider*> lang_providers;
-        ILangLocator* lang_locator = nullptr;
-
         std::string config_path;
         TargetConfig config;
 
@@ -135,6 +133,8 @@ namespace re
         void LoadMiscConfig();
 
         void LoadSourceTree(std::string path = "");
+
+        static void CreateEmptyTarget(std::string_view path, TargetType type, std::string_view name);
 	};
 
     inline static bool DoesDirContainTarget(std::string_view path)

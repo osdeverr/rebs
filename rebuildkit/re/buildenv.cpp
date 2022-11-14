@@ -1,5 +1,7 @@
 #include "buildenv.h"
 
+#include <fmt/format.h>
+
 namespace re
 {
 	void PopulateTargetDependencySet(Target* pTarget, std::vector<Target*>& to, std::function<Target* (const TargetDependency&)> dep_resolver)
@@ -40,13 +42,9 @@ namespace re
 			PopulateTargetDependencySetNoResolve(child.get(), to);
 	}
 
-	Target& BuildEnv::LoadRootTarget(const std::string& path)
+	Target& BuildEnv::LoadTarget(const std::string& path)
 	{
-		auto target = std::make_unique<Target>(path);
-
-		target->lang_locator = this;
-
-		target->lang_providers.push_back(GetLangProvider("cpp"));
+		auto target = std::make_unique<Target>(path, mTheCoreProjectTarget.get());
 
 		target->LoadDependencies();
 		target->LoadMiscConfig();
@@ -57,6 +55,12 @@ namespace re
 
 		auto& moved = mRootTargets.emplace_back(std::move(target));
 		return *moved.get();
+	}
+
+	Target& BuildEnv::LoadCoreProjectTarget(const std::string& path)
+	{
+		mTheCoreProjectTarget = std::make_unique<Target>(path);
+		return *mTheCoreProjectTarget;
 	}
 
 	std::vector<Target*> BuildEnv::GetTargetsInDependencyOrder()
@@ -83,20 +87,59 @@ namespace re
 	{
 		NinjaBuildDesc desc;
 
+		desc.vars["re_build_platform"] = "windows";
+		desc.vars["re_build_platform_closest"] = "windows";
+		desc.vars["re_build_arch"] = "x64";
+
 		for (auto& [name, provider] : mLangProviders)
 			provider->InitInBuildDesc(desc);
 
 		for (auto& target : GetTargetsInDependencyOrder())
 		{
-			for (auto& provider : target->lang_providers)
+			auto langs = target->GetCfgEntry<TargetConfig>("langs", CfgEntryKind::Recursive).value_or(TargetConfig{YAML::NodeType::Sequence});
+
+			for (const auto& lang : langs)
 			{
+				auto lang_id = lang.as<std::string>();
+
+				auto provider = GetLangProvider(lang_id);
+				if (!provider)
+					throw TargetLoadException("unknown language " + lang_id + " in target " + target->module);
+
 				if (provider->InitBuildTarget(desc, *target))
 				{
 					for (auto& source : target->sources)
 						provider->ProcessSourceFile(desc, *target, source);
-
-					provider->CreateTargetArtifact(desc, *target);
 				}
+			}
+
+			auto link_cfg = target->GetCfgEntry<TargetConfig>("link-with", re::CfgEntryKind::Recursive).value_or(YAML::Node{ YAML::NodeType::Null });
+			std::optional<std::string> link_language;
+
+			if (link_cfg.IsMap())
+			{
+				if (auto value = link_cfg[TargetTypeToString(target->type)])
+				{
+					if (!value.IsNull())
+						link_language = value.as<std::string>();
+				}
+				else if (auto value = link_cfg["default"])
+				{
+					if (!value.IsNull())
+						link_language = value.as<std::string>();
+				}
+			}
+			else if (!link_cfg.IsNull())
+			{
+				link_language = link_cfg.as<std::string>();
+			}
+
+			if (link_language)
+			{
+				if (auto link_provider = GetLangProvider(*link_language))
+					link_provider->CreateTargetArtifact(desc, *target);
+				else
+					throw TargetLoadException("unknown link-with language " + *link_language + " in target " + target->module);
 			}
 		}
 

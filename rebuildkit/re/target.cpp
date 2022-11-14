@@ -25,16 +25,37 @@ namespace re
             throw TargetLoadException("unknown target type " + type);
     }
 
+    const char* TargetTypeToString(TargetType type)
+    {
+        switch (type)
+        {
+        case TargetType::Project:
+            return "project";
+        case TargetType::Executable:
+            return "executable";
+        case TargetType::StaticLibrary:
+            return "static-library";
+        case TargetType::SharedLibrary:
+            return "shared-library";
+        case TargetType::Custom:
+            return "custom";
+        default:
+            return "invalid";
+        }
+    }
+
 	Target::Target(std::string_view dir_path, Target* pParent)
 	{
         path = std::filesystem::canonical(dir_path).string();
         parent = pParent;
 
+        /*
         if (pParent)
         {
             lang_providers = pParent->lang_providers;
             lang_locator = pParent->lang_locator;
         }
+        */
 
         LoadBaseData();
 	}
@@ -51,7 +72,9 @@ namespace re
         auto type_str = GetCfgEntryOrThrow<std::string>("type", "target type not specified");
         type = TargetTypeFromString(type_str);
 
-        module = parent ? parent->module : "";
+        if (parent && !parent->GetCfgEntry<bool>("root").value_or(false))
+            module = parent->module;
+
         module = ModulePathCombine(module, name);
     }
 
@@ -85,6 +108,7 @@ namespace re
 
     void Target::LoadMiscConfig()
     {
+        /*
         if (auto langs = GetCfgEntry<TargetConfig>("langs"))
         {
             if (!lang_locator)
@@ -108,6 +132,7 @@ namespace re
                 }
             }
         }
+        */
     }
 
     void Target::LoadSourceTree(std::string path)
@@ -145,13 +170,28 @@ namespace re
             {
                 auto ext = entry.path().extension().string();
 
-                for(auto& lang : lang_providers)
-                    if (lang->SupportsFileExtension(ext))
-                    {
-                        sources.push_back(SourceFile{ entry.path().string(), ext, lang });
-                        break;
-                    }
+                if (ext.size() > 0)
+                    ext = ext.substr(1);
+
+                sources.push_back(SourceFile{ entry.path().string(), ext });
             }
         }
+    }
+
+    void Target::CreateEmptyTarget(std::string_view path, TargetType type, std::string_view name)
+    {
+        YAML::Emitter out;
+
+        out << YAML::BeginMap;
+        out << YAML::Key << "type";
+        out << YAML::Value << TargetTypeToString(type);
+        out << YAML::Key << "name";
+        out << YAML::Value << name.data();
+        out << YAML::EndMap;
+
+        std::filesystem::create_directories(path);
+
+        std::ofstream file{ path.data() + std::string("/re.yml") };
+        file << out.c_str();
     }
 }
