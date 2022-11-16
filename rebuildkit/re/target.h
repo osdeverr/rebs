@@ -93,6 +93,12 @@ namespace re
         std::string config_path;
         TargetConfig config;
 
+        /*
+        // Contains the entire flattened dependency cache for this target in the order {children}..{dependencies recursively}..{itself}.
+        // This is mainly a convenience for language providers so that the whole dependency cache doesn't have to be rebuilt every time.
+        std::vector<Target*> flat_deps_cache;
+        */
+
         //////////////////////////////////////////////////////////////
 
         template<class T>

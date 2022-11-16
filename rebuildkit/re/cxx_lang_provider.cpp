@@ -132,6 +132,7 @@ namespace re
 
 		desc.vars["re_cxx_target_cflags_" + path] = env["default-flags"]["compiler"].as<std::string>();
 		desc.vars["re_cxx_target_lflags_" + path] = env["default-flags"]["linker"].as<std::string>();
+		desc.vars["re_cxx_target_arflags_" + path] = env["default-flags"]["archiver"].as<std::string>();
 
 		/////////////////////////////////////////////////////////////////
 
@@ -257,10 +258,8 @@ namespace re
 		rule_link.name = "cxx_link_" + path;
 		rule_link.tool = "cxx_linker_" + path;
 
-		auto link_cmdline_tpl = templates["link-cmdline"].as<std::string>();
-
 		rule_link.cmdline = fmt::format(
-			link_cmdline_tpl,
+			templates["linker-cmdline"].as<std::string>(),
 			fmt::arg("flags", "$target_custom_flags $re_cxx_target_lflags_" + path),
 			fmt::arg("link_deps", deps_input),
 			fmt::arg("input", "$in"),
@@ -272,7 +271,13 @@ namespace re
 
 		rule_lib.name = "cxx_archive_" + path;
 		rule_lib.tool = "cxx_archiver_" + path;
-		rule_lib.cmdline = rule_link.cmdline;
+		rule_lib.cmdline = fmt::format(
+			templates["archiver-cmdline"].as<std::string>(),
+			fmt::arg("flags", "$target_custom_flags $re_cxx_target_arflags_" + path),
+			fmt::arg("link_deps", deps_input),
+			fmt::arg("input", "$in"),
+			fmt::arg("output", "$out")
+		);
 		rule_lib.description = "Archiving target $out";
 
 		desc.rules.emplace_back(std::move(rule_cxx));

@@ -48,7 +48,8 @@ templates:
     cxx-standard: "/std:c++{version}"
 
     compiler-cmdline: "{flags} /c {input} /Fo:{output}"
-    link-cmdline: "{flags} {link_deps} {input} /OUT:{output}"
+    linker-cmdline: "{flags} {link_deps} {input} /OUT:{output}"
+    archiver-cmdline: "{flags} {link_deps} {input} /OUT:{output}"
 
     cxx-module-output: "/ifcOutput {directory}"
     cxx-module-lookup-dir: "/ifcSearchDir {directory}"
