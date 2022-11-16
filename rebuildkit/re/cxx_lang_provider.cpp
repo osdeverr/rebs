@@ -333,6 +333,9 @@ namespace re
 
 	void CxxLangProvider::ProcessSourceFile(NinjaBuildDesc& desc, const Target& target, const SourceFile& file)
 	{
+		if (target.type == TargetType::Project)
+			return;
+
 		auto path = GetEscapedModulePath(target);
 		auto& env = mEnvCache.at(desc.vars.at("re_cxx_env_for_" + path));
 
