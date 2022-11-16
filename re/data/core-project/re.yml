@@ -8,8 +8,7 @@
 
 type: project
 
-name: "re-core-project"
-root: true
+name: ""
 
 # Re includes the C++ language provider by default
 langs:
@@ -21,9 +20,8 @@ cxx-env:
     unix: gcc
 
 #
-# Project and custom targets do not need linking.
+# Custom targets do not need linking.
 #
 link-with:
-    project: null
     custom: null
     default: cpp

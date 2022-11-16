@@ -71,11 +71,18 @@ namespace re
 
         auto type_str = GetCfgEntryOrThrow<std::string>("type", "target type not specified");
         type = TargetTypeFromString(type_str);
+        
+        if (!name.empty() && name.front() == '.')
+        {
+            name.erase(0, 1);
 
-        if (parent && !parent->GetCfgEntry<bool>("root").value_or(false))
-            module = parent->module;
-
-        module = ModulePathCombine(module, name);
+            if(parent)
+                module = ModulePathCombine(parent->module, name);
+        }
+        else
+        {
+            module = name;
+        }
     }
 
     void Target::LoadDependencies()

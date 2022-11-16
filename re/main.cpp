@@ -7,6 +7,7 @@
 
 #include <fmt/format.h>
 #include <fmt/os.h>
+#include <fmt/args.h>
 
 #include <reproc++/reproc.hpp>
 
@@ -557,10 +558,44 @@ int main(int argc, const char** argv)
                 fmt::print("    To edit the new target, modify the {}/re.yml file.\n", path);
                 fmt::print("\n");
             }
+            else if (second_arg == "env")
+            {
+                auto data_path = (path_to_me / "data").string();
+
+                auto env_cfg = YAML::LoadFile(data_path + "/environments/cmdline/" + args[2].data() + ".yml");
+
+                fmt::dynamic_format_arg_store<fmt::format_context> store;
+
+                store.push_back(fmt::arg("re_data_path", data_path));
+
+                std::size_t i = 0;
+
+                std::list<std::string> arg_names;
+
+                for (const auto& arg : env_cfg["args"])
+                {
+                    auto index = i++;
+                    auto& name = arg_names.emplace_back(arg.as<std::string>());
+
+                    if (args.size() < index)
+                        throw std::runtime_error("missing argument '" + name + "'");
+
+                    store.push_back(fmt::arg(name.data(), args[index + 3]));
+                }
+
+                for (const auto& cmd : env_cfg["run"])
+                {
+                    auto expanded = fmt::vformat(cmd.as<std::string>(), store);
+                    auto code = std::system(expanded.data());
+
+                    if(code != 0)
+                        throw std::runtime_error(fmt::format("command '{}' returned exit code {}", expanded, code));
+                }
+            }
         }
     }
-    catch (const int& e)
+    catch (const std::exception &e)
     {
-        // fmt::print("\n!!! [FATAL] Failed: {}\n", e.what());
+        fmt::print("\n!!! Failed: {}\n", e.what());
     }
 }

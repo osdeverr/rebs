@@ -9,6 +9,9 @@ namespace re
 		if (std::find(to.begin(), to.end(), pTarget) != to.end())
 			return;
 
+		for (auto& child : pTarget->children)
+			PopulateTargetDependencySet(child.get(), to, dep_resolver);
+
 		for (auto& dep : pTarget->dependencies)
 		{
 			dep.resolved = dep_resolver(dep);
@@ -27,6 +30,9 @@ namespace re
 	{
 		if (std::find(to.begin(), to.end(), pTarget) != to.end())
 			return;
+
+		for (auto& child : pTarget->children)
+			PopulateTargetDependencySetNoResolve(child.get(), to);
 
 		for (auto& dep : pTarget->dependencies)
 		{
@@ -96,6 +102,8 @@ namespace re
 
 		for (auto& target : GetTargetsInDependencyOrder())
 		{
+			fmt::print(" [DBG] Generating build desc for target '{}'\n", target->module);
+
 			auto langs = target->GetCfgEntry<TargetConfig>("langs", CfgEntryKind::Recursive).value_or(TargetConfig{YAML::NodeType::Sequence});
 
 			for (const auto& lang : langs)
@@ -151,6 +159,7 @@ namespace re
 		if (mTargetMap[pTarget->module] != nullptr)
 			throw TargetLoadException("target " + pTarget->module + " defined more than once");
 
+		// fmt::print(" [DBG] Adding to target map: '{}'\n", pTarget->module);
 		mTargetMap[pTarget->module] = pTarget;
 
 		for (auto& child : pTarget->children)
@@ -159,15 +168,12 @@ namespace re
 
 	void BuildEnv::AppendDepsAndSelf(Target* pTarget, std::vector<Target*>& to)
 	{
-		PopulateTargetDependencySet(pTarget, to, [this, &to](const TargetDependency& dep) -> Target*
+		PopulateTargetDependencySet(pTarget, to, [this, &to, pTarget](const TargetDependency& dep) -> Target*
 		{
-			for (auto& root : mRootTargets)
+			if (auto target = GetTargetOrNull(ResolveTargetParentRef(dep.name, pTarget)))
 			{
-				if (auto target = GetTargetOrNull(ModulePathCombine(root->module, dep.name)))
-				{
-					AppendDepsAndSelf(target, to);
-					return target;
-				}
+				AppendDepsAndSelf(target, to);
+				return target;
 			}
 
 			return nullptr;

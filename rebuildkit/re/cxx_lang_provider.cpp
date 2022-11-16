@@ -53,8 +53,8 @@ namespace re
 
 	bool CxxLangProvider::InitBuildTarget(NinjaBuildDesc& desc, const Target& target)
 	{
-		if (target.type != TargetType::Executable && target.type != TargetType::StaticLibrary && target.type != TargetType::SharedLibrary)
-			return false;
+		// if (target.type != TargetType::Executable && target.type != TargetType::StaticLibrary && target.type != TargetType::SharedLibrary)
+		//	return false;
 
 		/////////////////////////////////////////////////////////////////
 
@@ -214,16 +214,14 @@ namespace re
 			for (const auto& var : rule_vars)
 				rule_cxx.vars[var.first.as<std::string>()] = var.second.as<std::string>();
 
-		std::vector<std::string> deps_list;
+		std::unordered_set<std::string> deps_list;
 
-		for (auto& dep : target.dependencies)
+		for (auto& dep : include_deps)
 		{
-			if (!dep.resolved)
-				throw TargetLoadException("unresolved dependency " + dep.name + " at build generation time");
-
-			if (dep.resolved->type != TargetType::StaticLibrary)
+			if (dep->type != TargetType::StaticLibrary)
 				continue;
 
+			/*
 			bool skip = false;
 
 			for (auto& dep_in : target.dependencies)
@@ -235,13 +233,14 @@ namespace re
 
 			if (skip)
 				continue;
+				*/
 
-			auto res_path = GetEscapedModulePath(*dep.resolved);
+			auto res_path = GetEscapedModulePath(*dep);
 			bool has_any_eligible_sources = (desc.vars["re_cxx_target_has_objects_" + res_path] == "1");
 
 			if (has_any_eligible_sources)
 			{
-				deps_list.push_back("$cxx_artifact_" + res_path);
+				deps_list.insert("$cxx_artifact_" + res_path);
 			}
 		}
 
@@ -346,6 +345,9 @@ namespace re
 			link_target.vars["target_custom_flags"].append(" ");
 			link_target.vars["target_custom_flags"].append(env["templates"]["link-as-shared-library"].as<std::string>());
 			break;
+		case TargetType::Project:
+			link_target.rule = "phony";
+			break;
 		}
 
 		if (auto out_ext = target.GetCfgEntry<std::string>("out-ext"))
@@ -364,9 +366,12 @@ namespace re
 				link_target.in.append(" ");
 			}
 
-		for (auto& dep : target.dependencies)
-			if (dep.resolved && dep.resolved->type != TargetType::Custom)
-				link_target.deps.push_back(dep.resolved->module);
+		std::vector<const Target*> link_deps;
+		PopulateTargetDependencySetNoResolve(&target, link_deps);
+
+		for (auto& dep : link_deps)
+			if (dep != &target && dep->type != TargetType::Custom)
+				link_target.deps.push_back(dep->module);
 
 		link_target.deps.push_back("$cxx_config_path_" + path);
 
