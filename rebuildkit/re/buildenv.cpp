@@ -102,7 +102,7 @@ namespace re
 
 		for (auto& target : GetTargetsInDependencyOrder())
 		{
-			fmt::print(" [DBG] Generating build desc for target '{}'\n", target->module);
+			// fmt::print(" [DBG] Generating build desc for target '{}'\n", target->module);
 
 			auto langs = target->GetCfgEntry<TargetConfig>("langs", CfgEntryKind::Recursive).value_or(TargetConfig{YAML::NodeType::Sequence});
 
