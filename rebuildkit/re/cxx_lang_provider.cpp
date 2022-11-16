@@ -39,6 +39,27 @@ namespace re
 
 			return result;
 		}
+
+		inline TargetConfig GetRecursiveSeqCfg(const Target& leaf, std::string_view key)
+		{
+			auto result = TargetConfig{ YAML::NodeType::Sequence };
+			auto p = &leaf;
+
+			while (p)
+			{
+				if (auto seq = leaf.GetCfgEntry<TargetConfig>(key))
+				{
+					for (const auto& v : *seq)
+					{
+						result.push_back(v);
+					}
+				}
+
+				p = p->parent;
+			}
+
+			return result;
+		}
 	}
 
 	CxxLangProvider::CxxLangProvider(std::string_view env_search_path)
@@ -155,21 +176,41 @@ namespace re
 			fmt::arg("directory", out_dir)
 		));
 
+		auto cxx_include_dir = templates["cxx-include-dir"].as<std::string>();
+		auto cxx_module_lookup_dir = templates["cxx-module-lookup-dir"].as<std::string>();
+
 		for (auto& target : include_deps)
 		{
 			extra_flags.push_back(fmt::format(
-				templates["cxx-include-dir"].as<std::string>(),
+				cxx_include_dir,
 				fmt::arg("directory", target->path)
 			));
 
 			// TODO: Make this only work with modules enabled???
 			extra_flags.push_back(fmt::format(
-				templates["cxx-module-lookup-dir"].as<std::string>(),
+				cxx_module_lookup_dir,
 				fmt::arg("directory", fmt::format("$builddir/{}", target->module))
 			));
 		}
 
+		auto extra_includes = GetRecursiveSeqCfg(target, "cxx-include-dirs");
+
+		for (const auto& v : extra_includes)
+		{
+			auto dir = fmt::format(
+				v.as<std::string>(),
+				fmt::arg("src", target.path)
+			);
+
+			extra_flags.push_back(fmt::format(
+				cxx_include_dir,
+				fmt::arg("directory", dir)
+			));
+		}
+
 		/////////////////////////////////////////////////////////////////
+
+		auto cxx_compile_definitions = templates["cxx-compile-definition"].as<std::string>();
 
 		for (const auto& kv : definitions)
 		{
@@ -177,7 +218,7 @@ namespace re
 			auto value = kv.second.as<std::string>();
 
 			extra_flags.push_back(fmt::format(
-				templates["cxx-compile-definition"].as<std::string>(),
+				cxx_compile_definitions,
 				fmt::arg("name", name),
 				fmt::arg("value", value)
 			));

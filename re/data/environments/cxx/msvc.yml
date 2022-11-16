@@ -40,6 +40,7 @@ default-flags:
 #
 platform-definitions:
     WIN32: true
+    NOMINMAX: true
 
 #
 # Templates for the build system's rules and other stuff.
@@ -53,7 +54,7 @@ templates:
 
     cxx-module-output: "/ifcOutput {directory}"
     cxx-module-lookup-dir: "/ifcSearchDir {directory}"
-    cxx-include-dir: "/I {directory}"
+    cxx-include-dir: "/I \"{directory}\""
 
     cxx-compile-definition: "/D{name}={value}"
 
