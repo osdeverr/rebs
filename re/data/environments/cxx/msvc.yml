@@ -31,7 +31,7 @@ tools:
 # Default tool invoke flags. Can be overridden in targets using the 'build-flags' map property.
 #
 default-flags:
-    compiler:  "/nologo /interface /MP /experimental:module /EHsc /MD"
+    compiler:  "/nologo /showIncludes /interface /MP /experimental:module /EHsc /MD"
     linker:    "/nologo /DEBUG"
     archiver:  "/nologo"
 
