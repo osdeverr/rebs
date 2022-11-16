@@ -149,4 +149,21 @@ namespace re
         else
             return false;
     }
+
+    inline static std::string ResolveTargetParentRef(std::string name, Target* parent = nullptr)
+    {
+        if (!name.empty() && name.front() == '.')
+        {
+            name.erase(0, 1);
+
+            if (parent)
+                return ModulePathCombine(parent->module, name);
+            else
+                return name;
+        }
+        else
+        {
+            return name;
+        }
+    }
 }

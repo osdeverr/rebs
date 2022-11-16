@@ -1,0 +1,6 @@
+args:
+    - arch
+
+run:
+    # - "echo Enabling MSVC environment ({arch})."
+    - "cmd /K {re_data_path}/scripts/windows/fwd-vcvarsall.cmd {arch}"
