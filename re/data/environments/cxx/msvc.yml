@@ -55,6 +55,7 @@ templates:
     cxx-module-output: "/ifcOutput {directory}"
     cxx-module-lookup-dir: "/ifcSearchDir {directory}"
     cxx-include-dir: "/I \"{directory}\""
+    cxx-lib-dir: "/LIBPATH:\"{directory}\""
 
     cxx-compile-definition: "/D{name}={value}"
 
