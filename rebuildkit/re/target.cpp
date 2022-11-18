@@ -49,6 +49,13 @@ namespace re
         path = std::filesystem::canonical(dir_path).string();
         parent = pParent;
 
+        ghc::filesystem::path fspath{ path };
+
+        config_path = (fspath / kTargetConfigFilename).string();
+        config = YAML::LoadFile(config_path);
+
+        name = GetCfgEntry<std::string>("name").value_or(fspath.filename().string());
+
         /*
         if (pParent)
         {
@@ -60,15 +67,18 @@ namespace re
         LoadBaseData();
 	}
 
+    Target::Target(std::string_view virtual_path, std::string_view name, TargetType type, const TargetConfig& config, Target* pParent)
+    {
+        path = std::filesystem::canonical(virtual_path).string();
+        parent = pParent;
+
+        this->type = type;
+        this->config = config;
+        this->name = name;
+    }
+
     void Target::LoadBaseData()
     {
-        ghc::filesystem::path fspath{ path };
-
-        config_path = (fspath / kTargetConfigFilename).string();
-        config = YAML::LoadFile(config_path);
-
-        name = GetCfgEntry<std::string>("name").value_or(fspath.filename().string());
-
         auto type_str = GetCfgEntryOrThrow<std::string>("type", "target type not specified");
         type = TargetTypeFromString(type_str);
         
@@ -101,13 +111,23 @@ namespace re
 
                 TargetDependency dep;
 
-                //dep.ns = match[0].str();
-                dep.name = str;// match[1].str();
-                //dep.version = match[2].str();
+                dep.raw = str;
+                dep.ns = match[1].str();
+                dep.name = match[2].str();
+                dep.version = match[3].str();
+
+                // Remove the trailing ':' character
+                if (!dep.ns.empty())
+                    dep.ns.pop_back();
+
+                // Remove the leading '@' character
+                if (!dep.version.empty())
+                    dep.version = dep.version.substr(1);
 
                 if (dep.name.empty())
                     throw TargetLoadException("dependency " + str + " does not have a name specified");
 
+                dep.name = ResolveTargetParentRef(dep.name, parent);
                 dependencies.emplace_back(std::move(dep));
             }
         }

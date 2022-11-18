@@ -43,8 +43,12 @@ namespace re
 	struct NinjaBuildDesc
 	{
 		// std::string name;
-		
+
+		// Substituted variables: those WILL end up in the build script
 		BuildVars vars;
+
+		// Arbitrary generation state: this won't go anywhere
+		BuildVars state;
 
 		std::vector<BuildTool> tools;
 		std::vector<BuildRule> rules;

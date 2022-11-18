@@ -1,6 +1,7 @@
 #pragma once
 #include "target.h"
 #include "build_desc.h"
+#include "dep_resolver.h"
 
 #include <string>
 #include <unordered_map>
@@ -14,7 +15,7 @@ namespace re
 	void PopulateTargetDependencySet(Target* pTarget, std::vector<Target*>& to, std::function<Target* (const TargetDependency&)> dep_resolver = {});
 	void PopulateTargetDependencySetNoResolve(const Target* pTarget, std::vector<const Target*>& to);
 
-	class BuildEnv : public ILangLocator
+	class BuildEnv : public ILangLocator, public IDepResolver
 	{
 	public:
 		Target& LoadCoreProjectTarget(const std::string& path);
@@ -28,6 +29,9 @@ namespace re
 
 		NinjaBuildDesc GenerateBuildDesc();
 
+		void AddDepResolver(std::string_view name, IDepResolver* resolver);
+		Target* ResolveTargetDependency(const TargetDependency& dep) override;
+
 	private:
 		std::unique_ptr<Target> mTheCoreProjectTarget;
 
@@ -35,6 +39,7 @@ namespace re
 		std::unordered_map<std::string, Target*> mTargetMap;
 
 		std::unordered_map<std::string, ILangProvider*> mLangProviders;
+		std::unordered_map<std::string, IDepResolver*> mDepResolvers;
 
 		inline Target* GetTargetOrNull(const std::string& module)
 		{

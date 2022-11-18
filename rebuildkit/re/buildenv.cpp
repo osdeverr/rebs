@@ -154,6 +154,22 @@ namespace re
 		return desc;
 	}
 
+	void BuildEnv::AddDepResolver(std::string_view name, IDepResolver* resolver)
+	{
+		mDepResolvers[name.data()] = resolver;
+	}
+
+	Target* BuildEnv::ResolveTargetDependency(const TargetDependency& dep)
+	{
+		if (dep.ns.empty() || dep.ns == "local")
+			return GetTargetOrNull(dep.name);
+
+		if (auto resolver = mDepResolvers[dep.ns])
+			return resolver->ResolveTargetDependency(dep);
+		else
+			throw TargetLoadException("unknown target namespace " + dep.ns);
+	}
+
 	void BuildEnv::PopulateTargetMap(Target* pTarget)
 	{
 		if (mTargetMap[pTarget->module] != nullptr)
@@ -170,7 +186,7 @@ namespace re
 	{
 		PopulateTargetDependencySet(pTarget, to, [this, &to, pTarget](const TargetDependency& dep) -> Target*
 		{
-			if (auto target = GetTargetOrNull(ResolveTargetParentRef(dep.name, pTarget)))
+			if (auto target = ResolveTargetDependency(dep))
 			{
 				AppendDepsAndSelf(target, to);
 				return target;

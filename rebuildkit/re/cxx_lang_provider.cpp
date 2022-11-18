@@ -125,7 +125,7 @@ namespace re
 		// Choose and load the correct build environment.
 
 		auto env_cfg = target.GetCfgEntryOrThrow<TargetConfig>("cxx-env", "C++ environment not specified anywhere in the target tree", CfgEntryKind::Recursive);
-		auto& env_cached_name = desc.vars["re_cxx_env_for_" + path];
+		auto& env_cached_name = desc.state["re_cxx_env_for_" + path];
 
 		if (!env_cfg.IsMap())
 		{
@@ -305,7 +305,7 @@ namespace re
 				*/
 
 			auto res_path = GetEscapedModulePath(*dep);
-			bool has_any_eligible_sources = (desc.vars["re_cxx_target_has_objects_" + res_path] == "1");
+			bool has_any_eligible_sources = (desc.state["re_cxx_target_has_objects_" + res_path] == "1");
 
 			if (has_any_eligible_sources)
 			{
@@ -374,7 +374,7 @@ namespace re
 			return;
 
 		auto path = GetEscapedModulePath(target);
-		auto& env = mEnvCache.at(desc.vars.at("re_cxx_env_for_" + path));
+		auto& env = mEnvCache.at(desc.state.at("re_cxx_env_for_" + path));
 
 		bool eligible = false;
 
@@ -398,14 +398,14 @@ namespace re
 
 		desc.targets.emplace_back(std::move(build_target));
 
-		desc.vars["re_cxx_target_has_objects_" + path] = "1";
+		desc.state["re_cxx_target_has_objects_" + path] = "1";
 	}
 
 	void CxxLangProvider::CreateTargetArtifact(NinjaBuildDesc& desc, const Target& target)
 	{
 		auto path = GetEscapedModulePath(target);
 
-		auto& env = mEnvCache.at(desc.vars.at("re_cxx_env_for_" + path));
+		auto& env = mEnvCache.at(desc.state.at("re_cxx_env_for_" + path));
 		const auto& default_extensions = env["default-extensions"];
 
 		BuildTarget link_target;
@@ -456,8 +456,12 @@ namespace re
 		PopulateTargetDependencySetNoResolve(&target, link_deps);
 
 		for (auto& dep : link_deps)
-			if (dep != &target && dep->type != TargetType::Custom)
-				link_target.deps.push_back(dep->module);
+			if (dep != &target)
+			{
+				auto artifact = desc.vars["cxx_artifact_" + GetEscapedModulePath(*dep)];
+				if (!artifact.empty())
+					link_target.deps.push_back(artifact);
+			}
 
 		link_target.deps.push_back("$cxx_config_path_" + path);
 
