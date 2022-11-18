@@ -45,6 +45,8 @@ namespace re
 
     struct TargetDependency
     {
+        std::string raw;
+
         std::string ns;
         std::string name;
         std::string version;
@@ -71,6 +73,7 @@ namespace re
 
         Target() = default;
         Target(std::string_view dir_path, Target* pParent = nullptr);
+        Target(std::string_view virtual_path, std::string_view name, TargetType type, const TargetConfig& config, Target* pParent = nullptr);
 
         Target(const Target&) = default;
         Target(Target&&) = default;

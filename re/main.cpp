@@ -11,279 +11,75 @@
 
 #include <reproc++/reproc.hpp>
 
-/*
+#include <re/detail/semver.hpp>
+
 namespace re
 {
-    class CCppLangProvider : public ILangProvider
+    class VcpkgDepResolver : public IDepResolver
     {
     public:
-        virtual const char* GetLangId() { return "cpp"; }
+        VcpkgDepResolver(const std::filesystem::path& path)
+            : mVcpkgPath{ path }
+        {}
 
-        bool SupportsFileExtension(std::string_view extension)
+        Target* ResolveTargetDependency(const TargetDependency& dep)
         {
-            return extension == ".c" || extension == ".cpp" || extension == ".cc" || extension == ".cxx" || extension == ".ixx";
-        }
+            reproc::options options;
+            options.redirect.parent = true;
 
-        void InitInBuildDesc(NinjaBuildDesc& desc)
-        {
-            // TODO: Implement proper searches for the toolchain
-            desc.tools.push_back(BuildTool{ "msvc_cxx", "cl.exe" });
-            desc.tools.push_back(BuildTool{ "msvc_link", "link.exe" });
-            desc.tools.push_back(BuildTool{ "msvc_lib", "lib.exe" });
+            reproc::process vcpkg_process;
+            std::vector<std::string> cmdline;
 
-            desc.vars["msvc_cflags"] = "/nologo /interface /MP /std:c++latest /experimental:module /EHsc /MD";
-            desc.vars["msvc_lflags"] = "/nologo";
-        }
+            cmdline.push_back((mVcpkgPath / "vcpkg").string());
+            cmdline.push_back("install");
+            cmdline.push_back(dep.name);
 
-        bool InitBuildTarget(NinjaBuildDesc& desc, const Target& target)
-        {
-            if (target.type != TargetType::Executable && target.type != TargetType::StaticLibrary && target.type != TargetType::SharedLibrary)
-                return false;
-
-            auto path = GetEscapedModulePath(target);
-
-            TargetConfig cxx_flags = GetRecursiveMapCfg(target, "cxx-flags");
-            TargetConfig link_flags = GetRecursiveMapCfg(target, "cxx-link-flags");
-
-            TargetConfig definitions = GetRecursiveMapCfg(target, "cxx-compile-definitions");
-            TargetConfig definitions_pub = GetRecursiveMapCfg(target, "cxx-compile-definitions-public");
-            definitions_pub["WIN32"] = true;
-
-            std::string flags_base = "$msvc_cflags $target_custom_flags";
-
-            flags_base += fmt::format(" /ifcOutput $builddir/{}", target.module);
-
-            // flags_base += " /I\"" + target.path + "\"";
-
-            std::vector<const Target*> include_deps;
-            PopulateTargetDependencySetNoResolve(&target, include_deps);
-
-            for (auto& target : include_deps)
+            auto start_ec = vcpkg_process.start(cmdline, options);
+            if (start_ec)
             {
-                flags_base += " /I\"" + target->path + "\"";
-                flags_base += fmt::format(" /ifcSearchDir $builddir/{}", target->module);
+                throw TargetLoadException(fmt::format("vcpkg failed to start: {}", start_ec.message()));
             }
 
-            for (auto& target : include_deps)
+            auto [exit_code, end_ec] = vcpkg_process.wait(reproc::infinite);
+
+            if (end_ec)
             {
-                auto dependency_defines = GetRecursiveMapCfg(*target, "cxx-compile-definitions-public");
+                throw TargetLoadException(fmt::format("vcpkg failed to run: {} (exit_code={})", end_ec.message(), exit_code));
+            }
 
-                for (const std::pair<YAML::Node, YAML::Node>& kv : dependency_defines)
+            if (exit_code)
+            {
+                throw TargetLoadException(fmt::format("vcpkg failed: exit_code={}", exit_code));
+            }
+
+            auto path = mVcpkgPath / "packages" / (dep.name + "_x86-windows");
+
+            YAML::Node config{ YAML::NodeType::Map };
+
+            if (std::filesystem::exists(path / "include"))
+                config["cxx-include-dirs"].push_back((path / "include").string());
+            
+            if (std::filesystem::exists(path / "lib"))
+            {
+                for (auto& file : std::filesystem::directory_iterator{ path / "lib" })
                 {
-                    auto name = kv.first.as<std::string>();
-                    auto value = kv.second.as<std::string>();
-
-                    if (!definitions_pub[name])
-                        definitions_pub[name] = value;
+                    if (file.is_regular_file())
+                        config["cxx-link-deps"].push_back(file.path().string());
                 }
             }
 
-            for (const std::pair<YAML::Node, YAML::Node>& kv : definitions_pub)
-            {
-                auto name = kv.first.as<std::string>();
-                auto value = kv.second.as<std::string>();
+            auto target = std::make_unique<Target>(path.string(), dep.name, TargetType::StaticLibrary, config);
 
-                if (!definitions[name])
-                    definitions[name] = value;
-            }
-
-            for (const std::pair<YAML::Node, YAML::Node>& kv : definitions)
-            {
-                auto name = kv.first.as<std::string>();
-                auto value = kv.second.as<std::string>();
-
-                flags_base += " /D" + name + "=" + value;
-            }
-
-            BuildRule rule_regular;
-            rule_regular.vars["deps"] = "msvc";
-
-            rule_regular.name = "msvc_cxx_" + path;
-            rule_regular.tool = "msvc_cxx";
-            rule_regular.cmdline = fmt::format("{} /c $in /Fo:$out", flags_base);
-            rule_regular.description = "Building C++ source $in";
-
-            BuildRule rule_ixx;
-            rule_ixx.vars["deps"] = "msvc";
-
-            rule_ixx.name = "msvc_cxx_mi_" + path;
-            rule_ixx.tool = "msvc_cxx";
-            rule_ixx.cmdline = fmt::format("{} /interface /c $in /Fo:$out", flags_base);
-            rule_ixx.description = "Building C++ module interface source $in";
-
-            std::string deps_input = "";
-
-            for (auto& dep : target.dependencies)
-            {
-                if (!dep.resolved)
-                    throw TargetLoadException("unresolved dependency " + dep.name + " at build generation time");
-
-                if (dep.resolved->type != TargetType::StaticLibrary)
-                    continue;
-
-                bool skip = false;                
-
-                for (auto& dep_in : target.dependencies)
-                {
-                    for (auto& dep_in_in : dep_in.resolved->dependencies)
-                        if (dep_in_in.resolved == dep.resolved)
-                            skip = true;
-                }
-
-                if (skip)
-                    continue;
-
-                bool has_any_eligible_sources = false;
-                for (auto& file : dep.resolved->sources)
-                    if (file.provider == this)
-                    {
-                        has_any_eligible_sources = true;
-                        break;
-                    }
-
-                if (has_any_eligible_sources)
-                {
-                    deps_input += "$msvc_artifact_" + GetEscapedModulePath(*dep.resolved);
-                    deps_input += " ";
-                }
-            }
-
-            BuildRule rule_link;
-
-            rule_link.name = "msvc_link_" + path;
-            rule_link.tool = "msvc_link";
-            rule_link.cmdline = fmt::format("$msvc_lflags $target_custom_flags {}$in /OUT:$out", deps_input);
-            rule_link.description = "Linking target $out";
-
-            BuildRule rule_lib;
-
-            rule_lib.name = "msvc_lib_" + path;
-            rule_lib.tool = "msvc_lib";
-            rule_lib.cmdline = fmt::format("$msvc_lflags $target_custom_flags {}$in /OUT:$out", deps_input);
-            rule_lib.description = "Archiving target $out";
-
-            desc.rules.emplace_back(std::move(rule_regular));
-            desc.rules.emplace_back(std::move(rule_ixx));
-            desc.rules.emplace_back(std::move(rule_link));
-            desc.rules.emplace_back(std::move(rule_lib));
-
-            desc.vars["msvc_path_" + path] = target.path;
-            desc.vars["msvc_config_path_" + path] = target.config_path;
-
-            return true;
-        }
-
-        void ProcessSourceFile(NinjaBuildDesc& desc, const Target& target, const SourceFile& file)
-        {
-            if (file.provider != this)
-                return;
-
-            auto path = GetEscapedModulePath(target);
-
-            BuildTarget build_target;
-            auto local_path = file.path.substr(target.path.size() + 1);
-
-            build_target.in = "$msvc_path_" + path + "/" + local_path;
-            build_target.out = fmt::format("$builddir/{}/{}.obj", target.module, local_path);
-
-            if (file.extension == ".ixx")
-                build_target.rule = "msvc_cxx_mi_" + path;
-            else
-                build_target.rule = "msvc_cxx_" + path;
-
-            desc.targets.emplace_back(std::move(build_target));
-        }
-
-        void CreateTargetArtifact(NinjaBuildDesc& desc, const Target& target)
-        {
-            auto path = GetEscapedModulePath(target);
-
-            BuildTarget link_target;
-
-            link_target.out = "$builddir/build/" + target.module;
-            link_target.rule = "msvc_link_" + path;
-
-            switch (target.type)
-            {
-            case TargetType::Executable:
-                link_target.out += ".exe";
-                break;
-            case TargetType::StaticLibrary:
-                link_target.out += ".lib";
-                link_target.rule = "msvc_lib_" + path;
-                break;
-            case TargetType::SharedLibrary:
-                link_target.out += ".dll";
-                link_target.vars["target_custom_flags"] += " /DLL";
-                break;
-            }
-
-            for (auto& file : target.sources)
-            {
-                if (file.provider == this)
-                {
-                    auto local_path = file.path.substr(target.path.size() + 1);
-
-                    link_target.in += fmt::format("$builddir/{}/{}.obj", target.module, local_path);
-                    link_target.in += " ";
-                }
-            }
-
-            for (auto& dep : target.dependencies)
-                if (dep.resolved && dep.resolved->type != TargetType::Custom)
-                    link_target.deps.push_back(dep.resolved->module);
-
-            link_target.deps.push_back("$msvc_config_path_" + path);
-
-            BuildTarget alias_target;
-
-            alias_target.in = link_target.out;
-            alias_target.out = target.module;
-            alias_target.rule = "phony";
-
-            desc.vars["msvc_artifact_" + path] = link_target.out;
-
-            desc.targets.emplace_back(std::move(link_target));
-            desc.targets.emplace_back(std::move(alias_target));
+            auto& result = (mTargetCache[dep.name] = std::move(target));
+            return result.get();
         }
 
     private:
-        TargetConfig GetRecursiveMapCfg(const Target& leaf, std::string_view key)
-        {
-            auto result = TargetConfig{ YAML::NodeType::Map };
-            auto p = &leaf;
+        std::filesystem::path mVcpkgPath;
 
-            while (p)
-            {
-                if (auto map = leaf.GetCfgEntry<TargetConfig>(key))
-                {
-                    for(const std::pair<YAML::Node, YAML::Node>& kv : *map)
-                    {
-                        auto type = kv.first.as<std::string>();
-                        auto& yaml = kv.second;
-
-                        if (!result[type])
-                            result[type] = yaml;
-                    }
-                }
-
-                p = p->parent;
-            }
-
-            return result;
-        }
-
-        std::string GetEscapedModulePath(const Target& target)
-        {
-            auto module_escaped = target.module;
-            std::replace(module_escaped.begin(), module_escaped.end(), '.', '_');
-            return module_escaped;
-        }
-
-        YAML::Node mEnvConfig;
+        std::unordered_map<std::string, std::unique_ptr<Target>> mTargetCache;
     };
 }
-*/
 
 namespace re
 {
@@ -326,74 +122,6 @@ namespace re
 
 namespace re
 {
-    void GenerateNinjaBuildFile(BuildEnv& env, const std::string& out_dir)
-    {
-        auto targets = env.GetTargetsInDependencyOrder();
-
-        std::string path = out_dir + "/build.ninja";
-
-        std::unique_ptr<std::FILE, decltype(&std::fclose)> file{ std::fopen(path.data(), "w"), &std::fclose };
-
-        constexpr auto kDefaultLinkerPath = R"(C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30037\bin\Hostx64\x64\)";
-        constexpr auto kDefaultLibPath = R"(C:\Program Files\\ (x86)\Windows\\ Kits\10\Lib\10.0.19041.0\um\x64)";
-
-        fmt::print(file.get(), "cc = {}/cl.exe\n", kDefaultLinkerPath);
-        fmt::print(file.get(), "link = {}/link.exe\n", kDefaultLinkerPath);
-
-        fmt::print(file.get(), "builddir = .\n", out_dir);
-
-        fmt::print(file.get(), "cflags = /nologo /std:c++latest /experimental:module /EHsc /MD\n");
-        fmt::print(file.get(), "lflags = /LIBPATH:{}\n", kDefaultLibPath);
-
-        auto cflags_plus_inout = "$cflags /c $in /Fo:$out";
-
-        fmt::print(file.get(), "rule cxx\n");
-        fmt::print(file.get(), "    command = $cc {}\n", cflags_plus_inout);
-        fmt::print(file.get(), "    description = CXX $in\n");
-
-        fmt::print(file.get(), "rule cxx_module_iface\n");
-        fmt::print(file.get(), "    command = $cc /interface {}\n", cflags_plus_inout);
-        fmt::print(file.get(), "    description = CXX_MI $in\n");
-
-        fmt::print(file.get(), "rule link\n");
-        fmt::print(file.get(), "    command = $link $in /OUT:$out\n");
-        fmt::print(file.get(), "    description = LINK $out\n");
-
-        for (auto& target : targets)
-        {
-            auto module_escaped = target->module;
-            std::replace(module_escaped.begin(), module_escaped.end(), '.', '_');
-
-            std::filesystem::create_directories(out_dir + "/" + target->module);
-
-            fmt::print(file.get(), "path_{} = {}\n", module_escaped, target->path);
-
-            for (auto& source : target->sources)
-            {
-                auto local_path = source.path.substr(target->path.size() + 1);
-                fmt::print(file.get(), "build $builddir/{}/{}.obj: ", target->module, local_path);
-
-                if(source.extension == ".ixx")
-                    fmt::print(file.get(), "cxx_module_iface $path_{}/{}\n", module_escaped, local_path);
-                else
-                    fmt::print(file.get(), "cxx $path_{}/{}\n", module_escaped, local_path);
-            }
-
-            if (target->type == TargetType::Executable)
-            {
-                fmt::print(file.get(), "build $builddir/{}.exe: link", target->name);
-
-                for (auto& source : target->sources)
-                {
-                    auto local_path = source.path.substr(target->path.size() + 1);
-                    fmt::print(file.get(), " $builddir/{}/{}.obj", target->module, local_path);
-                }
-
-                fmt::print(file.get(), "\n");
-            }
-        }
-    }
-
     void GenerateNinjaBuildFile(const NinjaBuildDesc& desc, const std::string& out_dir)
     {
         constexpr auto kToolPrefix = "re_tool_";
@@ -464,6 +192,9 @@ namespace re
 
         re::CxxLangProvider provider{ (path_to_me / "data" / "environments" / "cxx").string() };
         env.AddLangProvider("cpp", &provider);
+
+        VcpkgDepResolver vcpkg_resolver{ path_to_me / "data" / "deps" / "vcpkg" };
+        env.AddDepResolver("vcpkg", &vcpkg_resolver);
 
         env.LoadCoreProjectTarget((path_to_me / "data" / "core-project").string());
 
