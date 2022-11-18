@@ -60,6 +60,47 @@ namespace re
 
 			return result;
 		}
+
+		inline void AppendIncludeDirs(const Target& target, const std::string& cxx_include_dir_tpl, std::vector<std::string>& out_flags)
+		{
+			out_flags.push_back(fmt::format(
+				cxx_include_dir_tpl,
+				fmt::arg("directory", target.path)
+			));
+
+			auto extra_includes = GetRecursiveSeqCfg(target, "cxx-include-dirs");
+
+			for (const auto& v : extra_includes)
+			{
+				auto dir = fmt::format(
+					v.as<std::string>(),
+					fmt::arg("src", target.path)
+				);
+
+				out_flags.push_back(fmt::format(
+					cxx_include_dir_tpl,
+					fmt::arg("directory", dir)
+				));
+			}
+		}
+
+		inline void AppendLinkFlags(const Target& target, const std::string& cxx_lib_dir_tpl, std::vector<std::string>& out_flags, std::unordered_set<std::string>& out_deps)
+		{
+			auto link_lib_dirs = GetRecursiveSeqCfg(target, "cxx-lib-dirs");
+
+			for (const auto& dir : link_lib_dirs)
+			{
+				out_flags.push_back(fmt::format(
+					cxx_lib_dir_tpl,
+					fmt::arg("directory", dir.as<std::string>())
+				));
+			}
+
+			auto extra_link_deps = GetRecursiveSeqCfg(target, "cxx-link-deps");
+
+			for (const auto& dep : extra_link_deps)
+				out_deps.insert(fmt::format("\"{}\"", dep.as<std::string>()));
+		}
 	}
 
 	CxxLangProvider::CxxLangProvider(std::string_view env_search_path)
@@ -181,10 +222,7 @@ namespace re
 
 		for (auto& target : include_deps)
 		{
-			extra_flags.push_back(fmt::format(
-				cxx_include_dir,
-				fmt::arg("directory", target->path)
-			));
+			AppendIncludeDirs(*target, cxx_include_dir, extra_flags);
 
 			// TODO: Make this only work with modules enabled???
 			extra_flags.push_back(fmt::format(
@@ -193,20 +231,6 @@ namespace re
 			));
 		}
 
-		auto extra_includes = GetRecursiveSeqCfg(target, "cxx-include-dirs");
-
-		for (const auto& v : extra_includes)
-		{
-			auto dir = fmt::format(
-				v.as<std::string>(),
-				fmt::arg("src", target.path)
-			);
-
-			extra_flags.push_back(fmt::format(
-				cxx_include_dir,
-				fmt::arg("directory", dir)
-			));
-		}
 
 		/////////////////////////////////////////////////////////////////
 
@@ -257,6 +281,9 @@ namespace re
 				rule_cxx.vars[var.first.as<std::string>()] = var.second.as<std::string>();
 
 		std::unordered_set<std::string> deps_list;
+		std::vector<std::string> extra_link_flags;
+
+		auto cxx_lib_dir = templates["cxx-lib-dir"].as<std::string>();
 
 		for (auto& dep : include_deps)
 		{
@@ -284,6 +311,16 @@ namespace re
 			{
 				deps_list.insert("$cxx_artifact_" + res_path);
 			}
+
+			AppendLinkFlags(*dep, cxx_lib_dir, extra_link_flags, deps_list);
+		}
+
+		std::string extra_link_flags_str = "";
+
+		for (auto& flag : extra_link_flags)
+		{
+			extra_link_flags_str.append(" ");
+			extra_link_flags_str.append(flag);
 		}
 
 		std::string deps_input = "";
@@ -301,7 +338,7 @@ namespace re
 
 		rule_link.cmdline = fmt::format(
 			templates["linker-cmdline"].as<std::string>(),
-			fmt::arg("flags", "$target_custom_flags $re_cxx_target_lflags_" + path),
+			fmt::arg("flags", "$target_custom_flags $re_cxx_target_lflags_" + path + extra_link_flags_str),
 			fmt::arg("link_deps", deps_input),
 			fmt::arg("input", "$in"),
 			fmt::arg("output", "$out")
@@ -314,7 +351,7 @@ namespace re
 		rule_lib.tool = "cxx_archiver_" + path;
 		rule_lib.cmdline = fmt::format(
 			templates["archiver-cmdline"].as<std::string>(),
-			fmt::arg("flags", "$target_custom_flags $re_cxx_target_arflags_" + path),
+			fmt::arg("flags", "$target_custom_flags $re_cxx_target_arflags_" + path + extra_link_flags_str),
 			fmt::arg("link_deps", deps_input),
 			fmt::arg("input", "$in"),
 			fmt::arg("output", "$out")
