@@ -287,8 +287,8 @@ namespace re
 
 		for (auto& dep : include_deps)
 		{
-			if (dep->type != TargetType::StaticLibrary)
-				continue;
+			//if (dep->type != TargetType::StaticLibrary)
+			//	continue;
 
 			/*
 			bool skip = false;
