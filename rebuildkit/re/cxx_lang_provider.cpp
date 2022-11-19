@@ -307,7 +307,7 @@ namespace re
 			auto res_path = GetEscapedModulePath(*dep);
 			bool has_any_eligible_sources = (desc.state["re_cxx_target_has_objects_" + res_path] == "1");
 
-			if (has_any_eligible_sources)
+			if (dep->type == TargetType::StaticLibrary && has_any_eligible_sources)
 			{
 				deps_list.insert("$cxx_artifact_" + res_path);
 			}
