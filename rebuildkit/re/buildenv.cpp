@@ -102,7 +102,7 @@ namespace re
 
 		for (auto& target : GetTargetsInDependencyOrder())
 		{
-			// fmt::print(" [DBG] Generating build desc for target '{}'\n", target->module);
+			fmt::print(" [DBG] Generating build desc for target '{}'\n", target->module);
 
 			auto langs = target->GetCfgEntry<TargetConfig>("langs", CfgEntryKind::Recursive).value_or(TargetConfig{YAML::NodeType::Sequence});
 
@@ -159,13 +159,13 @@ namespace re
 		mDepResolvers[name.data()] = resolver;
 	}
 
-	Target* BuildEnv::ResolveTargetDependency(const TargetDependency& dep)
+	Target* BuildEnv::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
 	{
 		if (dep.ns.empty() || dep.ns == "local")
 			return GetTargetOrNull(dep.name);
 
 		if (auto resolver = mDepResolvers[dep.ns])
-			return resolver->ResolveTargetDependency(dep);
+			return resolver->ResolveTargetDependency(target, dep);
 		else
 			throw TargetLoadException("unknown target namespace " + dep.ns);
 	}
@@ -186,7 +186,7 @@ namespace re
 	{
 		PopulateTargetDependencySet(pTarget, to, [this, &to, pTarget](const TargetDependency& dep) -> Target*
 		{
-			if (auto target = ResolveTargetDependency(dep))
+			if (auto target = ResolveTargetDependency(*pTarget, dep))
 			{
 				AppendDepsAndSelf(target, to);
 				return target;
