@@ -27,7 +27,11 @@ namespace re
 		void AddLangProvider(std::string_view name, ILangProvider* provider);
 		ILangProvider* GetLangProvider(std::string_view name) override;
 
-		NinjaBuildDesc GenerateBuildDesc();
+		void PopulateBuildDesc(NinjaBuildDesc& desc);
+
+		void RunTargetAction(const NinjaBuildDesc& desc, const Target& target, const std::string& type, const TargetConfig& data);
+
+		void RunPostBuildActions(const NinjaBuildDesc& desc);
 
 		void AddDepResolver(std::string_view name, IDepResolver* resolver);
 		Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep) override;
@@ -54,5 +58,7 @@ namespace re
 		void PopulateTargetMap(Target* pTarget);
 
 		void AppendDepsAndSelf(Target* pTarget, std::vector<Target*>& to);
+
+		void RunActionsCategorized(const NinjaBuildDesc& desc, std::string_view run_type);
 	};
 }

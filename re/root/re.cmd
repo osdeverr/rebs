@@ -5,6 +5,7 @@ if "%1"=="env" goto run_tool
 if "%1"=="install" goto run_tool
 if "%1"=="new" goto run_tool
 if "%1"=="help" goto run_tool
+if "%1"=="run" goto run_tool
 
 if "%2"=="" goto default_build
 

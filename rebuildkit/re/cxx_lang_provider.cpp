@@ -84,22 +84,27 @@ namespace re
 			}
 		}
 
-		inline void AppendLinkFlags(const Target& target, const std::string& cxx_lib_dir_tpl, std::vector<std::string>& out_flags, std::unordered_set<std::string>& out_deps)
+		inline void AppendLinkFlags(const Target& target, const std::string& cxx_lib_dir_tpl, std::vector<std::string>& out_flags, std::unordered_set<std::string>& out_deps, const std::string& build_arch)
 		{
 			auto link_lib_dirs = GetRecursiveSeqCfg(target, "cxx-lib-dirs");
 
 			for (const auto& dir : link_lib_dirs)
 			{
+				auto formatted = fmt::format(
+					dir.as<std::string>(),
+					fmt::arg("build_arch", build_arch)
+				);
+
 				out_flags.push_back(fmt::format(
 					cxx_lib_dir_tpl,
-					fmt::arg("directory", dir.as<std::string>())
+					fmt::arg("directory", formatted)
 				));
 			}
 
 			auto extra_link_deps = GetRecursiveSeqCfg(target, "cxx-link-deps");
 
 			for (const auto& dep : extra_link_deps)
-				out_deps.insert(fmt::format("\"{}\"", dep.as<std::string>()));
+				out_deps.insert(fmt::format("\"{}\"", fmt::format(dep.as<std::string>(), fmt::arg("build_arch", build_arch))));
 		}
 	}
 
@@ -312,7 +317,7 @@ namespace re
 				deps_list.insert("$cxx_artifact_" + res_path);
 			}
 
-			AppendLinkFlags(*dep, cxx_lib_dir, extra_link_flags, deps_list);
+			AppendLinkFlags(*dep, cxx_lib_dir, extra_link_flags, deps_list, desc.vars["re_build_arch"]);
 		}
 
 		std::string extra_link_flags_str = "";
@@ -389,11 +394,14 @@ namespace re
 		auto extension = env["default-extensions"]["object"].as<std::string>();
 
 		BuildTarget build_target;
+
+		build_target.type = BuildTargetType::Object;
+
 		build_target.pSourceTarget = &target;
 		build_target.pSourceFile = &file;
 
 		build_target.in = "$cxx_path_" + path + "/" + local_path;
-		build_target.out = fmt::format("$builddir/{}/{}.{}", target.module, local_path, extension);
+		build_target.out = fmt::format("$builddir/{}/{}.{}", desc.GetObjectDirectory(target.module), local_path, extension);
 		build_target.rule = "cxx_compile_" + path;
 
 		desc.targets.emplace_back(std::move(build_target));
@@ -410,8 +418,9 @@ namespace re
 
 		BuildTarget link_target;
 
+		link_target.type = BuildTargetType::Artifact;
 		link_target.pSourceTarget = &target;
-		link_target.out = "$builddir/build/" + target.module;
+		link_target.out = "$builddir/" + desc.GetArtifactDirectory(target.module) + "/" + target.module;
 		link_target.rule = "cxx_link_" + path;
 
 		std::string extension = "";
@@ -467,6 +476,7 @@ namespace re
 
 		BuildTarget alias_target;
 
+		alias_target.type = BuildTargetType::Alias;
 		alias_target.in = link_target.out;
 		alias_target.out = target.module;
 		alias_target.rule = "phony";
