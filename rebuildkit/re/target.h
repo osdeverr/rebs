@@ -3,6 +3,7 @@
 #include <string_view>
 #include <optional>
 #include <filesystem>
+#include <unordered_set>
 
 #include <yaml-cpp/yaml.h>
 
@@ -95,6 +96,9 @@ namespace re
 
         std::string config_path;
         TargetConfig config;
+
+        // Targets that depend on this target.
+        std::unordered_set<Target*> dependents;
 
         /*
         // Contains the entire flattened dependency cache for this target in the order {children}..{dependencies recursively}..{itself}.

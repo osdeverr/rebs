@@ -89,13 +89,14 @@ namespace re
 		return mLangProviders[name.data()];
 	}
 
-	NinjaBuildDesc BuildEnv::GenerateBuildDesc()
+	void BuildEnv::PopulateBuildDesc(NinjaBuildDesc& desc)
 	{
-		NinjaBuildDesc desc;
+		//auto re_arch = std::getenv("RE_ARCH");
+		//auto re_platform = std::getenv("RE_PLATFORM");
 
-		desc.vars["re_build_platform"] = "windows";
-		desc.vars["re_build_platform_closest"] = "windows";
-		desc.vars["re_build_arch"] = "x64";
+		desc.vars["re_build_platform"] = std::getenv("RE_PLATFORM");
+		desc.vars["re_build_platform_closest"] = std::getenv("RE_PLATFORM");
+		desc.vars["re_build_arch"] = std::getenv("RE_ARCH");
 
 		for (auto& [name, provider] : mLangProviders)
 			provider->InitInBuildDesc(desc);
@@ -150,8 +151,43 @@ namespace re
 					throw TargetLoadException("unknown link-with language " + *link_language + " in target " + target->module);
 			}
 		}
+	}
 
-		return desc;
+	void BuildEnv::RunTargetAction(const NinjaBuildDesc& desc, const Target& target, const std::string& type, const TargetConfig& data)
+	{
+		if (type == "copy")
+		{
+			auto from = data["from"].as<std::string>();
+			auto to = data["to"].as<std::string>();
+
+			std::filesystem::copy(
+				target.path + "/" + from,
+				desc.out_dir + "/" + desc.GetArtifactDirectory(target.module) + "/" + to,
+				std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
+			);
+		}
+		else if (type == "copy-to-deps")
+		{
+			auto from = data["from"].as<std::string>();
+			auto to = data["to"].as<std::string>();
+
+			for (auto& dependent : target.dependents)
+			{
+				auto to_dep = desc.out_dir + "/" + desc.GetArtifactDirectory(dependent->module);
+
+				if (std::filesystem::exists(to_dep))
+					std::filesystem::copy(
+						target.path + "/" + from,
+						to_dep + "/" + to,
+						std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
+					);
+			}
+		}
+	}
+
+	void BuildEnv::RunPostBuildActions(const NinjaBuildDesc& desc)
+	{
+		RunActionsCategorized(desc, "post-build");
 	}
 
 	void BuildEnv::AddDepResolver(std::string_view name, IDepResolver* resolver)
@@ -188,11 +224,41 @@ namespace re
 		{
 			if (auto target = ResolveTargetDependency(*pTarget, dep))
 			{
+				target->dependents.insert(pTarget);
+
 				AppendDepsAndSelf(target, to);
 				return target;
 			}
 
 			return nullptr;
 		});
+	}
+
+	void BuildEnv::RunActionsCategorized(const NinjaBuildDesc& desc, std::string_view run_type)
+	{
+		for (auto& target : GetTargetsInDependencyOrder())
+		{
+			if (auto actions = target->GetCfgEntry<TargetConfig>("actions"))
+			{
+				for (const auto& v : *actions)
+				{
+					for (const auto& kv : v)
+					{
+						auto type = kv.first.as<std::string>();
+						auto& data = kv.second;
+
+						std::string run = "post-build";
+						// fmt::print("{}\n", type);
+
+						if (auto run_val = data["run"])
+							run = run_val.as<std::string>();
+
+
+						if (run == run_type)
+							RunTargetAction(desc, *target, type, data);
+					}
+				}
+			}
+		}
 	}
 }

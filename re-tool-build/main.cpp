@@ -163,7 +163,9 @@ namespace re
             YAML::Node config{ YAML::NodeType::Map };
 
             if (std::filesystem::exists(path / "include"))
+            {
                 config["cxx-include-dirs"].push_back((path / "include").string());
+            }
 
             if (std::filesystem::exists(path / "lib"))
             {
@@ -172,6 +174,16 @@ namespace re
                     if (file.is_regular_file())
                         config["cxx-link-deps"].push_back(file.path().string());
                 }
+            }
+
+            if (std::filesystem::exists(path / "bin"))
+            {
+                YAML::Node entry{ YAML::NodeType::Map };
+
+                entry["copy-to-deps"]["from"] = "./bin";
+                entry["copy-to-deps"]["to"] = ".";
+
+                config["actions"].push_back(entry);
             }
 
             auto package_target = std::make_unique<Target>(path.string(), "vcpkg." + dep.name, TargetType::StaticLibrary, config);
@@ -212,6 +224,7 @@ namespace re
                 }
             }
 
+            /*
             package_target->config["name"] = package_target->name;
             package_target->config["type"] = TargetTypeToString(package_target->type);
 
@@ -225,6 +238,7 @@ namespace re
 
             std::ofstream of{ "debug/vcpkg-packages/" + dep.name + ".yml" };
             of << emitter.c_str();
+            */
 
             auto& result = (mTargetCache[dep.name] = std::move(package_target));
             return result.get();
@@ -286,7 +300,7 @@ namespace re
 
         fmt::ostream out = fmt::output_file(path);
 
-        out.print("builddir = .\n");
+        out.print("builddir = .\n", desc.out_dir);
 
         for (auto& [key, val] : desc.vars)
             out.print("{} = {}\n", key, val);
@@ -342,6 +356,14 @@ namespace re
         */
     }
 
+    std::string& ReplaceInString(std::string& s, const std::string& from, const std::string& to)
+    {
+        if (!from.empty())
+            for (size_t pos = 0; (pos = s.find(from, pos)) != std::string::npos; pos += to.size())
+                s.replace(pos, from.size(), to);
+        return s;
+    }
+
     int BuildReTargetAt(const std::filesystem::path& path_to_me, std::string_view path)
     {
         re::BuildEnv env;
@@ -363,10 +385,20 @@ namespace re
 
         auto& root = env.LoadTarget(path.data());
 
-        auto out_dir = root.GetCfgEntry<std::string>("output-directory").value_or(root.path + "/out");
+        auto re_arch = std::getenv("RE_ARCH");
+        auto re_platform = std::getenv("RE_PLATFORM");
+
+        auto out_dir = root.GetCfgEntry<std::string>("output-directory").value_or(root.path + "/out/" + fmt::format("{}-{}", re_arch, re_platform));
+
         std::filesystem::create_directories(out_dir);
 
-        auto desc = env.GenerateBuildDesc();
+        NinjaBuildDesc desc;
+
+        desc.out_dir = out_dir;
+        desc.artifact_out_format = root.GetCfgEntry<std::string>("artifact-dir-format", CfgEntryKind::Recursive).value_or("build");
+        desc.object_out_format = root.GetCfgEntry<std::string>("object-dir-format", CfgEntryKind::Recursive).value_or("{module}");
+
+        env.PopulateBuildDesc(desc);
         re::GenerateNinjaBuildFile(desc, out_dir);
 
         auto path_to_ninja = path_to_me / "ninja.exe";
@@ -401,6 +433,9 @@ namespace re
             fmt::print(stderr, "\n [{}] Build failed! (exit_code={})\n", root.module, exit_code);
             return exit_code;
         }
+
+        // Running post-build actions
+        env.RunPostBuildActions(desc);
 
         return 0;
     }
