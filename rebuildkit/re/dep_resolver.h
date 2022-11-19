@@ -10,6 +10,6 @@ namespace re
 	{
 		virtual ~IDepResolver() = default;
 
-		virtual Target* ResolveTargetDependency(const TargetDependency& dep) = 0;
+		virtual Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep) = 0;
 	};
 }

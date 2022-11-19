@@ -75,6 +75,7 @@ namespace re
         this->type = type;
         this->config = config;
         this->name = name;
+        this->module = name;
     }
 
     void Target::LoadBaseData()

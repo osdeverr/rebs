@@ -8,10 +8,44 @@
 #include <fmt/format.h>
 #include <fmt/os.h>
 #include <fmt/args.h>
+#include <fmt/color.h>
 
 #include <reproc++/reproc.hpp>
 
 #include <re/detail/semver.hpp>
+
+namespace re
+{
+    int RunProcessOrThrow(std::string_view program_name, const std::vector<std::string>& cmdline, bool output = false, bool throw_on_bad_exit = false)
+    {
+        reproc::options options;
+        options.redirect.parent = output;
+
+        reproc::process process;
+
+        auto start_ec = process.start(cmdline, options);
+        if (start_ec)
+        {
+            throw TargetLoadException(fmt::format("{} failed to start: {}", program_name, start_ec.message()));
+        }
+
+        auto [exit_code, end_ec] = process.wait(reproc::infinite);
+
+        // process.read(reproc::stream::out, );
+
+        if (end_ec)
+        {
+            throw TargetLoadException(fmt::format("{} failed to run: {} (exit_code={})", program_name, end_ec.message(), exit_code));
+        }
+
+        if (throw_on_bad_exit && exit_code != 0)
+        {
+            throw TargetLoadException(fmt::format("{} failed: exit_code={}", program_name, exit_code));
+        }
+
+        return exit_code;
+    }
+}
 
 namespace re
 {
@@ -22,37 +56,103 @@ namespace re
             : mVcpkgPath{ path }
         {}
 
-        Target* ResolveTargetDependency(const TargetDependency& dep)
+        Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep)
         {
-            reproc::options options;
-            options.redirect.parent = true;
+            if (auto& cached = mTargetCache[dep.name])
+                return cached.get();
 
-            reproc::process vcpkg_process;
-            std::vector<std::string> cmdline;
+            auto vcpkg_root = mVcpkgPath;
 
-            cmdline.push_back((mVcpkgPath / "vcpkg").string());
-            cmdline.push_back("install");
-            cmdline.push_back(dep.name);
+            if (auto path = target.GetCfgEntry<std::string>("vcpkg-root-path", CfgEntryKind::Recursive))
+                vcpkg_root = std::filesystem::path{ *path };
 
-            auto start_ec = vcpkg_process.start(cmdline, options);
-            if (start_ec)
+            if (!std::filesystem::exists(vcpkg_root))
             {
-                throw TargetLoadException(fmt::format("vcpkg failed to start: {}", start_ec.message()));
+                fmt::print(
+                    fmt::emphasis::bold | fg(fmt::color::light_sea_green),
+                    "[{}] [vcpkg] Target dependency '{}' needs vcpkg. Installing...\n\n",
+                    target.module,
+                    dep.name
+                );
+
+                std::filesystem::create_directories(vcpkg_root);
+
+                // Try cloning it to Git.
+                RunProcessOrThrow(
+                    "git",
+                    {
+                        "git",
+                        "clone",
+                        "https://github.com/microsoft/vcpkg.git",
+                        vcpkg_root.string()
+                    },
+                    true,
+                    true
+                );
+
+                std::system((vcpkg_root / "bootstrap-vcpkg").string().c_str());
+
+                /*
+                RunProcessOrThrow(
+                    "bootstrap-vcpkg",
+                    {
+
+                    }
+                );
+                */
             }
 
-            auto [exit_code, end_ec] = vcpkg_process.wait(reproc::infinite);
+            auto path = vcpkg_root / "packages" / (dep.name + "_x86-windows");
 
-            if (end_ec)
+            // We optimize the lookup by not invoking vcpkg at all if the package is already there.
+            if (!std::filesystem::exists(path))
             {
-                throw TargetLoadException(fmt::format("vcpkg failed to run: {} (exit_code={})", end_ec.message(), exit_code));
-            }
+                fmt::print(
+                    fmt::emphasis::bold | fg(fmt::color::light_green),
+                    "[{}] [vcpkg] Restoring package '{}'... ",
+                    target.module,
+                    dep.name
+                );
 
-            if (exit_code)
+                auto start_time = std::chrono::high_resolution_clock::now();
+
+                RunProcessOrThrow(
+                    "vcpkg",
+                    {
+                        (vcpkg_root / "vcpkg").string(),
+                        "install",
+                        dep.name
+                    },
+                    true, true
+                );
+
+                // Throw if the package still isn't there
+                if (!std::filesystem::exists(path))
+                {
+                    throw TargetLoadException("vcpkg: package not found: " + dep.name);
+                }
+
+                auto end_time = std::chrono::high_resolution_clock::now();
+
+                fmt::print(
+                    fmt::emphasis::bold | fg(fmt::color::light_green),
+                    "done! ({:.2f}s)\n",
+                    std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() / 1000.f
+                );
+            }
+            else
             {
-                throw TargetLoadException(fmt::format("vcpkg failed: exit_code={}", exit_code));
+                // vcpkg-dep dependencies are created automatically within this method itself - no need to spam the console
+                if (dep.ns != "vcpkg-dep")
+                {
+                    fmt::print(
+                        fmt::emphasis::bold | fg(fmt::color::light_green),
+                        "[{}] [vcpkg] Package '{}' already available\n",
+                        target.module,
+                        dep.name
+                    );
+                }
             }
-
-            auto path = mVcpkgPath / "packages" / (dep.name + "_x86-windows");
 
             YAML::Node config{ YAML::NodeType::Map };
 
@@ -68,9 +168,45 @@ namespace re
                 }
             }
 
-            auto target = std::make_unique<Target>(path.string(), dep.name, TargetType::StaticLibrary, config);
+            auto package_target = std::make_unique<Target>(path.string(), "vcpkg." + dep.name, TargetType::StaticLibrary, config);
 
-            auto& result = (mTargetCache[dep.name] = std::move(target));
+            YAML::Node vcpkg_json = YAML::LoadFile((vcpkg_root / "ports" / dep.name / "vcpkg.json").string());
+
+            if (auto deps = vcpkg_json["dependencies"])
+            {
+                for (const auto& vcdep : deps)
+                {
+                    TargetDependency dep;
+
+                    dep.ns = "vcpkg-dep";
+
+                    if (vcdep.IsMap())
+                    {
+                        dep.name = vcdep["name"].as<std::string>();
+
+                        if (auto ver = vcdep["version"])
+                            dep.version = ver.as<std::string>();
+                        else if (auto ver = vcdep["version>="])
+                            dep.version = ">=" + ver.as<std::string>();
+                        else if (auto ver = vcdep["version>"])
+                            dep.version = ">" + ver.as<std::string>();
+                        else if (auto ver = vcdep["version<="])
+                            dep.version = "<=" + ver.as<std::string>();
+                        else if (auto ver = vcdep["version<"])
+                            dep.version = "<" + ver.as<std::string>();
+                    }
+                    else
+                    {
+                        dep.name = vcdep.as<std::string>();
+                    }
+
+                    dep.resolved = ResolveTargetDependency(target, dep);
+
+                    package_target->dependencies.emplace_back(std::move(dep));
+                }
+            }
+
+            auto& result = (mTargetCache[dep.name] = std::move(package_target));
             return result.get();
         }
 
@@ -195,6 +331,7 @@ namespace re
 
         VcpkgDepResolver vcpkg_resolver{ path_to_me / "data" / "deps" / "vcpkg" };
         env.AddDepResolver("vcpkg", &vcpkg_resolver);
+        env.AddDepResolver("vcpkg-dep", &vcpkg_resolver);
 
         env.LoadCoreProjectTarget((path_to_me / "data" / "core-project").string());
 
@@ -273,7 +410,10 @@ int main(int argc, const char** argv)
             {
                 auto& type = args[2];
                 auto& name = args[3];
+
                 auto path = name;
+                if (path.front() == '.')
+                    path = path.substr(1);
 
                 if (args.size() > 4)
                     path = args[4];
@@ -327,6 +467,9 @@ int main(int argc, const char** argv)
     }
     catch (const std::exception &e)
     {
-        fmt::print("\n!!! Failed: {}\n", e.what());
+        fmt::print(
+            fmt::emphasis::bold | bg(fmt::color::dark_red) | fg(fmt::color::white),
+            "\n{}\n", e.what()
+        );
     }
 }

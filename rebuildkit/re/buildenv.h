@@ -30,7 +30,7 @@ namespace re
 		NinjaBuildDesc GenerateBuildDesc();
 
 		void AddDepResolver(std::string_view name, IDepResolver* resolver);
-		Target* ResolveTargetDependency(const TargetDependency& dep) override;
+		Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep) override;
 
 	private:
 		std::unique_ptr<Target> mTheCoreProjectTarget;
