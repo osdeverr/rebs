@@ -48,7 +48,7 @@ namespace re
 			PopulateTargetDependencySetNoResolve(child.get(), to);
 	}
 
-	Target& BuildEnv::LoadTarget(const std::string& path)
+	std::unique_ptr<Target> BuildEnv::LoadFreeTarget(const std::string& path)
 	{
 		auto target = std::make_unique<Target>(path, mTheCoreProjectTarget.get());
 
@@ -57,16 +57,36 @@ namespace re
 		target->LoadSourceTree();
 
 		// mTargetMap.clear();
+		// PopulateTargetMap(target.get());
+
+		return target;
+	}
+
+	Target& BuildEnv::LoadTarget(const std::string& path)
+	{
+		auto target = LoadFreeTarget(path);
+
+		// mTargetMap.clear();
 		PopulateTargetMap(target.get());
 
 		auto& moved = mRootTargets.emplace_back(std::move(target));
 		return *moved.get();
 	}
 
+	void BuildEnv::RegisterLocalTarget(Target* pTarget)
+	{
+		PopulateTargetMap(pTarget);
+	}
+
 	Target& BuildEnv::LoadCoreProjectTarget(const std::string& path)
 	{
 		mTheCoreProjectTarget = std::make_unique<Target>(path);
 		return *mTheCoreProjectTarget;
+	}
+
+	Target* BuildEnv::GetCoreTarget()
+	{
+		return mTheCoreProjectTarget.get();
 	}
 
 	std::vector<Target*> BuildEnv::GetTargetsInDependencyOrder()
@@ -103,7 +123,7 @@ namespace re
 
 		for (auto& target : GetTargetsInDependencyOrder())
 		{
-			fmt::print(" [DBG] Generating build desc for target '{}'\n", target->module);
+			// fmt::print(" [DBG] Generating build desc for target '{}'\n", target->module);
 
 			auto langs = target->GetCfgEntry<TargetConfig>("langs", CfgEntryKind::Recursive).value_or(TargetConfig{YAML::NodeType::Sequence});
 
@@ -208,10 +228,11 @@ namespace re
 
 	void BuildEnv::PopulateTargetMap(Target* pTarget)
 	{
+		// fmt::print(" [DBG] Adding to target map: '{}'\n", pTarget->module);
+
 		if (mTargetMap[pTarget->module] != nullptr)
 			throw TargetLoadException("target " + pTarget->module + " defined more than once");
 
-		// fmt::print(" [DBG] Adding to target map: '{}'\n", pTarget->module);
 		mTargetMap[pTarget->module] = pTarget;
 
 		for (auto& child : pTarget->children)

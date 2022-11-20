@@ -2,6 +2,7 @@
 #include "target.h"
 #include "build_desc.h"
 #include "dep_resolver.h"
+#include "target_loader.h"
 
 #include <string>
 #include <unordered_map>
@@ -15,12 +16,16 @@ namespace re
 	void PopulateTargetDependencySet(Target* pTarget, std::vector<Target*>& to, std::function<Target* (const TargetDependency&)> dep_resolver = {});
 	void PopulateTargetDependencySetNoResolve(const Target* pTarget, std::vector<const Target*>& to);
 
-	class BuildEnv : public ILangLocator, public IDepResolver
+	class BuildEnv : public ILangLocator, public IDepResolver, public ITargetLoader
 	{
 	public:
 		Target& LoadCoreProjectTarget(const std::string& path);
 
+		Target* GetCoreTarget();
+
+		std::unique_ptr<Target> LoadFreeTarget(const std::string& path);
 		Target& LoadTarget(const std::string& path);
+		void RegisterLocalTarget(Target* pTarget);
 
 		std::vector<Target*> GetTargetsInDependencyOrder();
 

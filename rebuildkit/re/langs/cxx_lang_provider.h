@@ -1,5 +1,5 @@
 #pragma once
-#include "lang_provider.h"
+#include <re/lang_provider.h>
 
 #include <yaml-cpp/yaml.h>
 

@@ -175,6 +175,10 @@ namespace re
 
         for (auto& entry : ghc::filesystem::directory_iterator{ path })
         {
+            auto filename = entry.path().filename().string();
+            if (filename.starts_with("."))
+                continue;
+
             if (entry.is_directory())
             {
                 if (DoesDirContainTarget(entry.path().string()))
@@ -221,5 +225,20 @@ namespace re
 
         std::ofstream file{ path.data() + std::string("/re.yml") };
         file << out.c_str();
+    }
+
+    std::string TargetDependency::ToString() const
+    {
+        std::string result;
+
+        if (!ns.empty())
+            result += ns + ":";
+
+        result += name;
+
+        if (!version.empty())
+            result += "@" + version;
+
+        return result;
     }
 }

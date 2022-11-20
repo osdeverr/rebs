@@ -53,6 +53,8 @@ namespace re
         std::string version;
 
         Target* resolved = nullptr;
+
+        std::string ToString() const;
     };
 
     inline std::string ModulePathCombine(const std::string& a, const std::string& b)

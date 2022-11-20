@@ -1,6 +1,7 @@
 #include "cxx_lang_provider.h"
-#include "target.h"
-#include "buildenv.h"
+
+#include <re/target.h>
+#include <re/buildenv.h>
 
 #include <fmt/format.h>
 

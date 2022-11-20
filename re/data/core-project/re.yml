@@ -25,3 +25,5 @@ cxx-env:
 link-with:
     custom: null
     default: cpp
+
+re-cache-dir: .re-cache
