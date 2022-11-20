@@ -1,0 +1,15 @@
+type: static-library
+name: .buildkit
+
+cxx-compile-definitions-public:
+  FMT_HEADER_ONLY: 1
+  REPROCXX_SHARED: 1
+
+deps:
+  - vcpkg:boost-exception
+  - vcpkg:boost-stacktrace
+  - vcpkg:fmt
+  - vcpkg:reproc
+  - vcpkg:yaml-cpp
+  - vcpkg:magic-enum
+  - vcpkg:ghc-filesystem

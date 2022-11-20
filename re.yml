@@ -1,0 +1,6 @@
+type: project
+name: re
+
+artifact-dir-format: "build/{module}"
+
+install: "D:/Programs/ReBS/bin-new"    

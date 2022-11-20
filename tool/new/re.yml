@@ -1,0 +1,5 @@
+type: executable
+name: re-tool-new
+
+deps:
+  - re.buildkit

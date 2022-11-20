@@ -4,3 +4,8 @@
 /out
 
 /examples/complex-project/k2
+
+.vscode/
+
+.re-cache/
+out/
