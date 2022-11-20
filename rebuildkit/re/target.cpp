@@ -181,6 +181,9 @@ namespace re
 
             if (entry.is_directory())
             {
+                if (ghc::filesystem::exists(entry / ".re-ignore-this"))
+                    continue;
+
                 if (DoesDirContainTarget(entry.path().string()))
                 {
                     auto target = std::make_unique<Target>(entry.path().string(), this);
