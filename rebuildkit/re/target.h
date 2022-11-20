@@ -5,6 +5,8 @@
 #include <filesystem>
 #include <unordered_set>
 
+#include <re/error.h>
+
 #include <yaml-cpp/yaml.h>
 
 #include "lang_provider.h"
@@ -30,12 +32,6 @@ namespace re
     {
         Recursive,
         NonRecursive
-    };
-
-    class TargetLoadException : public std::runtime_error
-    {
-    public:
-        using std::runtime_error::runtime_error;
     };
 
     struct SourceFile
@@ -66,6 +62,55 @@ namespace re
         else
             return a + "." + b;
     }
+
+    class Target;
+
+    class TargetException : public Exception
+    {
+    public:
+        TargetException(std::string_view type, const Target* target, const std::string& str);
+
+        template<class F, class... Args>
+        TargetException(std::string_view type, const Target* target, const F& format, Args&&... args)
+            : TargetException{ type, target, fmt::format(format, std::forward<Args>(args)...) }
+        {}
+    };
+
+    class TargetLoadException : public TargetException
+    {
+    public:
+        template<class F, class... Args>
+        TargetLoadException(const Target* target, const F& format, Args&&... args)
+            : TargetException{ "TargetLoadException", target, format, std::forward<Args>(args)... }
+        {}
+    };
+
+    class TargetConfigException : public TargetException
+    {
+    public:
+        template<class F, class... Args>
+        TargetConfigException(const Target* target, const F& format, Args&&... args)
+            : TargetException{ "TargetConfigException", target, format, std::forward<Args>(args)... }
+        {}
+    };
+
+    class TargetDependencyException : public TargetException
+    {
+    public:
+        template<class F, class... Args>
+        TargetDependencyException(const Target* target, const F& format, Args&&... args)
+            : TargetException{ "TargetDependencyException", target, format, std::forward<Args>(args)... }
+        {}
+    };
+
+    class TargetBuildException : public TargetException
+    {
+    public:
+        template<class F, class... Args>
+        TargetBuildException(const Target* target, const F& format, Args&&... args)
+            : TargetException{ "TargetBuildException", target, format, std::forward<Args>(args)... }
+        {}
+    };
 
 	class Target
 	{
@@ -132,7 +177,7 @@ namespace re
             if (auto value = GetCfgEntry<T>(key, kind))
                 return *value;
             else
-                throw TargetLoadException(message.data());
+                RE_THROW TargetConfigException(this, message.data());
         }
 
         /*

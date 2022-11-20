@@ -22,7 +22,7 @@ namespace re
         else if (type == "custom")
             return TargetType::Custom;
         else
-            throw TargetLoadException("unknown target type " + type);
+            RE_THROW Exception("unknown target type {}", type);
     }
 
     const char* TargetTypeToString(TargetType type)
@@ -108,7 +108,7 @@ namespace re
                 std::smatch match;
 
                 if (!std::regex_match(str, match, dep_regex))
-                    throw TargetLoadException("dependency " + str + " does not meet the format requirements");
+                    RE_THROW TargetDependencyException(this, "dependency {} does not meet the format requirements", str);
 
                 TargetDependency dep;
 
@@ -126,7 +126,7 @@ namespace re
                     dep.version = dep.version.substr(1);
 
                 if (dep.name.empty())
-                    throw TargetLoadException("dependency " + str + " does not have a name specified");
+                    RE_THROW TargetDependencyException(this, "dependency {} does not have a name specified", str);
 
                 dep.name = ResolveTargetParentRef(dep.name, parent);
                 dependencies.emplace_back(std::move(dep));
@@ -240,5 +240,10 @@ namespace re
             result += "@" + version;
 
         return result;
+    }
+
+    TargetException::TargetException(std::string_view type, const Target* target, const std::string& str)
+        : Exception{ "{} in target '{}':\n      {}", type, target->module, str }
+    {
     }
 }
