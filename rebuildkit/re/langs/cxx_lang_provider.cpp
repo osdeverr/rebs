@@ -73,8 +73,13 @@ namespace re
 
 			for (const auto& v : extra_includes)
 			{
+				auto path = v.as<std::string>();
+
+				if (!std::filesystem::path{ path }.is_absolute())
+					path = target.path + "/" + path;
+
 				auto dir = fmt::format(
-					v.as<std::string>(),
+					path,
 					fmt::arg("src", target.path)
 				);
 
@@ -149,7 +154,7 @@ namespace re
 			else if (auto val = env_cfg["default"])
 				env_cached_name = val.as<std::string>();
 			else
-				throw TargetLoadException("failed to find platform-specific C++ environment");
+				RE_THROW TargetBuildException(&target, "failed to find platform-specific C++ environment");
 		}
 
 		/////////////////////////////////////////////////////////////////
@@ -509,9 +514,9 @@ namespace re
 
 			return data;
 		}
-		catch (YAML::BadFile const& e)
+		catch (const std::exception& e)
 		{
-			throw TargetLoadException(std::string("failed to load C++ environment ") + name.data() + " for target " + invokee.module + ": " + e.what());
+			RE_THROW TargetBuildException(&invokee, "failed to load C++ environment {}: {}", name, e.what());
 		}
 	}
 }

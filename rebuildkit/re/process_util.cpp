@@ -17,7 +17,7 @@ namespace re
         auto start_ec = process.start(cmdline, options);
         if (start_ec)
         {
-            throw TargetLoadException(fmt::format("{} failed to start: {}", program_name, start_ec.message()));
+            RE_THROW ProcessRunException("{} failed to start: {}", program_name, start_ec.message());
         }
 
         auto [exit_code, end_ec] = process.wait(reproc::infinite);
@@ -26,12 +26,12 @@ namespace re
 
         if (end_ec)
         {
-            throw TargetLoadException(fmt::format("{} failed to run: {} (exit_code={})", program_name, end_ec.message(), exit_code));
+            RE_THROW ProcessRunException("{} failed to run: {} (exit_code={})", program_name, end_ec.message(), exit_code);
         }
 
         if (throw_on_bad_exit && exit_code != 0)
         {
-            throw TargetLoadException(fmt::format("{} failed: exit_code={}", program_name, exit_code));
+            RE_THROW ProcessRunException("{} failed: exit_code={}", program_name, exit_code);
         }
 
         return exit_code;

@@ -85,7 +85,7 @@ namespace re
             // Throw if the package still isn't there
             if (!std::filesystem::exists(path))
             {
-                throw TargetLoadException("vcpkg: package not found: " + dep.name);
+                RE_THROW TargetDependencyException(&target, "vcpkg: package not found: {}", dep.ToString());
             }
 
             auto end_time = std::chrono::high_resolution_clock::now();

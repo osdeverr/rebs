@@ -2,6 +2,8 @@
 
 #include <fmt/format.h>
 
+#include <re/error.h>
+
 namespace re
 {
 	void PopulateTargetDependencySet(Target* pTarget, std::vector<Target*>& to, std::function<Target* (const TargetDependency&)> dep_resolver)
@@ -17,7 +19,7 @@ namespace re
 			dep.resolved = dep_resolver(dep);
 
 			if (!dep.resolved)
-				throw TargetLoadException("unresolved dependency " + dep.name + " in target " + pTarget->module);
+				RE_THROW TargetDependencyException(pTarget, "unresolved dependency {}", dep.name);
 		}
 
 		to.push_back(pTarget);
@@ -39,7 +41,7 @@ namespace re
 			if (dep.resolved)
 				PopulateTargetDependencySetNoResolve(dep.resolved, to);
 			else
-				throw TargetLoadException("unresolved dependency " + dep.name + " in target " + pTarget->module);
+				RE_THROW TargetDependencyException(pTarget, "unresolved dependency {}", dep.name);
 		}
 
 		to.push_back(pTarget);
@@ -133,7 +135,7 @@ namespace re
 
 				auto provider = GetLangProvider(lang_id);
 				if (!provider)
-					throw TargetLoadException("unknown language " + lang_id + " in target " + target->module);
+					RE_THROW TargetLoadException(target, "unknown language {}", lang_id);
 
 				if (provider->InitBuildTarget(desc, *target))
 				{
@@ -168,7 +170,7 @@ namespace re
 				if (auto link_provider = GetLangProvider(*link_language))
 					link_provider->CreateTargetArtifact(desc, *target);
 				else
-					throw TargetLoadException("unknown link-with language " + *link_language + " in target " + target->module);
+					RE_THROW TargetLoadException(target, "unknown link-with language {}", *link_language);
 			}
 		}
 	}
@@ -223,7 +225,7 @@ namespace re
 		if (auto resolver = mDepResolvers[dep.ns])
 			return resolver->ResolveTargetDependency(target, dep);
 		else
-			throw TargetLoadException("unknown target namespace " + dep.ns);
+			RE_THROW TargetLoadException(&target, "dependency '{}': unknown target namespace '{}'", dep.ToString(), dep.ns);
 	}
 
 	void BuildEnv::PopulateTargetMap(Target* pTarget)
@@ -231,7 +233,7 @@ namespace re
 		// fmt::print(" [DBG] Adding to target map: '{}'\n", pTarget->module);
 
 		if (mTargetMap[pTarget->module] != nullptr)
-			throw TargetLoadException("target " + pTarget->module + " defined more than once");
+			RE_THROW TargetLoadException(pTarget, "target defined more than once");
 
 		mTargetMap[pTarget->module] = pTarget;
 

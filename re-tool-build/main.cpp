@@ -7,6 +7,8 @@
 #include <re/deps/git_dep_resolver.h>
 #include <re/deps/github_dep_resolver.h>
 
+#include <re/process_util.h>
+
 #include <magic_enum.hpp>
 #include <filesystem>
 
@@ -14,43 +16,11 @@
 #include <fmt/os.h>
 #include <fmt/args.h>
 #include <fmt/color.h>
+#include <fmt/ostream.h>
 
 #include <reproc++/reproc.hpp>
 
 #include <fstream>
-
-namespace re
-{
-    int RunProcessOrThrow(std::string_view program_name, const std::vector<std::string>& cmdline, bool output = false, bool throw_on_bad_exit = false)
-    {
-        reproc::options options;
-        options.redirect.parent = output;
-
-        reproc::process process;
-
-        auto start_ec = process.start(cmdline, options);
-        if (start_ec)
-        {
-            throw TargetLoadException(fmt::format("{} failed to start: {}", program_name, start_ec.message()));
-        }
-
-        auto [exit_code, end_ec] = process.wait(reproc::infinite);
-
-        // process.read(reproc::stream::out, );
-
-        if (end_ec)
-        {
-            throw TargetLoadException(fmt::format("{} failed to run: {} (exit_code={})", program_name, end_ec.message(), exit_code));
-        }
-
-        if (throw_on_bad_exit && exit_code != 0)
-        {
-            throw TargetLoadException(fmt::format("{} failed: exit_code={}", program_name, exit_code));
-        }
-
-        return exit_code;
-    }
-}
 
 namespace re
 {
@@ -211,36 +181,13 @@ namespace re
 
         auto path_to_ninja = path_to_me / "ninja.exe";
 
-        reproc::options options;
-        options.redirect.parent = true;
-
-        reproc::process ninja_process;
         std::vector<std::string> cmdline;
 
         cmdline.push_back(path_to_ninja.string());
         cmdline.push_back("-C");
         cmdline.push_back(out_dir);
 
-        auto start_ec = ninja_process.start(cmdline, options);
-        if (start_ec)
-        {
-            fmt::print("[{}] ! Failed to start Ninja: {}\n", root.module, start_ec.message());
-            return -255;
-        }
-
-        auto [exit_code, end_ec] = ninja_process.wait(reproc::infinite);
-
-        if (end_ec)
-        {
-            fmt::print(stderr, "[{}] ! Failed to run Ninja with error code: {} (exit_code={})\n", root.module, end_ec.message(), exit_code);
-            return exit_code;
-        }
-
-        if (exit_code)
-        {
-            fmt::print(stderr, "\n [{}] Build failed! (exit_code={})\n", root.module, exit_code);
-            return exit_code;
-        }
+        RunProcessOrThrow("ninja", cmdline, true, true);
 
         // Running post-build actions
         env.RunPostBuildActions(desc);
@@ -264,6 +211,10 @@ int main(int argc, const char** argv)
         else if (args[1] == "build")
         {
             return re::BuildReTargetAt(path_to_me, args[2]);
+        }
+        else
+        {
+            return re::BuildReTargetAt(path_to_me, args[1]);
         }
 
         /*
@@ -334,9 +285,47 @@ int main(int argc, const char** argv)
     }
     catch (const std::exception& e)
     {
+        std::string message = "";
+        
+
+        const boost::stacktrace::stacktrace* st = boost::get_error_info<re::TracedError>(e);
+        if (st) {
+            int i = 0;
+
+            for (auto& f : *st)
+            {
+                auto name = f.name();
+
+                if (name.find("re::") != name.npos)
+                    message.append(fmt::format(
+                        "  at {}\n", name
+                    ));
+            }
+
+        }
+
         fmt::print(
-            fmt::emphasis::bold | bg(fmt::color::dark_red) | fg(fmt::color::white),
-            "\n{}\n", e.what()
+            stderr,
+            fmt::emphasis::bold | bg(fmt::color::black) | fg(fmt::color::light_coral),
+            "\n\n  Error: {}\n", e.what()
+        );
+
+        /*
+        fmt::print(
+            stderr,
+            "\n"
+        );
+        */
+
+        fmt::print(
+            stderr,
+            bg(fmt::color{ 0x090909 }) | fg(fmt::color::light_coral),
+            "\n\n{}", message
+        );
+
+        fmt::print(
+            stderr,
+            "\n\n"
         );
     }
 }
