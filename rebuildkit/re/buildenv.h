@@ -37,6 +37,7 @@ namespace re
 		void RunTargetAction(const NinjaBuildDesc& desc, const Target& target, const std::string& type, const TargetConfig& data);
 
 		void RunPostBuildActions(const NinjaBuildDesc& desc);
+		void RunInstallActions(const NinjaBuildDesc& desc);
 
 		void AddDepResolver(std::string_view name, IDepResolver* resolver);
 		Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep) override;
@@ -62,8 +63,12 @@ namespace re
 
 		void PopulateTargetMap(Target* pTarget);
 
-		void AppendDepsAndSelf(Target* pTarget, std::vector<Target*>& to);
+		void AppendDepsAndSelf(Target *pTarget, std::vector<Target *> &to);
+
+		void RunActionList(const NinjaBuildDesc &desc, Target *target, const TargetConfig &list, std::string_view run_type, const std::string &default_run_type);
 
 		void RunActionsCategorized(const NinjaBuildDesc& desc, std::string_view run_type);
+
+		void InstallPathToTarget(const Target *pTarget, const std::string &from);
 	};
 }

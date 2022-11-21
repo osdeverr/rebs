@@ -135,14 +135,14 @@ namespace re
         return s;
     }
 
-    int BuildReTargetAt(const std::filesystem::path& path_to_me, std::string_view path)
+    int BuildReTargetAt(const std::filesystem::path& path_to_me, std::string_view path, bool install = false)
     {
         re::BuildEnv env;
 
         re::CxxLangProvider provider{ (path_to_me / "data" / "environments" / "cxx").string() };
         env.AddLangProvider("cpp", &provider);
 
-        VcpkgDepResolver vcpkg_resolver{ path_to_me / "data" / "deps" / "vcpkg" };
+        VcpkgDepResolver vcpkg_resolver{ path_to_me / "deps" / "vcpkg" };
         env.AddDepResolver("vcpkg", &vcpkg_resolver);
         env.AddDepResolver("vcpkg-dep", &vcpkg_resolver);
 
@@ -192,6 +192,9 @@ namespace re
         // Running post-build actions
         env.RunPostBuildActions(desc);
 
+        if (install)
+            env.RunInstallActions(desc);
+
         return 0;
     }
 }
@@ -214,7 +217,7 @@ int main(int argc, const char** argv)
         }
         else
         {
-            return re::BuildReTargetAt(path_to_me, args[1]);
+            return re::BuildReTargetAt(path_to_me, args[1], args.size() > 2 && args[2] == "install");
         }
 
         /*
@@ -286,7 +289,7 @@ int main(int argc, const char** argv)
     catch (const std::exception& e)
     {
         std::string message = "";
-        
+
 
         const boost::stacktrace::stacktrace* st = boost::get_error_info<re::TracedError>(e);
         if (st) {
