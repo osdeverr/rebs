@@ -7,9 +7,10 @@
 
 namespace re
 {
-    inline static constexpr auto kCaseInsensitiveComparePred = [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); };
+    inline static constexpr auto kCaseInsensitiveComparePred = [](char lhs, char rhs)
+    { return std::tolower(lhs) == std::tolower(rhs); };
 
-    TargetType TargetTypeFromString(const std::string& type)
+    TargetType TargetTypeFromString(const std::string &type)
     {
         if (type == "project")
             return TargetType::Project;
@@ -25,7 +26,7 @@ namespace re
             RE_THROW Exception("unknown target type {}", type);
     }
 
-    const char* TargetTypeToString(TargetType type)
+    const char *TargetTypeToString(TargetType type)
     {
         switch (type)
         {
@@ -44,12 +45,12 @@ namespace re
         }
     }
 
-	Target::Target(std::string_view dir_path, Target* pParent)
-	{
+    Target::Target(std::string_view dir_path, Target *pParent)
+    {
         path = std::filesystem::canonical(dir_path).string();
         parent = pParent;
 
-        ghc::filesystem::path fspath{ path };
+        ghc::filesystem::path fspath{path};
 
         config_path = (fspath / kTargetConfigFilename).string();
         config = YAML::LoadFile(config_path);
@@ -65,9 +66,9 @@ namespace re
         */
 
         LoadBaseData();
-	}
+    }
 
-    Target::Target(std::string_view virtual_path, std::string_view name, TargetType type, const TargetConfig& config, Target* pParent)
+    Target::Target(std::string_view virtual_path, std::string_view name, TargetType type, const TargetConfig &config, Target *pParent)
     {
         path = std::filesystem::canonical(virtual_path).string();
         parent = pParent;
@@ -82,12 +83,12 @@ namespace re
     {
         auto type_str = GetCfgEntryOrThrow<std::string>("type", "target type not specified");
         type = TargetTypeFromString(type_str);
-        
+
         if (!name.empty() && name.front() == '.')
         {
             name.erase(0, 1);
 
-            if(parent)
+            if (parent)
                 module = ModulePathCombine(parent->module, name);
         }
         else
@@ -100,11 +101,11 @@ namespace re
     {
         if (auto deps = GetCfgEntry<TargetConfig>("deps"))
         {
-            for (const auto& dep : *deps)
+            for (const auto &dep : *deps)
             {
                 auto str = dep.as<std::string>();
 
-                std::regex dep_regex{ "(.+?:)?([^@]+)(@.+)?" };
+                std::regex dep_regex{"(.+?:)?([^@]+)(@.+)?"};
                 std::smatch match;
 
                 if (!std::regex_match(str, match, dep_regex))
@@ -168,12 +169,12 @@ namespace re
         if (path.empty())
             path = this->path;
 
-        ghc::filesystem::path fspath{ path };
+        ghc::filesystem::path fspath{path};
         std::string dirname = fspath.filename().string();
 
         // rpnint" -- DEBUG: Traversing '%s' srcmodpath='%s'\n", fspath.string().c_str(), src_module_path.c_str());
 
-        for (auto& entry : ghc::filesystem::directory_iterator{ path })
+        for (auto &entry : ghc::filesystem::directory_iterator{path})
         {
             auto filename = entry.path().filename().string();
             if (filename.starts_with("."))
@@ -208,7 +209,7 @@ namespace re
                 if (ext.size() > 0)
                     ext = ext.substr(1);
 
-                sources.push_back(SourceFile{ entry.path().string(), ext });
+                sources.push_back(SourceFile{entry.path().string(), ext});
             }
         }
     }
@@ -226,7 +227,7 @@ namespace re
 
         std::filesystem::create_directories(path);
 
-        std::ofstream file{ path.data() + std::string("/re.yml") };
+        std::ofstream file{path.data() + std::string("/re.yml")};
         file << out.c_str();
     }
 
@@ -245,8 +246,8 @@ namespace re
         return result;
     }
 
-    TargetException::TargetException(std::string_view type, const Target* target, const std::string& str)
-        : Exception{ "{} in target '{}':\n      {}", type, target->module, str }
+    TargetException::TargetException(std::string_view type, const Target *target, const std::string &str)
+        : Exception{"{} in target '{}':\n      {}", type, target->module, str}
     {
     }
 }

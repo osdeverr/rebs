@@ -6,37 +6,36 @@
 
 namespace re
 {
-	void PopulateTargetDependencySet(Target* pTarget, std::vector<Target*>& to, std::function<Target* (const TargetDependency&)> dep_resolver)
+	void PopulateTargetDependencySet(Target *pTarget, std::vector<Target *> &to, std::function<Target *(const TargetDependency &)> dep_resolver)
 	{
 		if (std::find(to.begin(), to.end(), pTarget) != to.end())
 			return;
 
-		for (auto& child : pTarget->children)
+		for (auto &child : pTarget->children)
 			PopulateTargetDependencySet(child.get(), to, dep_resolver);
 
-		for (auto& dep : pTarget->dependencies)
+		for (auto &dep : pTarget->dependencies)
 		{
 			dep.resolved = dep_resolver(dep);
 
 			if (!dep.resolved)
 				RE_THROW TargetDependencyException(pTarget, "unresolved dependency {}", dep.name);
+
+			dep.resolved->dependents.insert(pTarget);
 		}
 
 		to.push_back(pTarget);
-
-		for (auto& child : pTarget->children)
-			PopulateTargetDependencySet(child.get(), to, dep_resolver);
 	}
 
-	void PopulateTargetDependencySetNoResolve(const Target* pTarget, std::vector<const Target*>& to)
+	void PopulateTargetDependencySetNoResolve(const Target *pTarget, std::vector<const Target *> &to)
 	{
 		if (std::find(to.begin(), to.end(), pTarget) != to.end())
 			return;
 
-		for (auto& child : pTarget->children)
+		for (auto &child : pTarget->children)
 			PopulateTargetDependencySetNoResolve(child.get(), to);
 
-		for (auto& dep : pTarget->dependencies)
+		for (auto &dep : pTarget->dependencies)
 		{
 			if (dep.resolved)
 				PopulateTargetDependencySetNoResolve(dep.resolved, to);
@@ -45,9 +44,6 @@ namespace re
 		}
 
 		to.push_back(pTarget);
-
-		for (auto& child : pTarget->children)
-			PopulateTargetDependencySetNoResolve(child.get(), to);
 	}
 
 	std::unique_ptr<Target> BuildEnv::LoadFreeTarget(const std::string& path)
@@ -193,7 +189,7 @@ namespace re
 			auto from = data["from"].as<std::string>();
 			auto to = data["to"].as<std::string>();
 
-			for (auto& dependent : target.dependents)
+			for (auto &dependent : target.dependents)
 			{
 				auto to_dep = desc.out_dir + "/" + desc.GetArtifactDirectory(dependent->module);
 
@@ -201,8 +197,7 @@ namespace re
 					std::filesystem::copy(
 						target.path + "/" + from,
 						to_dep + "/" + to,
-						std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
-					);
+						std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing);
 			}
 		}
 	}
@@ -210,6 +205,36 @@ namespace re
 	void BuildEnv::RunPostBuildActions(const NinjaBuildDesc& desc)
 	{
 		RunActionsCategorized(desc, "post-build");
+	}
+
+	void BuildEnv::RunInstallActions(const NinjaBuildDesc &desc)
+	{
+		for (auto &target : GetTargetsInDependencyOrder())
+		{
+			auto to = desc.out_dir + "/" + desc.GetArtifactDirectory(target->module);
+			InstallPathToTarget(target, to);
+		}
+
+		RunActionsCategorized(desc, "post-install");
+	}
+
+	void BuildEnv::InstallPathToTarget(const Target *pTarget, const std::string &from)
+	{
+		if (auto path = pTarget->GetCfgEntry<TargetConfig>("install", CfgEntryKind::Recursive))
+		{
+			auto path_str = path->as<std::string>();
+
+			fmt::print("Installing {} - {} => {}\n", pTarget->module, from, path_str);
+
+			if(std::filesystem::exists(from))
+			{
+				std::filesystem::copy(
+					from,
+					path_str,
+					std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
+				);
+			}
+		}
 	}
 
 	void BuildEnv::AddDepResolver(std::string_view name, IDepResolver* resolver)
@@ -257,29 +282,46 @@ namespace re
 		});
 	}
 
+	void BuildEnv::RunActionList(const NinjaBuildDesc &desc, Target *target, const TargetConfig &list, std::string_view run_type, const std::string &default_run_type)
+	{
+		for (const auto &v : list)
+		{
+			for (const auto &kv : v)
+			{
+				auto type = kv.first.as<std::string>();
+				auto &data = kv.second;
+
+				std::string run = default_run_type;
+				// fmt::print("{}\n", type);
+
+				if (auto run_val = data["run"])
+					run = run_val.as<std::string>();
+
+				if (run == run_type)
+					RunTargetAction(desc, *target, type, data);
+			}
+		}
+	}
+
 	void BuildEnv::RunActionsCategorized(const NinjaBuildDesc& desc, std::string_view run_type)
 	{
 		for (auto& target : GetTargetsInDependencyOrder())
 		{
 			if (auto actions = target->GetCfgEntry<TargetConfig>("actions"))
 			{
-				for (const auto& v : *actions)
+				if (actions->IsMap())
 				{
-					for (const auto& kv : v)
+					for (const auto &kv : *actions)
 					{
 						auto type = kv.first.as<std::string>();
-						auto& data = kv.second;
+						auto &data = kv.second;
 
-						std::string run = "post-build";
-						// fmt::print("{}\n", type);
-
-						if (auto run_val = data["run"])
-							run = run_val.as<std::string>();
-
-
-						if (run == run_type)
-							RunTargetAction(desc, *target, type, data);
+						RunActionList(desc, target, data, run_type, type);
 					}
+				}
+				else
+				{
+					RunActionList(desc, target, *actions, run_type, "post-build");
 				}
 			}
 		}
