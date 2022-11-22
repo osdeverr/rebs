@@ -45,17 +45,17 @@ namespace re
         }
     }
 
-    Target::Target(std::string_view dir_path, Target *pParent)
+    Target::Target(const fs::path& dir_path, Target *pParent)
     {
-        path = std::filesystem::canonical(dir_path).string();
+        path = fs::canonical(dir_path);
         parent = pParent;
 
-        ghc::filesystem::path fspath{path};
+        config_path = path / kTargetConfigFilename;
 
-        config_path = (fspath / kTargetConfigFilename).string();
-        config = YAML::LoadFile(config_path);
+        std::ifstream f{ config_path };
+        config = YAML::Load(f);
 
-        name = GetCfgEntry<std::string>("name").value_or(fspath.filename().string());
+        name = GetCfgEntry<std::string>("name").value_or(path.filename().u8string());
 
         /*
         if (pParent)
@@ -68,9 +68,9 @@ namespace re
         LoadBaseData();
     }
 
-    Target::Target(std::string_view virtual_path, std::string_view name, TargetType type, const TargetConfig &config, Target *pParent)
+    Target::Target(const fs::path& virtual_path, std::string_view name, TargetType type, const TargetConfig &config, Target *pParent)
     {
-        path = std::filesystem::canonical(virtual_path).string();
+        path = fs::canonical(virtual_path);
         parent = pParent;
 
         this->type = type;
@@ -164,30 +164,29 @@ namespace re
         */
     }
 
-    void Target::LoadSourceTree(std::string path)
+    void Target::LoadSourceTree(fs::path path)
     {
         if (path.empty())
             path = this->path;
 
-        ghc::filesystem::path fspath{path};
-        std::string dirname = fspath.filename().string();
+        fmt::print(" [DBG] Traversing '{}'\n", path.u8string());
 
         // rpnint" -- DEBUG: Traversing '%s' srcmodpath='%s'\n", fspath.string().c_str(), src_module_path.c_str());
 
-        for (auto &entry : ghc::filesystem::directory_iterator{path})
+        for (auto &entry : fs::directory_iterator{path})
         {
-            auto filename = entry.path().filename().string();
-            if (filename.starts_with("."))
+            auto filename = entry.path().filename().u8string();
+            if (filename.front() == '.')
                 continue;
 
             if (entry.is_directory())
             {
-                if (ghc::filesystem::exists(entry / ".re-ignore-this"))
+                if (fs::exists(entry.path() / ".re-ignore-this"))
                     continue;
 
-                if (DoesDirContainTarget(entry.path().string()))
+                if (DoesDirContainTarget(entry.path()))
                 {
-                    auto target = std::make_unique<Target>(entry.path().string(), this);
+                    auto target = std::make_unique<Target>(entry.path(), this);
 
                     if (target->GetCfgEntry<bool>("enabled").value_or(true))
                     {
@@ -199,22 +198,22 @@ namespace re
                     }
                 }
                 else
-                    LoadSourceTree(entry.path().string());
+                    LoadSourceTree(entry.path());
             }
 
             if (entry.is_regular_file())
             {
-                auto ext = entry.path().extension().string();
+                auto ext = entry.path().extension().u8string();
 
                 if (ext.size() > 0)
                     ext = ext.substr(1);
 
-                sources.push_back(SourceFile{entry.path().string(), ext});
+                sources.push_back(SourceFile{entry.path(), ext});
             }
         }
     }
 
-    void Target::CreateEmptyTarget(std::string_view path, TargetType type, std::string_view name)
+    void Target::CreateEmptyTarget(const fs::path& path, TargetType type, std::string_view name)
     {
         YAML::Emitter out;
 
@@ -227,7 +226,7 @@ namespace re
 
         std::filesystem::create_directories(path);
 
-        std::ofstream file{path.data() + std::string("/re.yml")};
+        std::ofstream file{path / kTargetConfigFilename};
         file << out.c_str();
     }
 

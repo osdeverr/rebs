@@ -19,12 +19,12 @@ namespace re
 	class BuildEnv : public ILangLocator, public IDepResolver, public ITargetLoader
 	{
 	public:
-		Target& LoadCoreProjectTarget(const std::string& path);
+		Target& LoadCoreProjectTarget(const fs::path& path);
 
 		Target* GetCoreTarget();
 
-		std::unique_ptr<Target> LoadFreeTarget(const std::string& path);
-		Target& LoadTarget(const std::string& path);
+		std::unique_ptr<Target> LoadFreeTarget(const fs::path& path);
+		Target& LoadTarget(const fs::path& path);
 		void RegisterLocalTarget(Target* pTarget);
 
 		std::vector<Target*> GetTargetsInDependencyOrder();
@@ -69,6 +69,6 @@ namespace re
 
 		void RunActionsCategorized(const NinjaBuildDesc& desc, std::string_view run_type);
 
-		void InstallPathToTarget(const Target *pTarget, const std::string &from);
+		void InstallPathToTarget(const Target *pTarget, const fs::path &from);
 	};
 }

@@ -56,22 +56,40 @@ namespace re
             for (auto i = 0; i < tabs + 1; i++)
                 fmt::print("    ");
 
-            fmt::print("\x1b[1m{}\x1b[0m => \x1b[3m{}\x1b[0m\n", source.path, "<none>");
+            fmt::print("\x1b[1m{}\x1b[0m => \x1b[3m{}\x1b[0m\n", source.path.u8string(), "<none>");
         }
     }
 }
 
 namespace re
 {
-    void GenerateNinjaBuildFile(const NinjaBuildDesc& desc, const std::string& out_dir)
+    class FmtOstreamWrapper
+    {
+    public:
+        FmtOstreamWrapper(std::ostream* stream)
+            : mStream{ stream }
+        {}
+
+        template<class F, class... Args>
+        void print(const F& format, Args&&... args)
+        {
+            fmt::print(*mStream, format, std::forward<Args>(args)...);
+        }
+
+    private:
+        std::ostream* mStream;
+    };
+
+    void GenerateNinjaBuildFile(const NinjaBuildDesc& desc, const fs::path& out_dir)
     {
         constexpr auto kToolPrefix = "re_tool_";
 
-        std::string path = out_dir + "/build.ninja";
+        auto path = out_dir / "build.ninja";
 
-        fmt::ostream out = fmt::output_file(path);
+        std::ofstream file{ path, std::ios::binary };
+        FmtOstreamWrapper out{ &file };
 
-        out.print("builddir = .\n", desc.out_dir);
+        out.print("builddir = {}\n", desc.out_dir.u8string());
 
         for (auto& [key, val] : desc.vars)
             out.print("{} = {}\n", key, val);
@@ -135,11 +153,11 @@ namespace re
         return s;
     }
 
-    int BuildReTargetAt(const std::filesystem::path& path_to_me, std::string_view path, bool install = false)
+    int BuildReTargetAt(const fs::path& path_to_me, const fs::path& path, bool install = false)
     {
         re::BuildEnv env;
 
-        re::CxxLangProvider provider{ (path_to_me / "data" / "environments" / "cxx").string() };
+        re::CxxLangProvider provider{ path_to_me / "data" / "environments" / "cxx" };
         env.AddLangProvider("cpp", &provider);
 
         VcpkgDepResolver vcpkg_resolver{ path_to_me / "deps" / "vcpkg" };
@@ -153,20 +171,23 @@ namespace re
         env.AddDepResolver("github", &github_resolver);
         env.AddDepResolver("github-ssh", &github_resolver);
 
-        env.LoadCoreProjectTarget((path_to_me / "data" / "core-project").string());
+        env.LoadCoreProjectTarget(path_to_me / "data" / "core-project");
 
         if (!re::DoesDirContainTarget(path))
         {
-            fmt::print(stderr, " ! Directory '{}' does not contain a valid Re target. Quitting.\n", path);
+            fmt::print(stderr, " ! Directory '{}' does not contain a valid Re target. Quitting.\n", path.u8string());
             return -1;
         }
 
-        auto& root = env.LoadTarget(path.data());
+        auto& root = env.LoadTarget(path);
 
         auto re_arch = std::getenv("RE_ARCH");
         auto re_platform = std::getenv("RE_PLATFORM");
 
-        auto out_dir = root.GetCfgEntry<std::string>("output-directory").value_or(root.path + "/out/" + fmt::format("{}-{}", re_arch, re_platform));
+        auto out_dir = root.path / "out" / fmt::format("{}-{}", re_arch, re_platform);
+        
+        if (auto entry = root.GetCfgEntry<std::string>("output-directory"))
+            out_dir = fmt::format(*entry, fmt::arg("arch", re_arch), fmt::arg("platform", re_platform));
 
         std::filesystem::create_directories(out_dir);
 
@@ -181,13 +202,15 @@ namespace re
 
         auto path_to_ninja = path_to_me / "ninja.exe";
 
-        std::vector<std::string> cmdline;
+        std::vector<std::wstring> cmdline;
 
-        cmdline.push_back(path_to_ninja.string());
-        cmdline.push_back("-C");
-        cmdline.push_back(out_dir);
+        cmdline.push_back(path_to_ninja.wstring());
+        cmdline.push_back(L"-C");
+        cmdline.push_back(out_dir.wstring());
 
-        RunProcessOrThrow("ninja", cmdline, true, true);
+        fmt::print("{}\n", out_dir.u8string());
+
+        RunProcessOrThrowWindows("ninja", cmdline, true, true);
 
         // Running post-build actions
         env.RunPostBuildActions(desc);
@@ -201,6 +224,9 @@ namespace re
 
 int main(int argc, const char** argv)
 {
+    SetConsoleOutputCP(65001);
+    SetThreadUILanguage(LANG_ENGLISH);
+
     try
     {
         auto path_to_me = re::GetCurrentExecutablePath();
@@ -298,10 +324,11 @@ int main(int argc, const char** argv)
             for (auto& f : *st)
             {
                 auto name = f.name();
+                auto path = re::fs::path{ f.source_file() };
 
                 if (name.find("re::") != name.npos)
                     message.append(fmt::format(
-                        "  at {}\n", name
+                        "  at {} @ {}:{}\n", name, path.filename().u8string(), f.source_line()
                     ));
             }
 
@@ -312,13 +339,6 @@ int main(int argc, const char** argv)
             fmt::emphasis::bold | bg(fmt::color::black) | fg(fmt::color::light_coral),
             "\n\n  Error: {}\n", e.what()
         );
-
-        /*
-        fmt::print(
-            stderr,
-            "\n"
-        );
-        */
 
         fmt::print(
             stderr,

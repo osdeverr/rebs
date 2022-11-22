@@ -5,6 +5,8 @@
 
 #include <fmt/format.h>
 
+#include <fstream>
+
 namespace re
 {
 	namespace
@@ -66,26 +68,21 @@ namespace re
 		{
 			out_flags.push_back(fmt::format(
 				cxx_include_dir_tpl,
-				fmt::arg("directory", target.path)
+				fmt::arg("directory", target.path.u8string())
 			));
 
 			auto extra_includes = GetRecursiveSeqCfg(target, "cxx-include-dirs");
 
 			for (const auto& v : extra_includes)
 			{
-				auto path = v.as<std::string>();
+				auto dir = fs::path{ v.as<std::string>() };
 
-				if (!std::filesystem::path{ path }.is_absolute())
-					path = target.path + "/" + path;
-
-				auto dir = fmt::format(
-					path,
-					fmt::arg("src", target.path)
-				);
+				if (!dir.is_absolute())
+					dir = target.path / dir;
 
 				out_flags.push_back(fmt::format(
 					cxx_include_dir_tpl,
-					fmt::arg("directory", dir)
+					fmt::arg("directory", dir.u8string())
 				));
 			}
 		}
@@ -114,7 +111,7 @@ namespace re
 		}
 	}
 
-	CxxLangProvider::CxxLangProvider(std::string_view env_search_path)
+	CxxLangProvider::CxxLangProvider(const fs::path& env_search_path)
 		: mEnvSearchPath{ env_search_path }
 	{
 	}
@@ -373,8 +370,8 @@ namespace re
 		desc.rules.emplace_back(std::move(rule_link));
 		desc.rules.emplace_back(std::move(rule_lib));
 
-		desc.vars["cxx_path_" + path] = target.path;
-		desc.vars["cxx_config_path_" + path] = target.config_path;
+		desc.vars["cxx_path_" + path] = target.path.u8string();
+		desc.vars["cxx_config_path_" + path] = target.config_path.u8string();
 
 		return true;
 	}
@@ -396,7 +393,7 @@ namespace re
 		if (!eligible)
 			return;
 
-		auto local_path = file.path.substr(target.path.size() + 1);
+		auto local_path = file.path.u8string().substr(target.path.u8string().size() + 1);
 		auto extension = env["default-extensions"]["object"].as<std::string>();
 
 		BuildTarget build_target;
@@ -500,7 +497,9 @@ namespace re
 
 		try
 		{
-			auto& data = (mEnvCache[name.data()] = YAML::LoadFile((mEnvSearchPath + "/" + name.data() + ".yml").data()));
+			// std::ifstream stream{ (mEnvSearchPath / name.data() / ".yml") };
+
+			auto& data = (mEnvCache[name.data()] = YAML::LoadFile(mEnvSearchPath.u8string() + "/" + name.data() + ".yml"));
 
 			if(auto inherits = data["inherits"])
 				for (const auto& v : inherits)

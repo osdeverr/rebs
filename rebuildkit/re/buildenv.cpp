@@ -46,7 +46,7 @@ namespace re
 		to.push_back(pTarget);
 	}
 
-	std::unique_ptr<Target> BuildEnv::LoadFreeTarget(const std::string& path)
+	std::unique_ptr<Target> BuildEnv::LoadFreeTarget(const fs::path& path)
 	{
 		auto target = std::make_unique<Target>(path, mTheCoreProjectTarget.get());
 
@@ -60,7 +60,7 @@ namespace re
 		return target;
 	}
 
-	Target& BuildEnv::LoadTarget(const std::string& path)
+	Target& BuildEnv::LoadTarget(const fs::path& path)
 	{
 		auto target = LoadFreeTarget(path);
 
@@ -76,7 +76,7 @@ namespace re
 		PopulateTargetMap(pTarget);
 	}
 
-	Target& BuildEnv::LoadCoreProjectTarget(const std::string& path)
+	Target& BuildEnv::LoadCoreProjectTarget(const fs::path& path)
 	{
 		mTheCoreProjectTarget = std::make_unique<Target>(path);
 		return *mTheCoreProjectTarget;
@@ -179,8 +179,8 @@ namespace re
 			auto to = data["to"].as<std::string>();
 
 			std::filesystem::copy(
-				target.path + "/" + from,
-				desc.out_dir + "/" + desc.GetArtifactDirectory(target.module) + "/" + to,
+				target.path / from,
+				desc.out_dir / desc.GetArtifactDirectory(target.module) / to,
 				std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
 			);
 		}
@@ -191,13 +191,14 @@ namespace re
 
 			for (auto &dependent : target.dependents)
 			{
-				auto to_dep = desc.out_dir + "/" + desc.GetArtifactDirectory(dependent->module);
+				auto to_dep = desc.out_dir / desc.GetArtifactDirectory(dependent->module);
 
 				if (std::filesystem::exists(to_dep))
 					std::filesystem::copy(
-						target.path + "/" + from,
-						to_dep + "/" + to,
-						std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing);
+						target.path / from,
+						to_dep / to,
+						std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
+					);
 			}
 		}
 	}
@@ -211,20 +212,20 @@ namespace re
 	{
 		for (auto &target : GetTargetsInDependencyOrder())
 		{
-			auto to = desc.out_dir + "/" + desc.GetArtifactDirectory(target->module);
-			InstallPathToTarget(target, to);
+			auto from = desc.out_dir / desc.GetArtifactDirectory(target->module);
+			InstallPathToTarget(target, from);
 		}
 
 		RunActionsCategorized(desc, "post-install");
 	}
 
-	void BuildEnv::InstallPathToTarget(const Target *pTarget, const std::string &from)
+	void BuildEnv::InstallPathToTarget(const Target *pTarget, const fs::path& from)
 	{
 		if (auto path = pTarget->GetCfgEntry<TargetConfig>("install", CfgEntryKind::Recursive))
 		{
 			auto path_str = path->as<std::string>();
 
-			fmt::print("Installing {} - {} => {}\n", pTarget->module, from, path_str);
+			fmt::print("Installing {} - {} => {}\n", pTarget->module, from.u8string(), path_str);
 
 			if(std::filesystem::exists(from))
 			{

@@ -8,6 +8,7 @@
 namespace re
 {
     int RunProcessOrThrow(std::string_view program_name, const std::vector<std::string>& cmdline, bool output = false, bool throw_on_bad_exit = false);
+    int RunProcessOrThrowWindows(std::string_view program_name, const std::vector<std::wstring>& cmdline, bool output = false, bool throw_on_bad_exit = false);
 
     class ProcessRunException : public Exception
     {

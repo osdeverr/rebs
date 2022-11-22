@@ -15,11 +15,11 @@ namespace re
         auto vcpkg_root = mVcpkgPath;
 
         if (auto path = target.GetCfgEntry<std::string>("vcpkg-root-path", CfgEntryKind::Recursive))
-            vcpkg_root = std::filesystem::path{ *path };
+            vcpkg_root = fs::path{ *path };
 
         auto dep_str = dep.ToString();
 
-        if (!std::filesystem::exists(vcpkg_root))
+        if (!fs::exists(vcpkg_root))
         {
             fmt::print(
                 fmt::emphasis::bold | fg(fmt::color::light_sea_green),
@@ -28,7 +28,7 @@ namespace re
                 dep_str
             );
 
-            std::filesystem::create_directories(vcpkg_root);
+            fs::create_directories(vcpkg_root);
 
             // Try cloning it to Git.
             RunProcessOrThrow(
@@ -37,7 +37,7 @@ namespace re
                     "git",
                     "clone",
                     "https://github.com/microsoft/vcpkg.git",
-                    vcpkg_root.string()
+                    vcpkg_root.u8string()
                 },
                 true,
                 true
@@ -61,7 +61,7 @@ namespace re
         auto path = vcpkg_root / "packages" / (dep.name + fmt::format("_{}-{}", re_arch, re_platform));
 
         // We optimize the lookup by not invoking vcpkg at all if the package is already there.
-        if (!std::filesystem::exists(path))
+        if (!fs::exists(path))
         {
             fmt::print(
                 fmt::emphasis::bold | fg(fmt::color::light_green),
@@ -75,7 +75,7 @@ namespace re
             RunProcessOrThrow(
                 "vcpkg",
                 {
-                    (vcpkg_root / "vcpkg").string(),
+                    (vcpkg_root / "vcpkg").u8string(),
                     "install",
                     fmt::format("{}:{}-{}", dep.name, re_arch, re_platform)
                 },
@@ -83,7 +83,7 @@ namespace re
             );
 
             // Throw if the package still isn't there
-            if (!std::filesystem::exists(path))
+            if (!fs::exists(path))
             {
                 RE_THROW TargetDependencyException(&target, "vcpkg: package not found: {}", dep.ToString());
             }
@@ -114,21 +114,21 @@ namespace re
 
         YAML::Node config{ YAML::NodeType::Map };
 
-        if (std::filesystem::exists(path / "include"))
+        if (fs::exists(path / "include"))
         {
-            config["cxx-include-dirs"].push_back((path / "include").string());
+            config["cxx-include-dirs"].push_back((path / "include").u8string());
         }
 
-        if (std::filesystem::exists(path / "lib"))
+        if (fs::exists(path / "lib"))
         {
-            for (auto& file : std::filesystem::directory_iterator{ path / "lib" })
+            for (auto& file : fs::directory_iterator{ path / "lib" })
             {
                 if (file.is_regular_file())
-                    config["cxx-link-deps"].push_back(file.path().string());
+                    config["cxx-link-deps"].push_back(file.path().u8string());
             }
         }
 
-        if (std::filesystem::exists(path / "bin"))
+        if (fs::exists(path / "bin"))
         {
             YAML::Node entry{ YAML::NodeType::Map };
 
@@ -138,9 +138,9 @@ namespace re
             config["actions"].push_back(entry);
         }
 
-        auto package_target = std::make_unique<Target>(path.string(), "vcpkg." + dep.name, TargetType::StaticLibrary, config);
+        auto package_target = std::make_unique<Target>(path.u8string(), "vcpkg." + dep.name, TargetType::StaticLibrary, config);
 
-        YAML::Node vcpkg_json = YAML::LoadFile((vcpkg_root / "ports" / dep.name / "vcpkg.json").string());
+        YAML::Node vcpkg_json = YAML::LoadFile((vcpkg_root / "ports" / dep.name / "vcpkg.json").u8string());
 
         if (auto deps = vcpkg_json["dependencies"])
         {

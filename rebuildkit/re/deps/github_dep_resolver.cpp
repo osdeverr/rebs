@@ -1,12 +1,14 @@
 #include "github_dep_resolver.h"
 
+#include <boost/algorithm/string/predicate.hpp>
+
 namespace re
 {
 	Target* GithubDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
 	{
 		auto path = dep.name;
 
-		if (!path.ends_with(".git"))
+		if (!boost::ends_with(path, ".git"))
 			path.append(".git");
 
 		if (dep.ns == "github-ssh")
