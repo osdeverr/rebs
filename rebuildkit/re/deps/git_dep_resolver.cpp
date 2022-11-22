@@ -26,13 +26,13 @@ namespace re
 			return cached.get();
 
 		auto cache = target.GetCfgEntryOrThrow<std::string>("re-cache-dir", "failed to find cache directory", CfgEntryKind::Recursive);
-		auto git_cached = target.path + "/" + cache + "/" + cached_dir;
+		auto git_cached = target.path / cache / cached_dir;
 
 		fs::create_directories(git_cached);
 
 		auto dep_str = dep.ToString();
 
-		if (!fs::exists(git_cached + "/.git"))
+		if (!fs::exists(git_cached / ".git"))
 		{
 			fmt::print(
 				fmt::emphasis::bold | fg(fmt::color::light_blue),
@@ -71,7 +71,7 @@ namespace re
 		return result.get();
 	}
 
-	void GitDepResolver::DownloadGitDependency(std::string_view url, std::string_view branch, std::string_view to)
+	void GitDepResolver::DownloadGitDependency(std::string_view url, std::string_view branch, const fs::path& to)
 	{
 		std::vector<std::string> cmdline = {
 			"git", "clone",
@@ -85,7 +85,7 @@ namespace re
 		}
 
 		cmdline.emplace_back(url.data());
-		cmdline.emplace_back(to.data());
+		cmdline.emplace_back(to.u8string());
 
 		RunProcessOrThrow(
 			"git", cmdline,

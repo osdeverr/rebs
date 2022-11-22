@@ -2,10 +2,10 @@
 #include <string>
 #include <string_view>
 #include <optional>
-#include <filesystem>
 #include <unordered_set>
 
 #include <re/error.h>
+#include <re/fs.h>
 
 #include <yaml-cpp/yaml.h>
 
@@ -36,7 +36,7 @@ namespace re
 
     struct SourceFile
     {
-        std::string path;
+        fs::path path;
         std::string extension;
     };
 
@@ -120,8 +120,8 @@ namespace re
         //////////////////////////////////////////////////////////////
 
         Target() = default;
-        Target(std::string_view dir_path, Target* pParent = nullptr);
-        Target(std::string_view virtual_path, std::string_view name, TargetType type, const TargetConfig& config, Target* pParent = nullptr);
+        Target(const fs::path& dir_path, Target* pParent = nullptr);
+        Target(const fs::path& virtual_path, std::string_view name, TargetType type, const TargetConfig& config, Target* pParent = nullptr);
 
         Target(const Target&) = default;
         Target(Target&&) = default;
@@ -130,7 +130,7 @@ namespace re
 
         TargetType type;
 
-        std::string path;
+        fs::path path;
         std::string name;
 
         std::string module;
@@ -141,7 +141,7 @@ namespace re
         std::vector<SourceFile> sources;
         std::vector<std::unique_ptr<Target>> children;
 
-        std::string config_path;
+        fs::path config_path;
         TargetConfig config;
 
         // Targets that depend on this target.
@@ -192,22 +192,14 @@ namespace re
         void LoadDependencies();
         void LoadMiscConfig();
 
-        void LoadSourceTree(std::string path = "");
+        void LoadSourceTree(fs::path path = "");
 
-        static void CreateEmptyTarget(std::string_view path, TargetType type, std::string_view name);
+        static void CreateEmptyTarget(const fs::path& path, TargetType type, std::string_view name);
 	};
 
-    inline static bool DoesDirContainTarget(std::string_view path)
+    inline static bool DoesDirContainTarget(const fs::path& path)
     {
-        std::filesystem::path fspath{ path };
-
-        if (FILE* file = std::fopen((fspath / Target::kTargetConfigFilename).string().c_str(), "r"))
-        {
-            std::fclose(file);
-            return true;
-        }
-        else
-            return false;
+        return fs::exists(path / Target::kTargetConfigFilename);
     }
 
     inline static std::string ResolveTargetParentRef(std::string name, Target* parent = nullptr)

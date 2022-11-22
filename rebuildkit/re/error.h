@@ -23,12 +23,10 @@ namespace re
 		boost::stacktrace::stacktrace trace;
 
 		template<class E>
-		const E& operator|(const E& e) const
+		auto operator|(const E& e) const
 		{
-			throw boost::enable_error_info(e)
+			return boost::enable_error_info(e)
 				<< TracedError(trace);
-
-			return e;
 		}
 	};
 
@@ -42,4 +40,4 @@ namespace re
 	};
 }
 
-#define RE_THROW ReThrowSugarProxy{boost::stacktrace::stacktrace()} | 
+#define RE_THROW throw ReThrowSugarProxy{boost::stacktrace::stacktrace()} | 

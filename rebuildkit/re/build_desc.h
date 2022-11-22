@@ -5,6 +5,8 @@
 
 #include <fmt/format.h>
 
+#include <re/fs.h>
+
 namespace re
 {
 	using BuildVars = std::unordered_map<std::string, std::string>;
@@ -54,7 +56,7 @@ namespace re
 
 	struct NinjaBuildDesc
 	{
-		std::string out_dir;
+		fs::path out_dir;
 
 		std::string object_out_format;
 		std::string artifact_out_format;

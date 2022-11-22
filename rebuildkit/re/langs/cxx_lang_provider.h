@@ -16,7 +16,7 @@ namespace re
 	public:
 		static constexpr auto kLangId = "cpp";
 
-		CxxLangProvider(std::string_view env_search_path);
+		CxxLangProvider(const fs::path& env_search_path);
 		CxxLangProvider(const CxxLangProvider&) = default;
 		CxxLangProvider(CxxLangProvider&&) = default;
 
@@ -28,7 +28,7 @@ namespace re
 		virtual void CreateTargetArtifact(NinjaBuildDesc& desc, const Target& target);
 
 	private:
-		std::string mEnvSearchPath;
+		fs::path mEnvSearchPath;
 		std::unordered_map<std::string, CxxBuildEnvData> mEnvCache;
 
 		CxxBuildEnvData& LoadEnvOrThrow(std::string_view name, const Target& invokee);
