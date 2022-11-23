@@ -233,9 +233,17 @@ namespace re
     std::optional<std::string> Target::GetVar(const std::string& key) const
     {
         if (config["vars"] && config["vars"][key].IsDefined())
+        {
             return config["vars"][key].as<std::string>();
+        }
         else if (auto entry = GetCfgEntry<std::string>(key, CfgEntryKind::Recursive))
+        {
             return entry;
+        }
+        else if (auto var = parent ? parent->GetVar(key) : std::nullopt)
+        {
+            return var;
+        }
         else if (var_parent)
             return var_parent->GetVar(key);
         else
