@@ -25,7 +25,7 @@ namespace re
 
 			while (p)
 			{
-				if (auto map = leaf.GetCfgEntry<TargetConfig>(key))
+				if (auto map = p->GetCfgEntry<TargetConfig>(key))
 				{
 					for (const std::pair<YAML::Node, YAML::Node>& kv : *map)
 					{
@@ -50,7 +50,7 @@ namespace re
 
 			while (p)
 			{
-				if (auto seq = leaf.GetCfgEntry<TargetConfig>(key))
+				if (auto seq = p->GetCfgEntry<TargetConfig>(key))
 				{
 					for (const auto& v : *seq)
 					{
@@ -64,7 +64,41 @@ namespace re
 			return result;
 		}
 
-		inline void AppendIncludeDirs(const Target& target, const std::string& cxx_include_dir_tpl, std::vector<std::string>& out_flags)
+		inline TargetConfig GetRecursiveMapCfgStartingWith(const Target& leaf, std::string_view beginning)
+		{
+			auto result = TargetConfig{ YAML::NodeType::Map };
+			auto p = &leaf;
+
+			while (p)
+			{
+				for (const auto& rootkv : p->config)
+				{
+					auto key = rootkv.first.as<std::string>();
+					if (key.find(beginning) == 0)
+					{
+						auto out_key = key.substr(beginning.size() - 1);
+
+						if (!result[key])
+							result[key] = TargetConfig{ YAML::NodeType::Map };
+
+						for (const std::pair<YAML::Node, YAML::Node>& kv : rootkv.second)
+						{
+							auto type = kv.first.as<std::string>();
+							auto& yaml = kv.second;
+
+							if (!result[key][type])
+								result[key][type] = yaml;
+						}
+					}
+				}
+
+				p = p->parent;
+			}
+
+			return result;
+		}
+
+		inline void AppendIncludeDirs(const Target& target, const std::string& cxx_include_dir_tpl, std::vector<std::string>& out_flags, const LocalVarScope& vars)
 		{
 			out_flags.push_back(fmt::format(
 				cxx_include_dir_tpl,
@@ -75,7 +109,7 @@ namespace re
 
 			for (const auto& v : extra_includes)
 			{
-				auto dir = fs::path{ v.as<std::string>() };
+				auto dir = fs::path{ vars.Resolve(v.as<std::string>()) };
 
 				if (!dir.is_absolute())
 					dir = target.path / dir;
@@ -226,10 +260,12 @@ namespace re
 
 		// TODO: Configuration/arch/platform switches
 
+		// auto ky = GetRecursiveMapCfgStartingWith(target, "cfg.");
+		// EnumerateCategorizedStuffSeq(ky, "cfg.", "cxx-compile-definitions");
+
 		/////////////////////////////////////////////////////////////////
 
 		std::string flags_base = fmt::format("$re_cxx_target_cflags_{} $target_custom_flags ", path);
-		std::string out_dir = fmt::format("$builddir/{}", target.module);
 
 		const auto& templates = env["templates"];
 
@@ -244,7 +280,7 @@ namespace re
 
 		extra_flags.push_back(fmt::format(
 			templates["cxx-module-output"].as<std::string>(),
-			fmt::arg("directory", out_dir)
+			fmt::arg("directory", desc.GetObjectDirectory(target.module))
 		));
 
 		auto cxx_include_dir = templates["cxx-include-dir"].as<std::string>();
@@ -252,7 +288,7 @@ namespace re
 
 		for (auto& target : include_deps)
 		{
-			AppendIncludeDirs(*target, cxx_include_dir, extra_flags);
+			AppendIncludeDirs(*target, cxx_include_dir, extra_flags, vars);
 
 			// TODO: Make this only work with modules enabled???
 			extra_flags.push_back(fmt::format(
@@ -273,8 +309,8 @@ namespace re
 
 			extra_flags.push_back(fmt::format(
 				cxx_compile_definitions,
-				fmt::arg("name", name),
-				fmt::arg("value", value)
+				fmt::arg("name", vars.Resolve(name)),
+				fmt::arg("value", vars.Resolve(value))
 			));
 		}
 
@@ -308,7 +344,7 @@ namespace re
 
 		if (auto rule_vars = env["custom-rule-vars"])
 			for (const auto& var : rule_vars)
-				rule_cxx.vars[var.first.as<std::string>()] = var.second.as<std::string>();
+				rule_cxx.vars[var.first.as<std::string>()] = vars.Resolve(var.second.as<std::string>());
 
 		std::unordered_set<std::string> deps_list;
 		std::vector<std::string> extra_link_flags;

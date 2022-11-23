@@ -21,11 +21,11 @@ int main(int argc, const char** argv)
         std::vector<std::string_view> args(argv, argv + argc);
 
         re::DefaultBuildContext context;
-        context.LoadDefaultEnvironment(L"D:/Programs/ReBS/bin");
+        context.LoadDefaultEnvironment(re::GetCurrentExecutablePath());
 
         if (args.size() == 1)
         {
-            return context.BuildTargetInDir(L"D:/PlakSystemsSW/regar");
+            return context.BuildTargetInDir(".");
         }
         else if (args[1] == "build")
         {
