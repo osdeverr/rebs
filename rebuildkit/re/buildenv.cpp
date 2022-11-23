@@ -46,6 +46,14 @@ namespace re
 		to.push_back(pTarget);
 	}
 
+	BuildEnv::BuildEnv(LocalVarScope& scope)
+		: mVars{ &scope, "build" }
+	{
+		mVars.SetVar("platform", "${env:RE_PLATFORM | $re:platform-string}");
+		mVars.SetVar("platform-closest", "${build:platform}");
+		mVars.SetVar("arch", "${build:platform}");
+	}
+
 	std::unique_ptr<Target> BuildEnv::LoadFreeTarget(const fs::path& path)
 	{
 		auto target = std::make_unique<Target>(path, mTheCoreProjectTarget.get());
@@ -87,6 +95,13 @@ namespace re
 		return mTheCoreProjectTarget.get();
 	}
 
+	std::vector<Target*> BuildEnv::GetSingleTargetDepSet(Target* pTarget)
+	{
+		std::vector<Target*> result;
+		AppendDepsAndSelf(pTarget, result);
+		return result;
+	}
+
 	std::vector<Target*> BuildEnv::GetTargetsInDependencyOrder()
 	{
 		std::vector<Target*> result;
@@ -107,68 +122,75 @@ namespace re
 		return mLangProviders[name.data()];
 	}
 
-	void BuildEnv::PopulateBuildDesc(NinjaBuildDesc& desc)
+	void BuildEnv::PopulateBuildDesc(Target* target, NinjaBuildDesc& desc)
+	{
+		auto langs = target->GetCfgEntry<TargetConfig>("langs", CfgEntryKind::Recursive).value_or(TargetConfig{ YAML::NodeType::Sequence });
+
+		for (const auto& lang : langs)
+		{
+			auto lang_id = lang.as<std::string>();
+
+			auto provider = GetLangProvider(lang_id);
+			if (!provider)
+				RE_THROW TargetLoadException(target, "unknown language {}", lang_id);
+
+			if (provider->InitBuildTarget(desc, *target))
+			{
+				for (auto& source : target->sources)
+					provider->ProcessSourceFile(desc, *target, source);
+			}
+		}
+
+		auto link_cfg = target->GetCfgEntry<TargetConfig>("link-with", re::CfgEntryKind::Recursive).value_or(YAML::Node{ YAML::NodeType::Null });
+		std::optional<std::string> link_language;
+
+		if (link_cfg.IsMap())
+		{
+			if (auto value = link_cfg[TargetTypeToString(target->type)])
+			{
+				if (!value.IsNull())
+					link_language = value.as<std::string>();
+			}
+			else if (auto value = link_cfg["default"])
+			{
+				if (!value.IsNull())
+					link_language = value.as<std::string>();
+			}
+		}
+		else if (!link_cfg.IsNull())
+		{
+			link_language = link_cfg.as<std::string>();
+		}
+
+		if (link_language)
+		{
+			if (auto link_provider = GetLangProvider(*link_language))
+				link_provider->CreateTargetArtifact(desc, *target);
+			else
+				RE_THROW TargetLoadException(target, "unknown link-with language {}", *link_language);
+		}
+	}
+
+	void BuildEnv::PopulateBuildDescWithDeps(Target* target, NinjaBuildDesc& desc)
+	{
+		for (auto& dep : GetSingleTargetDepSet(target))
+			PopulateBuildDesc(dep, desc);
+	}
+
+	void BuildEnv::PopulateFullBuildDesc(NinjaBuildDesc& desc)
 	{
 		//auto re_arch = std::getenv("RE_ARCH");
 		//auto re_platform = std::getenv("RE_PLATFORM");
 
-		desc.vars["re_build_platform"] = std::getenv("RE_PLATFORM");
-		desc.vars["re_build_platform_closest"] = std::getenv("RE_PLATFORM");
-		desc.vars["re_build_arch"] = std::getenv("RE_ARCH");
+		/*
+		desc.vars["re_build_platform"] = mVars.Substitute("${platform}");
+		desc.vars["re_build_platform_closest"] = mVars.Substitute("${platform-closest}");
+		desc.vars["re_build_arch"] = mVars.Substitute("${arch}");
+		*/
 
 		for (auto& [name, provider] : mLangProviders)
 			provider->InitInBuildDesc(desc);
 
-		for (auto& target : GetTargetsInDependencyOrder())
-		{
-			// fmt::print(" [DBG] Generating build desc for target '{}'\n", target->module);
-
-			auto langs = target->GetCfgEntry<TargetConfig>("langs", CfgEntryKind::Recursive).value_or(TargetConfig{YAML::NodeType::Sequence});
-
-			for (const auto& lang : langs)
-			{
-				auto lang_id = lang.as<std::string>();
-
-				auto provider = GetLangProvider(lang_id);
-				if (!provider)
-					RE_THROW TargetLoadException(target, "unknown language {}", lang_id);
-
-				if (provider->InitBuildTarget(desc, *target))
-				{
-					for (auto& source : target->sources)
-						provider->ProcessSourceFile(desc, *target, source);
-				}
-			}
-
-			auto link_cfg = target->GetCfgEntry<TargetConfig>("link-with", re::CfgEntryKind::Recursive).value_or(YAML::Node{ YAML::NodeType::Null });
-			std::optional<std::string> link_language;
-
-			if (link_cfg.IsMap())
-			{
-				if (auto value = link_cfg[TargetTypeToString(target->type)])
-				{
-					if (!value.IsNull())
-						link_language = value.as<std::string>();
-				}
-				else if (auto value = link_cfg["default"])
-				{
-					if (!value.IsNull())
-						link_language = value.as<std::string>();
-				}
-			}
-			else if (!link_cfg.IsNull())
-			{
-				link_language = link_cfg.as<std::string>();
-			}
-
-			if (link_language)
-			{
-				if (auto link_provider = GetLangProvider(*link_language))
-					link_provider->CreateTargetArtifact(desc, *target);
-				else
-					RE_THROW TargetLoadException(target, "unknown link-with language {}", *link_language);
-			}
-		}
 	}
 
 	void BuildEnv::RunTargetAction(const NinjaBuildDesc& desc, const Target& target, const std::string& type, const TargetConfig& data)

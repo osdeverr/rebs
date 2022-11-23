@@ -230,6 +230,18 @@ namespace re
         file << out.c_str();
     }
 
+    std::optional<std::string> Target::GetVar(const std::string& key) const
+    {
+        if (config["vars"] && config["vars"][key].IsDefined())
+            return config["vars"][key].as<std::string>();
+        else if (auto entry = GetCfgEntry<std::string>(key, CfgEntryKind::Recursive))
+            return entry;
+        else if (var_parent)
+            return var_parent->GetVar(key);
+        else
+            return std::nullopt;
+    }
+
     std::string TargetDependency::ToString() const
     {
         std::string result;
@@ -246,7 +258,7 @@ namespace re
     }
 
     TargetException::TargetException(std::string_view type, const Target *target, const std::string &str)
-        : Exception{"{} in target '{}':\n      {}", type, target->module, str}
+        : Exception{"{} in target '{}':\n      {}", type, target ? target->module : "null", str}
     {
     }
 }

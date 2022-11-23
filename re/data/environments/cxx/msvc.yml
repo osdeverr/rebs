@@ -10,29 +10,19 @@ inherits:
     - generic
 
 #
-# Custom rules can be used to specify special toolchain setup or anything else you'd like to do before building stuff.
-#
-custom-rules:
-    - name: init-msvc-toolchain
-      placement: before-all
-      run: always
-      command: "{re-command-path}/scripts/windows/fwd-vcvarsall.cmd {build-platform}"
-
-#
 # Specifies the paths to build tools. Can be absolute or relative - it doesn't matter - but the paths obviously need to resolve properly.
-# The MSVC build environment runs vcvarsall to allow invoking the tools without the need to specify paths at all.
 #
 tools:
-    compiler:  cl.exe
-    linker:    link.exe
-    archiver:  lib.exe
+    compiler:  ${msvc-compiler-path | $env:RE_MSVC_COMPILER_PATH | cl.exe}
+    linker:    ${msvc-linker-path   | $env:RE_MSVC_LINKER_PATH   | link.exe}
+    archiver:  ${msvc-archiver-path | $env:RE_MSVC_ARCHIVER_PATH | lib.exe}
 
 #
 # Default tool invoke flags. Can be overridden in targets using the 'build-flags' map property.
 #
 default-flags:
     compiler:  "/nologo /showIncludes /interface /experimental:module /EHsc /MD"
-    linker:    "/nologo /DEBUG /ignore:4006"
+    linker:    "/nologo /DEBUG /ignore:4006 /MACHINE:${arch}"
     archiver:  "/nologo /ignore:4006"
 
 #

@@ -22,7 +22,10 @@ int main(int argc, const char** argv)
         if (args.size() > 3)
             path = args[3];
 
-        re::BuildEnv env;
+        re::VarContext ctx;
+        re::LocalVarScope scope{ &ctx };
+
+        re::BuildEnv env{scope};
 
         env.LoadCoreProjectTarget(path_to_me / "data" / "core-project");
 
