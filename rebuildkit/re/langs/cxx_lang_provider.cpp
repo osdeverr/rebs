@@ -87,16 +87,13 @@ namespace re
 			}
 		}
 
-		inline void AppendLinkFlags(const Target& target, const std::string& cxx_lib_dir_tpl, std::vector<std::string>& out_flags, std::unordered_set<std::string>& out_deps, const std::string& build_arch)
+		inline void AppendLinkFlags(const Target& target, const std::string& cxx_lib_dir_tpl, std::vector<std::string>& out_flags, std::unordered_set<std::string>& out_deps, const LocalVarScope& vars)
 		{
 			auto link_lib_dirs = GetRecursiveSeqCfg(target, "cxx-lib-dirs");
 
 			for (const auto& dir : link_lib_dirs)
 			{
-				auto formatted = fmt::format(
-					dir.as<std::string>(),
-					fmt::arg("build_arch", build_arch)
-				);
+				auto formatted = vars.Resolve(dir.as<std::string>());
 
 				out_flags.push_back(fmt::format(
 					cxx_lib_dir_tpl,
@@ -107,12 +104,27 @@ namespace re
 			auto extra_link_deps = GetRecursiveSeqCfg(target, "cxx-link-deps");
 
 			for (const auto& dep : extra_link_deps)
-				out_deps.insert(fmt::format("\"{}\"", fmt::format(dep.as<std::string>(), fmt::arg("build_arch", build_arch))));
+				out_deps.insert(fmt::format("\"{}\"", vars.Resolve(dep.as<std::string>())));
+		}
+
+		template<class F>
+		void EnumerateCategorizedStuffSeq(const TargetConfig& cfg, const std::string& category, const std::string& key, F callback, bool root = true)
+		{
+			if (const auto& categorized = cfg[category])
+			{
+				for (const auto& v : categorized)
+					EnumerateCategorizedStuffSeq(v.second, category, callback, root);
+			}
+			else if (const auto& keyed = cfg[key])
+			{
+				for (const auto& v : keyed)
+					EnumerateCategorizedStuffSeq(v, category, callback, false);
+			}
 		}
 	}
 
-	CxxLangProvider::CxxLangProvider(const fs::path& env_search_path)
-		: mEnvSearchPath{ env_search_path }
+	CxxLangProvider::CxxLangProvider(const fs::path& env_search_path, VarContext* var_ctx)
+		: mEnvSearchPath{ env_search_path }, mVarCtx{ var_ctx }
 	{
 	}
 
@@ -130,6 +142,8 @@ namespace re
 
 		auto path = GetEscapedModulePath(target);
 
+		LocalVarScope vars{ mVarCtx, "target", &target };
+
 		// Choose and load the correct build environment.
 
 		auto env_cfg = target.GetCfgEntryOrThrow<TargetConfig>("cxx-env", "C++ environment not specified anywhere in the target tree", CfgEntryKind::Recursive);
@@ -141,8 +155,8 @@ namespace re
 		}
 		else
 		{
-			auto& platform = desc.vars.at("re_build_platform");
-			auto& platform_closest = desc.vars.at("re_build_platform_closest");
+			auto& platform = vars.Resolve("${platform}");
+			auto& platform_closest = vars.Resolve("${platform-closest}");
 
 			if (auto val = env_cfg[platform])
 				env_cached_name = val.as<std::string>();
@@ -166,6 +180,10 @@ namespace re
 
 		TargetConfig definitions = GetRecursiveMapCfg(target, "cxx-compile-definitions");
 		TargetConfig definitions_pub = GetRecursiveMapCfg(target, "cxx-compile-definitions-public");
+
+		if (auto vars_cfg = env["vars"])
+			for (const auto& kv : vars_cfg)
+				vars.SetVar(kv.first.as<std::string>(), kv.second.as<std::string>());
 
 		// Make the local definitions supersede all platform ones
 		for (const auto& def : env["platform-definitions"])
@@ -200,9 +218,13 @@ namespace re
 
 		/////////////////////////////////////////////////////////////////
 
-		desc.vars["re_cxx_target_cflags_" + path] = env["default-flags"]["compiler"].as<std::string>();
-		desc.vars["re_cxx_target_lflags_" + path] = env["default-flags"]["linker"].as<std::string>();
-		desc.vars["re_cxx_target_arflags_" + path] = env["default-flags"]["archiver"].as<std::string>();
+		auto& default_cflags = desc.vars["re_cxx_target_cflags_" + path] = vars.Resolve(env["default-flags"]["compiler"].as<std::string>());
+		auto& default_lflags = desc.vars["re_cxx_target_lflags_" + path] = vars.Resolve(env["default-flags"]["linker"].as<std::string>());
+		auto& default_arflags = desc.vars["re_cxx_target_arflags_" + path] = vars.Resolve(env["default-flags"]["archiver"].as<std::string>());
+
+		/////////////////////////////////////////////////////////////////
+
+		// TODO: Configuration/arch/platform switches
 
 		/////////////////////////////////////////////////////////////////
 
@@ -268,7 +290,7 @@ namespace re
 
 		// Forward the C++ build tools definitions to the build system
 		for (const auto& kv : env["tools"])
-			desc.tools.push_back(BuildTool{ "cxx_" + kv.first.as<std::string>() + "_" + path, kv.second.as<std::string>()});
+			desc.tools.push_back(BuildTool{ "cxx_" + kv.first.as<std::string>() + "_" + path, vars.Resolve(kv.second.as<std::string>())});
 
 		// Create build rules
 
@@ -320,7 +342,7 @@ namespace re
 				deps_list.insert("$cxx_artifact_" + res_path);
 			}
 
-			AppendLinkFlags(*dep, cxx_lib_dir, extra_link_flags, deps_list, desc.vars["re_build_arch"]);
+			AppendLinkFlags(*dep, cxx_lib_dir, extra_link_flags, deps_list, vars);
 		}
 
 		std::string extra_link_flags_str = "";

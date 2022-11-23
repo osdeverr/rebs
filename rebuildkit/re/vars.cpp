@@ -6,39 +6,21 @@ namespace re
 {
 	namespace
 	{
-		std::string GetVarValueImpl(const VarContext& ctx, const std::string& original, const std::string& ns, const std::string& key, const std::string& fallback_ns, const std::string& fallback)
+		// \$\{(?:(\w+?):\s*)?([A-Za-z\-\_0-9]*)(?:\s*\|\s*\s*(?:\$(\w+?):\s*)?(.+?)?)?\}
+
+		const auto kOuterVarRegex = boost::xpressive::sregex::compile(R"(\$\{(.*?)\})");
+		const auto kVarRegex = boost::xpressive::sregex::compile(R"((?:(\w+?):\s*)?([A-Za-z\-\_0-9]*)(?:\s*\|\s*(.*))?)");
+
+		std::string GetVarValue(const VarContext& ctx, const std::string& original, const std::string& var, const std::string& default_namespace)
 		{
-			auto it = ctx.find(ns);
-
-			if (it == ctx.end())
-				RE_THROW VarSubstitutionException("var namespace '{}' not found\n    in string '{}'", ns, original);
-
-			//////////////////////////////////////
-
-			if (auto var = it->second->GetVar(key))
-			{
-				return VarSubstitute(ctx, *var);
-			}
-			else
-			{
-				if (!fallback.empty())
-				{
-					if (!fallback_ns.empty())
-						return GetVarValueImpl(ctx, original, fallback_ns, fallback, "", "");
-					else
-						return fallback;
-				}
-				else
-					RE_THROW VarSubstitutionException("variable '{}:{}' not defined\n    in string '{}'", ns, key, original);
-			}
-		}
-
-		std::string GetVarValue(const VarContext& ctx, const std::string& original, const boost::xpressive::smatch& match)
-		{
-			std::string ns = "local";
+			std::string ns = default_namespace;
 			std::string key = "";
-			std::string fallback_var_ns = "";
 			std::string fallback = "";
+
+			boost::xpressive::smatch match;
+
+			if(!boost::xpressive::regex_match(var, match, kVarRegex))
+				RE_THROW VarSubstitutionException("invalid variable definition\n    in string '{}'", original);
 
 			//////////////////////////////////////
 
@@ -51,27 +33,49 @@ namespace re
 				RE_THROW VarSubstitutionException("variable name not specified\n    in string '{}'", original);
 
 			if (match[3])
-				fallback_var_ns = match[3].str();
-
-			if (match[4])
-				fallback = match[4].str();
+				fallback = match[3].str();
 
 			//////////////////////////////////////
 
-			return GetVarValueImpl(ctx, original, ns, key, fallback_var_ns, fallback);
+			auto it = ctx.find(ns);
+
+			if (it == ctx.end())
+				RE_THROW VarSubstitutionException("var namespace '{}' not found\n    in string '{}'", ns, original);
+
+			//////////////////////////////////////
+
+			if (auto var = it->second->GetVar(key))
+			{
+				return VarSubstitute(ctx, *var, default_namespace);
+			}
+			else
+			{
+				if (!fallback.empty())
+				{
+					if (fallback.front() == '$')
+						return GetVarValue(ctx, original, fallback.substr(1), default_namespace);
+					else
+						return fallback;
+				}
+				else
+					RE_THROW VarSubstitutionException("variable '{}:{}' not defined\n    in string '{}'", ns, key, original);
+			}
 		}
 	}
 
-	std::string VarSubstitute(const VarContext& ctx, const std::string& str)
+	std::string VarSubstitute(const VarContext& ctx, const std::string& str, const std::string& default_namespace)
 	{
 		using namespace boost::xpressive;
 
-		sregex envar = sregex::compile(R"(\$\{(?:(\w+?):\s*)?([A-Za-z\-\_0-9]*)(?:\s*\|\s*\s*(?:\$(\w+?):\s*)?(.+?)?)?\})");
-		return regex_replace(str, envar, [str, ctx](const smatch& match) { return GetVarValue(ctx, str, match); }, regex_constants::match_any);
+		return regex_replace(
+			str, kOuterVarRegex,
+			[&str, &ctx, &default_namespace](const smatch& match) { return GetVarValue(ctx, str, match[1].str(), default_namespace); },
+			regex_constants::match_any
+		);
 	}
 
-	LocalVarScope::LocalVarScope(VarContext context, const std::string& alias, IVarNamespace* parent)
-		: mContext{ std::move(context) }, mAlias{ alias }, mParent{ parent }
+	LocalVarScope::LocalVarScope(VarContext* context, const std::string& alias, const IVarNamespace* parent, const std::string& parent_alias)
+		: mContext{ context }, mAlias{ alias }, mParent{ parent }, mParentAlias{ parent_alias }
 	{
 		Init();
 	}
@@ -90,9 +94,31 @@ namespace re
 		Init();
 	}
 
+	LocalVarScope::~LocalVarScope()
+	{
+		if (mContext)
+		{
+			mContext->erase(mLocalName);
+
+			if (!mAlias.empty())
+				mContext->erase(mAlias);
+
+			if (!mParentAlias.empty())
+				mContext->erase(mParentAlias);
+		}
+	}
+
+	void LocalVarScope::Adopt(VarContext* context, IVarNamespace* parent)
+	{
+		mContext = context;
+		mParent = parent;
+
+		Init();
+	}
+
 	void LocalVarScope::AddNamespace(const std::string& name, IVarNamespace* ns)
 	{
-		mContext[name] = ns;
+		(*mContext)[name] = ns;
 	}
 
 	void LocalVarScope::SetVar(const std::string& key, std::string value)
@@ -105,7 +131,7 @@ namespace re
 		mVars.erase(key);
 	}
 
-	std::optional<std::string> LocalVarScope::GetVar(const std::string& key)
+	std::optional<std::string> LocalVarScope::GetVar(const std::string& key) const
 	{
 		auto it = mVars.find(key);
 
@@ -117,12 +143,20 @@ namespace re
 
 	void LocalVarScope::Init()
 	{
-		mContext["local"] = this;
+		mLocalName = fmt::format("@local-{}", (std::uintptr_t) this);
 
-		if (mParent)
-			mContext["local-parent"] = mParent;
+		if (mContext)
+		{
+			(*mContext)[mLocalName] = this;
 
-		if (!mAlias.empty())
-			mContext[mAlias] = this;
+			if (!mAlias.empty())
+				(*mContext)[mAlias] = this;
+
+			if (!mParentAlias.empty())
+				(*mContext)[mParentAlias] = mParent;
+		}
+
+		// if (mParent)
+		//	(*mContext)["local-parent"] = mParent;
 	}
 }

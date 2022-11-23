@@ -6,6 +6,7 @@
 
 #include <re/error.h>
 #include <re/fs.h>
+#include <re/vars.h>
 
 #include <yaml-cpp/yaml.h>
 
@@ -112,7 +113,7 @@ namespace re
         {}
     };
 
-	class Target
+	class Target : public IVarNamespace
 	{
     public:
         static constexpr auto kTargetConfigFilename = "re.yml";
@@ -146,6 +147,10 @@ namespace re
 
         // Targets that depend on this target.
         std::unordered_set<Target*> dependents;
+
+        LocalVarScope* var_parent = nullptr;
+
+        std::optional<std::string> GetVar(const std::string& key) const;
 
         /*
         // Contains the entire flattened dependency cache for this target in the order {children}..{dependencies recursively}..{itself}.

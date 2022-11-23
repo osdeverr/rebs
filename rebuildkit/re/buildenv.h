@@ -4,6 +4,8 @@
 #include "dep_resolver.h"
 #include "target_loader.h"
 
+#include <re/vars.h>
+
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -19,6 +21,8 @@ namespace re
 	class BuildEnv : public ILangLocator, public IDepResolver, public ITargetLoader
 	{
 	public:
+		BuildEnv(LocalVarScope& scope);
+
 		Target& LoadCoreProjectTarget(const fs::path& path);
 
 		Target* GetCoreTarget();
@@ -27,12 +31,15 @@ namespace re
 		Target& LoadTarget(const fs::path& path);
 		void RegisterLocalTarget(Target* pTarget);
 
+		std::vector<Target*> GetSingleTargetDepSet(Target* pTarget);
 		std::vector<Target*> GetTargetsInDependencyOrder();
 
 		void AddLangProvider(std::string_view name, ILangProvider* provider);
 		ILangProvider* GetLangProvider(std::string_view name) override;
 
-		void PopulateBuildDesc(NinjaBuildDesc& desc);
+		void PopulateBuildDesc(Target* target, NinjaBuildDesc& desc);
+		void PopulateBuildDescWithDeps(Target* target, NinjaBuildDesc& desc);
+		void PopulateFullBuildDesc(NinjaBuildDesc& desc);
 
 		void RunTargetAction(const NinjaBuildDesc& desc, const Target& target, const std::string& type, const TargetConfig& data);
 
@@ -50,6 +57,8 @@ namespace re
 
 		std::unordered_map<std::string, ILangProvider*> mLangProviders;
 		std::unordered_map<std::string, IDepResolver*> mDepResolvers;
+
+		LocalVarScope mVars;
 
 		inline Target* GetTargetOrNull(const std::string& module)
 		{

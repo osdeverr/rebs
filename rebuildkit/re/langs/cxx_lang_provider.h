@@ -1,5 +1,6 @@
 #pragma once
 #include <re/lang_provider.h>
+#include <re/vars.h>
 
 #include <yaml-cpp/yaml.h>
 
@@ -16,7 +17,7 @@ namespace re
 	public:
 		static constexpr auto kLangId = "cpp";
 
-		CxxLangProvider(const fs::path& env_search_path);
+		CxxLangProvider(const fs::path& env_search_path, VarContext* var_ctx);
 		CxxLangProvider(const CxxLangProvider&) = default;
 		CxxLangProvider(CxxLangProvider&&) = default;
 
@@ -28,6 +29,8 @@ namespace re
 		virtual void CreateTargetArtifact(NinjaBuildDesc& desc, const Target& target);
 
 	private:
+		VarContext* mVarCtx;
+
 		fs::path mEnvSearchPath;
 		std::unordered_map<std::string, CxxBuildEnvData> mEnvCache;
 
