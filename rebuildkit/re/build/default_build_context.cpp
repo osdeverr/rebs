@@ -21,6 +21,8 @@ namespace re
 		mVars.SetVar("platform-closest", "unix");
 		mVars.SetVar("arch", "x64");
 		mVars.SetVar("configuration", "release");
+		mVars.SetVar("cxx-default-include-dirs", ".");
+		mVars.SetVar("cxx-default-lib-dirs", ".");
 	}
 
 	void DefaultBuildContext::LoadDefaultEnvironment(const fs::path& re_path)
@@ -74,6 +76,10 @@ namespace re
 		auto configuration = vars.Resolve("${configuration}");
 
 		NinjaBuildDesc desc;
+		desc.pRootTarget = &target;
+
+		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+			mEnv->RunActionsCategorized(dep, nullptr, "pre-configure");
 
 		auto out_dir = target.path / "out" / fmt::format("{}-{}", arch, platform) / configuration;
 
@@ -92,7 +98,8 @@ namespace re
 
 	NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTargetInDir(const fs::path& path)
 	{
-		return GenerateBuildDescForTarget(LoadTarget(path));
+		auto& target = LoadTarget(path);
+		return GenerateBuildDescForTarget(target);
 	}
 
 	int DefaultBuildContext::BuildTarget(const NinjaBuildDesc& desc)
@@ -107,16 +114,20 @@ namespace re
 		cmdline.push_back(L"-C");
 		cmdline.push_back(desc.out_dir.wstring());
 
+		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+			mEnv->RunActionsCategorized(dep, &desc, "pre-build");
+
 		int result = RunProcessOrThrowWindows("ninja", cmdline, true, true);
 
 		// Running post-build actions
-		mEnv->RunPostBuildActions(desc);
+		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+			mEnv->RunActionsCategorized(dep, &desc, "post-build");
 
 		return result;
 	}
 
 	void DefaultBuildContext::InstallTarget(const NinjaBuildDesc& desc)
 	{
-		mEnv->RunInstallActions(desc);
+		mEnv->RunInstallActions(desc.pRootTarget, desc);
 	}
 }

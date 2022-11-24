@@ -71,6 +71,8 @@ namespace re
 		std::vector<BuildRule> rules;
 		std::vector<BuildTarget> targets;
 
+		Target* pRootTarget = nullptr;
+
 		std::string GetObjectDirectory(std::string_view module) const
 		{
 			return fmt::format(object_out_format, fmt::arg("module", module));

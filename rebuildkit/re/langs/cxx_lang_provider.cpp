@@ -7,6 +7,8 @@
 
 #include <fstream>
 
+#include <boost/algorithm/string.hpp>
+
 namespace re
 {
 	namespace
@@ -18,6 +20,76 @@ namespace re
 			return module_escaped;
 		}
 
+		void MergeNode(YAML::Node& target, const YAML::Node& source, bool overridden);
+
+		void MergeMap(YAML::Node& target, const YAML::Node& source, bool overridden);
+
+		void MergeSequences(YAML::Node& target, const YAML::Node& source, bool overridden);
+
+
+		void MergeNode(YAML::Node& target, const YAML::Node& source, bool overridden = false)
+		{
+			switch (source.Type())
+			{
+			case YAML::NodeType::Scalar:
+				target = source.Scalar();
+				break;
+			case YAML::NodeType::Map:
+				MergeMap(target, source, overridden);
+				break;
+			case YAML::NodeType::Sequence:
+				MergeSequences(target, source, overridden);
+				break;
+			case YAML::NodeType::Null:
+				target = source;
+				break;
+				// throw std::runtime_error("merge_node: Null source nodes not supported");
+			case YAML::NodeType::Undefined:
+				RE_THROW std::runtime_error(
+					"MergeNode: Undefined source nodes not supported");
+			}
+		}
+
+		void MergeMap(YAML::Node& target, const YAML::Node& source, bool overridden = false)
+		{
+			if (overridden)
+			{
+				target = Clone(source);
+				return;
+			}
+
+			for (auto const& j : source) {
+				auto key = j.first.Scalar();
+
+				constexpr auto kOverridePrefix = "override.";
+
+				if (overridden || key.find(kOverridePrefix) == 0)
+					MergeNode(target[key.substr(sizeof kOverridePrefix + 1)], j.second, true);
+				else
+					MergeNode(target[key], j.second);
+			}
+		}
+
+		void MergeSequences(YAML::Node& target, const YAML::Node& source, bool overridden = false)
+		{
+			if (overridden)
+			{
+				target = Clone(source);
+				return;
+			}
+
+			for (std::size_t i = 0; i != source.size(); ++i) {
+				target.push_back(YAML::Clone(source[i]));
+			}
+		}
+
+		YAML::Node MergeNodes(const YAML::Node& defaultNode, const YAML::Node& overrideNode)
+		{
+			auto cloned = Clone(defaultNode);
+			MergeNode(cloned, overrideNode);
+			return cloned;
+		}
+
 		inline TargetConfig GetRecursiveMapCfg(const Target& leaf, std::string_view key)
 		{
 			auto result = TargetConfig{ YAML::NodeType::Map };
@@ -26,16 +98,7 @@ namespace re
 			while (p)
 			{
 				if (auto map = p->GetCfgEntry<TargetConfig>(key))
-				{
-					for (const std::pair<YAML::Node, YAML::Node>& kv : *map)
-					{
-						auto type = kv.first.as<std::string>();
-						auto& yaml = kv.second;
-
-						if (!result[type])
-							result[type] = yaml;
-					}
-				}
+					result = MergeNodes(*map, result);
 
 				p = p->parent;
 			}
@@ -50,13 +113,8 @@ namespace re
 
 			while (p)
 			{
-				if (auto seq = p->GetCfgEntry<TargetConfig>(key))
-				{
-					for (const auto& v : *seq)
-					{
-						result.push_back(v);
-					}
-				}
+				if (auto map = p->GetCfgEntry<TargetConfig>(key))
+					result = MergeNodes(*map, result);
 
 				p = p->parent;
 			}
@@ -64,48 +122,14 @@ namespace re
 			return result;
 		}
 
-		inline TargetConfig GetRecursiveMapCfgStartingWith(const Target& leaf, std::string_view beginning)
-		{
-			auto result = TargetConfig{ YAML::NodeType::Map };
-			auto p = &leaf;
-
-			while (p)
-			{
-				for (const auto& rootkv : p->config)
-				{
-					auto key = rootkv.first.as<std::string>();
-					if (key.find(beginning) == 0)
-					{
-						auto out_key = key.substr(beginning.size() - 1);
-
-						if (!result[key])
-							result[key] = TargetConfig{ YAML::NodeType::Map };
-
-						for (const std::pair<YAML::Node, YAML::Node>& kv : rootkv.second)
-						{
-							auto type = kv.first.as<std::string>();
-							auto& yaml = kv.second;
-
-							if (!result[key][type])
-								result[key][type] = yaml;
-						}
-					}
-				}
-
-				p = p->parent;
-			}
-
-			return result;
-		}
-
-		inline void AppendIncludeDirs(const Target& target, const std::string& cxx_include_dir_tpl, std::vector<std::string>& out_flags, const LocalVarScope& vars)
+		inline void AppendIncludeDirs(const Target& target, const TargetConfig& cfg, const std::string& cxx_include_dir_tpl, std::vector<std::string>& out_flags, const LocalVarScope& vars)
 		{
 			out_flags.push_back(fmt::format(
 				cxx_include_dir_tpl,
 				fmt::arg("directory", target.path.u8string())
 			));
 
-			auto extra_includes = GetRecursiveSeqCfg(target, "cxx-include-dirs");
+			auto extra_includes = cfg["cxx-include-dirs"];
 
 			for (const auto& v : extra_includes)
 			{
@@ -121,9 +145,9 @@ namespace re
 			}
 		}
 
-		inline void AppendLinkFlags(const Target& target, const std::string& cxx_lib_dir_tpl, std::vector<std::string>& out_flags, std::unordered_set<std::string>& out_deps, const LocalVarScope& vars)
+		inline void AppendLinkFlags(const Target& target, const TargetConfig& cfg, const std::string& cxx_lib_dir_tpl, std::vector<std::string>& out_flags, std::unordered_set<std::string>& out_deps, const LocalVarScope& vars)
 		{
-			auto link_lib_dirs = GetRecursiveSeqCfg(target, "cxx-lib-dirs");
+			auto link_lib_dirs = cfg["cxx-lib-dirs"];
 
 			for (const auto& dir : link_lib_dirs)
 			{
@@ -135,25 +159,77 @@ namespace re
 				));
 			}
 
-			auto extra_link_deps = GetRecursiveSeqCfg(target, "cxx-link-deps");
+			auto extra_link_deps = cfg["cxx-link-deps"];
 
 			for (const auto& dep : extra_link_deps)
 				out_deps.insert(fmt::format("\"{}\"", vars.Resolve(dep.as<std::string>())));
 		}
 
-		template<class F>
-		void EnumerateCategorizedStuffSeq(const TargetConfig& cfg, const std::string& category, const std::string& key, F callback, bool root = true)
+		TargetConfig GetFlatResolvedCfg(const TargetConfig& cfg, const std::unordered_map<std::string, std::string>& mappings)
 		{
-			if (const auto& categorized = cfg[category])
+			// recurse the ky
+			auto result = Clone(cfg);
+
+			if (cfg.IsMap())
 			{
-				for (const auto& v : categorized)
-					EnumerateCategorizedStuffSeq(v.second, category, callback, root);
+				for (auto& kv : cfg)
+				{
+					std::string key = kv.first.as<std::string>();
+
+					for (const auto& [category, value] : mappings)
+					{
+						if (key.find(category + ".") == 0)
+						{
+							auto raw = key.substr(category.size() + 1);
+
+							std::vector<std::string> categories;
+							boost::algorithm::split(categories, raw, boost::is_any_of("|"));
+
+							if (raw == "any" || std::find(categories.begin(), categories.end(), value) != categories.end())
+							{
+								if (kv.second.IsScalar() && kv.second.Scalar() == "unsupported")
+									RE_THROW Exception("unsupported {} '{}'", category, value);
+
+								auto cloned = GetFlatResolvedCfg(kv.second, mappings);
+
+								if (cloned.IsMap())
+								{
+									for (auto& inner_kv : cloned)
+										inner_kv.second = GetFlatResolvedCfg(inner_kv.second, mappings);
+								}
+
+								MergeNode(result, cloned);
+							}
+
+							result.remove(key);
+							break;
+						}
+					}
+				}
 			}
-			else if (const auto& keyed = cfg[key])
+
+			return result;
+		}
+
+		TargetConfig GetTargetResolvedCfg(const Target& leaf, const std::unordered_map<std::string, std::string>& mappings)
+		{
+			auto result = GetFlatResolvedCfg(leaf.config, mappings);
+			auto p = leaf.parent;
+
+			while (p)
 			{
-				for (const auto& v : keyed)
-					EnumerateCategorizedStuffSeq(v, category, callback, false);
+				result = MergeNodes(GetFlatResolvedCfg(p->config, mappings), result);
+				p = p->parent;
 			}
+
+			/*
+			YAML::Emitter emitter;
+			emitter << result;
+
+			fmt::print(" [DBG] Flat target config for '{}':\n\n{}\n\n", leaf.module, emitter.c_str());
+			*/
+
+			return result;
 		}
 	}
 
@@ -176,7 +252,8 @@ namespace re
 
 		auto path = GetEscapedModulePath(target);
 
-		LocalVarScope vars{ mVarCtx, "target", &target };
+		LocalVarScope target_vars{ mVarCtx, "target", &target };
+		LocalVarScope vars{ mVarCtx, "build", &target_vars };
 
 		// Choose and load the correct build environment.
 
@@ -209,15 +286,18 @@ namespace re
 		//
 		CxxBuildEnvData& env = LoadEnvOrThrow(env_cached_name, target);
 
-		TargetConfig cxx_flags = GetRecursiveMapCfg(target, "cxx-flags");
-		TargetConfig link_flags = GetRecursiveMapCfg(target, "cxx-link-flags");
-
-		TargetConfig definitions = GetRecursiveMapCfg(target, "cxx-compile-definitions");
-		TargetConfig definitions_pub = GetRecursiveMapCfg(target, "cxx-compile-definitions-public");
-
 		if (auto vars_cfg = env["vars"])
 			for (const auto& kv : vars_cfg)
 				vars.SetVar(kv.first.as<std::string>(), kv.second.as<std::string>());
+
+		auto config = GetTargetResolvedCfg(target, {
+			{ "arch", vars.Resolve("${arch}") },
+			{ "platform", vars.Resolve("${platform}") },
+			{ "config", vars.Resolve("${configuration}") }
+		});
+
+		TargetConfig definitions = config["cxx-compile-definitions"];
+		TargetConfig definitions_pub = config["cxx-compile-definitions-public"];
 
 		// Make the local definitions supersede all platform ones
 		for (const auto& def : env["platform-definitions"])
@@ -227,51 +307,20 @@ namespace re
 		std::vector<const Target*> include_deps;
 		PopulateTargetDependencySetNoResolve(&target, include_deps);
 
-		for (auto& target : include_deps)
-		{
-			auto dependency_defines = GetRecursiveMapCfg(*target, "cxx-compile-definitions-public");
+		/////////////////////////////////////////////////////////////////
 
-			for (const std::pair<YAML::Node, YAML::Node>& kv : dependency_defines)
-			{
-				auto name = kv.first.as<std::string>();
-				auto value = kv.second.as<std::string>();
-
-				if (!definitions_pub[name])
-					definitions_pub[name] = value;
-			}
-		}
-
-		for (const std::pair<YAML::Node, YAML::Node>& kv : definitions_pub)
-		{
-			auto name = kv.first.as<std::string>();
-			auto value = kv.second.as<std::string>();
-
-			if (!definitions[name])
-				definitions[name] = value;
-		}
+		for (const auto& kv : env["default-flags"])
+			vars.SetVar("platform-default-flags-" + kv.first.Scalar(), vars.Resolve(kv.second.Scalar()));
 
 		/////////////////////////////////////////////////////////////////
 
-		auto& default_cflags = desc.vars["re_cxx_target_cflags_" + path] = vars.Resolve(env["default-flags"]["compiler"].as<std::string>());
-		auto& default_lflags = desc.vars["re_cxx_target_lflags_" + path] = vars.Resolve(env["default-flags"]["linker"].as<std::string>());
-		auto& default_arflags = desc.vars["re_cxx_target_arflags_" + path] = vars.Resolve(env["default-flags"]["archiver"].as<std::string>());
-
-		/////////////////////////////////////////////////////////////////
-
-		// TODO: Configuration/arch/platform switches
-
-		// auto ky = GetRecursiveMapCfgStartingWith(target, "cfg.");
-		// EnumerateCategorizedStuffSeq(ky, "cfg.", "cxx-compile-definitions");
-
-		/////////////////////////////////////////////////////////////////
-
-		std::string flags_base = fmt::format("$re_cxx_target_cflags_{} $target_custom_flags ", path);
+		std::string flags_base = fmt::format("$target_custom_flags ", path);
 
 		const auto& templates = env["templates"];
 
 		std::vector<std::string> extra_flags;
 
-		std::string cpp_std = target.GetCfgEntry<std::string>("cxx-version", CfgEntryKind::Recursive).value_or("latest");
+		std::string cpp_std = config["cxx-standard"].Scalar();
 
 		extra_flags.push_back(fmt::format(
 			templates["cxx-standard"].as<std::string>(),
@@ -286,32 +335,101 @@ namespace re
 		auto cxx_include_dir = templates["cxx-include-dir"].as<std::string>();
 		auto cxx_module_lookup_dir = templates["cxx-module-lookup-dir"].as<std::string>();
 
+		std::unordered_set<std::string> deps_list;
+		std::vector<std::string> extra_link_flags;
+
+		auto cxx_lib_dir = templates["cxx-lib-dir"].as<std::string>();
+		
 		for (auto& target : include_deps)
 		{
-			AppendIncludeDirs(*target, cxx_include_dir, extra_flags, vars);
+			auto config = GetTargetResolvedCfg(*target, {
+				{ "arch", vars.Resolve("${arch}") },
+				{ "platform", vars.Resolve("${platform}") },
+				{ "config", vars.Resolve("${configuration}") }
+			});
+
+			auto dependency_defines = config["cxx-compile-definitions-public"];
+
+			for (const std::pair<YAML::Node, YAML::Node>& kv : dependency_defines)
+			{
+				auto name = kv.first.as<std::string>();
+				auto value = kv.second.as<std::string>();
+
+				if (!definitions_pub[name])
+					definitions_pub[name] = value;
+			}
+
+			AppendIncludeDirs(*target, config, cxx_include_dir, extra_flags, vars);
 
 			// TODO: Make this only work with modules enabled???
 			extra_flags.push_back(fmt::format(
 				cxx_module_lookup_dir,
 				fmt::arg("directory", fmt::format("$builddir/{}", target->module))
 			));
+
+			// Link stuff
+
+			auto res_path = GetEscapedModulePath(*target);
+			bool has_any_eligible_sources = (desc.state["re_cxx_target_has_objects_" + res_path] == "1");
+
+			if (target->type == TargetType::StaticLibrary && has_any_eligible_sources)
+			{
+				deps_list.insert("$cxx_artifact_" + res_path);
+			}
+
+			AppendLinkFlags(*target, config, cxx_lib_dir, extra_link_flags, deps_list, vars);
+
+			if (const auto& extra = config["cxx-build-flags"])
+			{
+				if(extra["compiler"] && extra["compiler"].IsScalar())
+					extra_flags.push_back(vars.Resolve(extra["compiler"].Scalar()));
+				else
+					for (const auto& flag : extra["compiler"])
+						extra_flags.push_back(vars.Resolve(flag.Scalar()));
+
+				if (extra["linker"] && extra["linker"].IsScalar())
+					extra_link_flags.push_back(vars.Resolve(extra["linker"].Scalar()));
+				else
+					for (const auto& flag : extra["linker"])
+						extra_link_flags.push_back(vars.Resolve(flag.Scalar()));
+			}
 		}
 
-
-		/////////////////////////////////////////////////////////////////
-
-		auto cxx_compile_definitions = templates["cxx-compile-definition"].as<std::string>();
-
-		for (const auto& kv : definitions)
+		for (const std::pair<YAML::Node, YAML::Node>& kv : definitions_pub)
 		{
 			auto name = kv.first.as<std::string>();
 			auto value = kv.second.as<std::string>();
 
-			extra_flags.push_back(fmt::format(
-				cxx_compile_definitions,
-				fmt::arg("name", vars.Resolve(name)),
-				fmt::arg("value", vars.Resolve(value))
-			));
+			if (!definitions[name])
+				definitions[name] = value;
+		}
+
+		/////////////////////////////////////////////////////////////////
+
+		auto cxx_compile_definition = templates["cxx-compile-definition"].as<std::string>();
+		auto cxx_compile_definition_no_value = templates["cxx-compile-definition-no-value"].as<std::string>();
+
+		for (const auto& kv : definitions)
+		{
+			auto name = kv.first.as<std::string>();
+
+			if (kv.second.IsScalar())
+			{
+				auto value = kv.second.as<std::string>();
+
+				extra_flags.push_back(fmt::format(
+					cxx_compile_definition,
+					fmt::arg("name", vars.Resolve(name)),
+					fmt::arg("value", vars.Resolve(value))
+				));
+			}
+			else
+			{
+				extra_flags.push_back(fmt::format(
+					cxx_compile_definition_no_value,
+					fmt::arg("name", vars.Resolve(name))
+				));
+			}
 		}
 
 		/////////////////////////////////////////////////////////////////
@@ -346,41 +464,6 @@ namespace re
 			for (const auto& var : rule_vars)
 				rule_cxx.vars[var.first.as<std::string>()] = vars.Resolve(var.second.as<std::string>());
 
-		std::unordered_set<std::string> deps_list;
-		std::vector<std::string> extra_link_flags;
-
-		auto cxx_lib_dir = templates["cxx-lib-dir"].as<std::string>();
-
-		for (auto& dep : include_deps)
-		{
-			//if (dep->type != TargetType::StaticLibrary)
-			//	continue;
-
-			/*
-			bool skip = false;
-
-			for (auto& dep_in : target.dependencies)
-			{
-				for (auto& dep_in_in : dep_in.resolved->dependencies)
-					if (dep_in_in.resolved == dep.resolved)
-						skip = true;
-			}
-
-			if (skip)
-				continue;
-				*/
-
-			auto res_path = GetEscapedModulePath(*dep);
-			bool has_any_eligible_sources = (desc.state["re_cxx_target_has_objects_" + res_path] == "1");
-
-			if (dep->type == TargetType::StaticLibrary && has_any_eligible_sources)
-			{
-				deps_list.insert("$cxx_artifact_" + res_path);
-			}
-
-			AppendLinkFlags(*dep, cxx_lib_dir, extra_link_flags, deps_list, vars);
-		}
-
 		std::string extra_link_flags_str = "";
 
 		for (auto& flag : extra_link_flags)
@@ -404,7 +487,7 @@ namespace re
 
 		rule_link.cmdline = fmt::format(
 			templates["linker-cmdline"].as<std::string>(),
-			fmt::arg("flags", "$target_custom_flags $re_cxx_target_lflags_" + path + extra_link_flags_str),
+			fmt::arg("flags", "$target_custom_flags " + extra_link_flags_str),
 			fmt::arg("link_deps", deps_input),
 			fmt::arg("input", "$in"),
 			fmt::arg("output", "$out")
@@ -417,7 +500,7 @@ namespace re
 		rule_lib.tool = "cxx_archiver_" + path;
 		rule_lib.cmdline = fmt::format(
 			templates["archiver-cmdline"].as<std::string>(),
-			fmt::arg("flags", "$target_custom_flags $re_cxx_target_arflags_" + path + extra_link_flags_str),
+			fmt::arg("flags", "$target_custom_flags " + extra_link_flags_str),
 			fmt::arg("link_deps", deps_input),
 			fmt::arg("input", "$in"),
 			fmt::arg("output", "$out")

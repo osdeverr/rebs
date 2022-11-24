@@ -145,6 +145,9 @@ namespace re
         fs::path config_path;
         TargetConfig config;
 
+        // This is the "flat" config representation. It is only built once.
+        TargetConfig resolved_config{ YAML::NodeType::Null };
+
         // Targets that depend on this target.
         std::unordered_set<Target*> dependents;
 

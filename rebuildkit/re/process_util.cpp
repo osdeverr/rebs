@@ -9,10 +9,11 @@
 
 namespace re
 {
-    int RunProcessOrThrow(std::string_view program_name, const std::vector<std::string>& cmdline, bool output, bool throw_on_bad_exit)
+    int RunProcessOrThrow(std::string_view program_name, const std::vector<std::string>& cmdline, bool output, bool throw_on_bad_exit, std::optional<std::string_view> working_directory)
     {
         reproc::options options;
         options.redirect.parent = output;
+        options.working_directory = working_directory ? working_directory->data() : nullptr;
 
         reproc::process process;
 
@@ -44,7 +45,7 @@ namespace re
         HANDLE gProcessUtilJob = NULL;
     }
 
-    int RunProcessOrThrowWindows(std::string_view program_name, const std::vector<std::wstring>& cmdline, bool output, bool throw_on_bad_exit)
+    int RunProcessOrThrowWindows(std::string_view program_name, const std::vector<std::wstring>& cmdline, bool output, bool throw_on_bad_exit, std::optional<std::wstring_view> working_directory)
     {
         if (!gProcessUtilJob)
         {
@@ -75,7 +76,7 @@ namespace re
         STARTUPINFOW info = { sizeof(info) };
         PROCESS_INFORMATION process;
 
-        if (::CreateProcessW(NULL, args.data(), nullptr, nullptr, true, CREATE_SUSPENDED, nullptr, nullptr, &info, &process))
+        if (::CreateProcessW(NULL, args.data(), nullptr, nullptr, true, CREATE_SUSPENDED, nullptr, working_directory ? working_directory->data() : nullptr, &info, &process))
         {
             if (!AssignProcessToJobObject(gProcessUtilJob, process.hProcess))
             {

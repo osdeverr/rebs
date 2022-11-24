@@ -11,6 +11,8 @@
 
 #include <fstream>
 
+#include <boost/algorithm/string.hpp>
+
 int main(int argc, const char** argv)
 {
     SetConsoleOutputCP(65001);
@@ -21,11 +23,11 @@ int main(int argc, const char** argv)
         std::vector<std::string_view> args(argv, argv + argc);
 
         re::DefaultBuildContext context;
-        context.LoadDefaultEnvironment(re::GetCurrentExecutablePath());
+        context.LoadDefaultEnvironment(L"D:/Programs/ReBS/bin");
 
         if (args.size() == 1)
         {
-            return context.BuildTargetInDir(".");
+            return context.BuildTargetInDir(L"D:/PlakSystemsSW/NetUnitDlls");
         }
         else if (args[1] == "build")
         {
