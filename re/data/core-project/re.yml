@@ -26,4 +26,30 @@ link-with:
     custom: null
     default: cpp
 
+config.debug:
+    cxx-build-options:
+        debug:
+    cxx-compile-definitions:
+        DEBUG: 1
+        
+config.release:
+    cxx-compile-definitions:
+        NDEBUG: 1
+        
+cxx-include-dirs:
+    - ${cxx-default-include-dirs}
+
+cxx-lib-dirs:
+    - ${cxx-default-lib-dirs}
+        
+cxx-build-flags:
+    compiler:
+        - ${platform-default-flags-compiler}
+    linker:
+        - ${platform-default-flags-linker}
+    archiver:
+        - ${platform-default-flags-archiver}
+
+cxx-standard: latest
+
 re-cache-dir: .re-cache

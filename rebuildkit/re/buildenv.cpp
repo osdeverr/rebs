@@ -3,6 +3,7 @@
 #include <fmt/format.h>
 
 #include <re/error.h>
+#include <re/process_util.h>
 
 namespace re
 {
@@ -193,7 +194,7 @@ namespace re
 
 	}
 
-	void BuildEnv::RunTargetAction(const NinjaBuildDesc& desc, const Target& target, const std::string& type, const TargetConfig& data)
+	void BuildEnv::RunTargetAction(const NinjaBuildDesc* desc, const Target& target, const std::string& type, const TargetConfig& data)
 	{
 		if (type == "copy")
 		{
@@ -202,7 +203,7 @@ namespace re
 
 			std::filesystem::copy(
 				target.path / from,
-				desc.out_dir / desc.GetArtifactDirectory(target.module) / to,
+				desc->out_dir / desc->GetArtifactDirectory(target.module) / to,
 				std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
 			);
 		}
@@ -211,9 +212,9 @@ namespace re
 			auto from = data["from"].as<std::string>();
 			auto to = data["to"].as<std::string>();
 
-			for (auto &dependent : target.dependents)
+			for (auto& dependent : target.dependents)
 			{
-				auto to_dep = desc.out_dir / desc.GetArtifactDirectory(dependent->module);
+				auto to_dep = desc->out_dir / desc->GetArtifactDirectory(dependent->module);
 
 				if (std::filesystem::exists(to_dep))
 					std::filesystem::copy(
@@ -223,22 +224,30 @@ namespace re
 					);
 			}
 		}
-	}
-
-	void BuildEnv::RunPostBuildActions(const NinjaBuildDesc& desc)
-	{
-		RunActionsCategorized(desc, "post-build");
-	}
-
-	void BuildEnv::RunInstallActions(const NinjaBuildDesc &desc)
-	{
-		for (auto &target : GetTargetsInDependencyOrder())
+		else if (type == "run")
 		{
-			auto from = desc.out_dir / desc.GetArtifactDirectory(target->module);
-			InstallPathToTarget(target, from);
-		}
+			auto command = data["command"].as<std::string>();
 
-		RunActionsCategorized(desc, "post-install");
+			std::vector<std::string> args{ command };
+
+			for (auto& arg : data["args"])
+				args.push_back(arg.Scalar());
+
+			RunProcessOrThrow("command", args, true, true, target.path.u8string());
+		}
+	}
+
+	void BuildEnv::RunPostBuildActions(Target* target, const NinjaBuildDesc& desc)
+	{
+		RunActionsCategorized(target, &desc, "post-build");
+	}
+
+	void BuildEnv::RunInstallActions(Target* target, const NinjaBuildDesc &desc)
+	{
+		auto from = desc.out_dir / desc.GetArtifactDirectory(target->module);
+		InstallPathToTarget(target, from);
+
+		RunActionsCategorized(target, &desc, "post-install");
 	}
 
 	void BuildEnv::InstallPathToTarget(const Target *pTarget, const fs::path& from)
@@ -305,20 +314,16 @@ namespace re
 		});
 	}
 
-	void BuildEnv::RunActionList(const NinjaBuildDesc &desc, Target *target, const TargetConfig &list, std::string_view run_type, const std::string &default_run_type)
+	void BuildEnv::RunActionList(const NinjaBuildDesc* desc, Target *target, const TargetConfig &list, std::string_view run_type, const std::string &default_run_type)
 	{
 		for (const auto &v : list)
 		{
 			for (const auto &kv : v)
 			{
-				auto type = kv.first.as<std::string>();
-				auto &data = kv.second;
+				std::string run = kv.first.as<std::string>();
 
-				std::string run = default_run_type;
-				// fmt::print("{}\n", type);
-
-				if (auto run_val = data["run"])
-					run = run_val.as<std::string>();
+				auto& data = kv.second;
+				auto& type = kv.second["type"].Scalar();
 
 				if (run == run_type)
 					RunTargetAction(desc, *target, type, data);
@@ -326,26 +331,23 @@ namespace re
 		}
 	}
 
-	void BuildEnv::RunActionsCategorized(const NinjaBuildDesc& desc, std::string_view run_type)
+	void BuildEnv::RunActionsCategorized(Target* target, const NinjaBuildDesc* desc, std::string_view run_type)
 	{
-		for (auto& target : GetTargetsInDependencyOrder())
+		if (auto actions = target->GetCfgEntry<TargetConfig>("actions"))
 		{
-			if (auto actions = target->GetCfgEntry<TargetConfig>("actions"))
+			if (actions->IsMap())
 			{
-				if (actions->IsMap())
+				for (const auto& kv : *actions)
 				{
-					for (const auto &kv : *actions)
-					{
-						auto type = kv.first.as<std::string>();
-						auto &data = kv.second;
+					auto type = kv.first.as<std::string>();
+					auto& data = kv.second;
 
-						RunActionList(desc, target, data, run_type, type);
-					}
+					RunActionList(desc, target, data, run_type, type);
 				}
-				else
-				{
-					RunActionList(desc, target, *actions, run_type, "post-build");
-				}
+			}
+			else
+			{
+				RunActionList(desc, target, *actions, run_type, "post-build");
 			}
 		}
 	}

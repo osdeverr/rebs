@@ -41,10 +41,12 @@ namespace re
 		void PopulateBuildDescWithDeps(Target* target, NinjaBuildDesc& desc);
 		void PopulateFullBuildDesc(NinjaBuildDesc& desc);
 
-		void RunTargetAction(const NinjaBuildDesc& desc, const Target& target, const std::string& type, const TargetConfig& data);
+		void RunTargetAction(const NinjaBuildDesc* desc, const Target& target, const std::string& type, const TargetConfig& data);
 
-		void RunPostBuildActions(const NinjaBuildDesc& desc);
-		void RunInstallActions(const NinjaBuildDesc& desc);
+		void RunActionsCategorized(Target* target, const NinjaBuildDesc* desc, std::string_view run_type);
+
+		void RunPostBuildActions(Target* target, const NinjaBuildDesc& desc);
+		void RunInstallActions(Target* target, const NinjaBuildDesc& desc);
 
 		void AddDepResolver(std::string_view name, IDepResolver* resolver);
 		Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep) override;
@@ -74,9 +76,7 @@ namespace re
 
 		void AppendDepsAndSelf(Target *pTarget, std::vector<Target *> &to);
 
-		void RunActionList(const NinjaBuildDesc &desc, Target *target, const TargetConfig &list, std::string_view run_type, const std::string &default_run_type);
-
-		void RunActionsCategorized(const NinjaBuildDesc& desc, std::string_view run_type);
+		void RunActionList(const NinjaBuildDesc* desc, Target *target, const TargetConfig &list, std::string_view run_type, const std::string &default_run_type);
 
 		void InstallPathToTarget(const Target *pTarget, const fs::path &from);
 	};
