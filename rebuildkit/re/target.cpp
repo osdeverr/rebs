@@ -232,22 +232,33 @@ namespace re
 
     std::optional<std::string> Target::GetVar(const std::string& key) const
     {
+        // fmt::print("target '{}'/'{}': ", module, key);
+
         if (config["vars"] && config["vars"][key].IsDefined())
         {
+            // fmt::print("found in vars");
             return config["vars"][key].as<std::string>();
         }
         else if (auto entry = GetCfgEntry<std::string>(key, CfgEntryKind::Recursive))
         {
+            // fmt::print("found in config with entry='{}'", entry.value());
             return entry;
         }
         else if (auto var = parent ? parent->GetVar(key) : std::nullopt)
         {
+            // fmt::print("forward to parent ");
             return var;
         }
         else if (var_parent)
+        {
+            // fmt::print("forward to scope ");
             return var_parent->GetVar(key);
+        }
         else
+        {
+            // fmt::print("target lost. ");
             return std::nullopt;
+        }
     }
 
     std::string TargetDependency::ToString() const

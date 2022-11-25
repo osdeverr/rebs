@@ -34,6 +34,9 @@ namespace re
 
         out.print("builddir = {}\n", desc.out_dir.u8string());
 
+        for (auto& [key, val] : desc.init_vars)
+            out.print("{} = {}\n", key, val);
+
         for (auto& [key, val] : desc.vars)
             out.print("{} = {}\n", key, val);
 

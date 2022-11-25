@@ -6,6 +6,8 @@
 #include <re/process_util.h>
 #include <re/fs.h>
 
+#include <fstream>
+
 namespace re
 {
 	Target* GitDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
@@ -67,6 +69,21 @@ namespace re
 		}
 
 		auto& result = (mTargetCache[cached_dir] = mLoader->LoadFreeTarget(git_cached));
+
+		auto [scope, context] = target.GetBuildVarScope();
+
+		auto re_arch = scope.Resolve("${arch}");
+		auto re_platform = scope.Resolve("${platform}");
+		auto re_config = scope.Resolve("${configuration}");
+
+		result->config["arch"] = re_arch;
+		result->config["platform"] = re_platform;
+		result->config["configuration"] = re_config;
+
+		result->var_parent = target.var_parent;
+		result->local_var_ctx = context;
+		result->build_var_scope.emplace(&result->local_var_ctx, "build", &scope);
+
 		mLoader->RegisterLocalTarget(result.get());
 		return result.get();
 	}

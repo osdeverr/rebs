@@ -15,7 +15,7 @@
 
 namespace re
 {
-	void PopulateTargetDependencySet(Target* pTarget, std::vector<Target*>& to, std::function<Target* (const TargetDependency&)> dep_resolver = {});
+	void PopulateTargetDependencySet(Target* pTarget, std::vector<Target*>& to, std::function<Target* (const Target&, const TargetDependency&)> dep_resolver = {}, bool throw_on_missing = true);
 	void PopulateTargetDependencySetNoResolve(const Target* pTarget, std::vector<const Target*>& to);
 
 	class BuildEnv : public ILangLocator, public IDepResolver, public ITargetLoader
@@ -32,10 +32,14 @@ namespace re
 		void RegisterLocalTarget(Target* pTarget);
 
 		std::vector<Target*> GetSingleTargetDepSet(Target* pTarget);
+		std::vector<Target*> GetSingleTargetLocalDepSet(Target* pTarget);
 		std::vector<Target*> GetTargetsInDependencyOrder();
 
 		void AddLangProvider(std::string_view name, ILangProvider* provider);
 		ILangProvider* GetLangProvider(std::string_view name) override;
+
+		ILangProvider* InitializeTargetLinkEnv(Target* target, NinjaBuildDesc& desc);
+		void InitializeTargetLinkEnvWithDeps(Target* target, NinjaBuildDesc& desc);
 
 		void PopulateBuildDesc(Target* target, NinjaBuildDesc& desc);
 		void PopulateBuildDescWithDeps(Target* target, NinjaBuildDesc& desc);
@@ -74,10 +78,12 @@ namespace re
 
 		void PopulateTargetMap(Target* pTarget);
 
-		void AppendDepsAndSelf(Target *pTarget, std::vector<Target *> &to);
+		void AppendDepsAndSelf(Target *pTarget, std::vector<Target *> &to, bool throw_on_missing = true, bool use_external = true);
 
 		void RunActionList(const NinjaBuildDesc* desc, Target *target, const TargetConfig &list, std::string_view run_type, const std::string &default_run_type);
 
 		void InstallPathToTarget(const Target *pTarget, const fs::path &from);
+
+		Target* ResolveTargetDependencyImpl(const Target& target, const TargetDependency& dep, bool use_external = true);
 	};
 }

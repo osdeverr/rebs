@@ -249,17 +249,14 @@ namespace re
 		// Do nothing
 	}
 
-	bool CxxLangProvider::InitBuildTarget(NinjaBuildDesc& desc, Target& target)
+	void CxxLangProvider::InitLinkTargetEnv(NinjaBuildDesc& desc, Target& target)
 	{
-		// if (target.type != TargetType::Executable && target.type != TargetType::StaticLibrary && target.type != TargetType::SharedLibrary)
-		//	return false;
-
-		/////////////////////////////////////////////////////////////////
-
 		auto path = GetEscapedModulePath(target);
 
-		auto& target_vars = target.target_var_scope.emplace(mVarScope->GetContext(), "target", &target);
-		auto& vars = target.build_var_scope.emplace(mVarScope->GetContext(), "build", &target_vars);
+		target.local_var_ctx = *mVarScope->GetContext();
+
+		auto& target_vars = target.target_var_scope.emplace(&target.local_var_ctx, "target", &target);
+		auto& vars = target.build_var_scope.emplace(&target.local_var_ctx, "build", &target_vars);
 
 		// Choose and load the correct build environment.
 
@@ -272,8 +269,8 @@ namespace re
 		}
 		else
 		{
-			auto& platform = vars.Resolve("${platform}");
-			auto& platform_closest = vars.Resolve("${platform-closest}");
+			auto platform = vars.Resolve("${platform}");
+			auto platform_closest = vars.Resolve("${platform-closest}");
 
 			if (auto val = env_cfg[platform])
 				env_cached_name = val.as<std::string>();
@@ -307,11 +304,33 @@ namespace re
 					*/
 			}
 
-		auto config = GetTargetResolvedCfg(target, {
+		for (const auto& kv : env["default-flags"])
+			vars.SetVar("platform-default-flags-" + kv.first.Scalar(), vars.Resolve(kv.second.Scalar()));
+
+		auto arch = vars.Resolve("${arch}");
+		// fmt::print("\n !!! ARCH for {} = {}\n\n", target.module, arch);
+	}
+
+	bool CxxLangProvider::InitBuildTargetRules(NinjaBuildDesc& desc, const Target& target)
+	{
+		auto path = GetEscapedModulePath(target);
+
+		auto& vars = *target.build_var_scope;
+
+		auto& env = mEnvCache.at(desc.state.at("re_cxx_env_for_" + path));
+
+		/////////////////////////////////////////////////////////////////
+
+		std::unordered_map<std::string, std::string> configuration = {
 			{ "arch", vars.Resolve("${arch}") },
 			{ "platform", vars.Resolve("${platform}") },
 			{ "config", vars.Resolve("${configuration}") }
-		});
+		};
+
+		//for (auto& [k, v] : configuration)
+		//	fmt::print(" *** '{}' -> {}={}\n", target.module, k, v);
+
+		auto config = GetTargetResolvedCfg(target, configuration);
 
 		TargetConfig definitions = config["cxx-compile-definitions"];
 		TargetConfig definitions_pub = config["cxx-compile-definitions-public"];
@@ -323,11 +342,6 @@ namespace re
 
 		std::vector<const Target*> include_deps;
 		PopulateTargetDependencySetNoResolve(&target, include_deps);
-
-		/////////////////////////////////////////////////////////////////
-
-		for (const auto& kv : env["default-flags"])
-			vars.SetVar("platform-default-flags-" + kv.first.Scalar(), vars.Resolve(kv.second.Scalar()));
 
 		/////////////////////////////////////////////////////////////////
 

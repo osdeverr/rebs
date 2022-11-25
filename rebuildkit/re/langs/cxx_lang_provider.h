@@ -24,7 +24,10 @@ namespace re
 		virtual const char* GetLangId() { return kLangId; }
 
 		virtual void InitInBuildDesc(NinjaBuildDesc& desc);
-		virtual bool InitBuildTarget(NinjaBuildDesc& desc, Target& target);
+
+		virtual void InitLinkTargetEnv(NinjaBuildDesc& desc, Target& target);
+		virtual bool InitBuildTargetRules(NinjaBuildDesc& desc, const Target& target);
+
 		virtual void ProcessSourceFile(NinjaBuildDesc& desc, const Target& target, const SourceFile& file);
 		virtual void CreateTargetArtifact(NinjaBuildDesc& desc, const Target& target);
 

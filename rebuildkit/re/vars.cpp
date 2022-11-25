@@ -135,10 +135,24 @@ namespace re
 	{
 		auto it = mVars.find(key);
 
+		// fmt::print("'{}'/'{}': ", mAlias, key);
+
 		if (it != mVars.end())
+		{
+			// fmt::print("found with val '{}' ", it->second);
 			return it->second;
+		}
 		else
+		{
+			/*
+			if (mParent)
+				fmt::print("forward to ");
+			else
+				fmt::print("all hope lost. ");
+			*/
+
 			return mParent ? mParent->GetVar(key) : std::nullopt;
+		}
 	}
 
 	void LocalVarScope::Init()

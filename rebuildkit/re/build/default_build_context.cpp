@@ -9,6 +9,8 @@
 
 #include <re/process_util.h>
 
+#include <fstream>
+
 namespace re
 {
 	DefaultBuildContext::DefaultBuildContext()
@@ -39,16 +41,16 @@ namespace re
 		auto& git_resolver = std::make_unique<GitDepResolver>(mEnv.get());
 		auto& github_resolver = std::make_unique<GithubDepResolver>(git_resolver.get());
 
-		mDepResolvers.emplace_back(std::move(vcpkg_resolver));
-		mDepResolvers.emplace_back(std::move(git_resolver));
-		mDepResolvers.emplace_back(std::move(github_resolver));
-
 		mEnv->AddDepResolver("vcpkg", vcpkg_resolver.get());
 		mEnv->AddDepResolver("vcpkg-dep", vcpkg_resolver.get());
 
 		mEnv->AddDepResolver("git", git_resolver.get());
 		mEnv->AddDepResolver("github", github_resolver.get());
 		mEnv->AddDepResolver("github-ssh", github_resolver.get());
+
+		mDepResolvers.emplace_back(std::move(vcpkg_resolver));
+		mDepResolvers.emplace_back(std::move(git_resolver));
+		mDepResolvers.emplace_back(std::move(github_resolver));
 
 		mEnv->LoadCoreProjectTarget(mRePath / "data" / "core-project");
 	}
@@ -59,12 +61,6 @@ namespace re
 			RE_THROW TargetLoadException(nullptr, "The directory '{}' does not contain a valid Re target.", path.u8string());
 
 		auto& target = mEnv->LoadTarget(path);
-
-		for (auto dep : mEnv->GetSingleTargetDepSet(&target))
-			dep->var_parent = &mVars;
-
-		mVars.AddNamespace("target." + target.module, &target);
-
 		return target;
 	}
 
@@ -73,10 +69,23 @@ namespace re
 		NinjaBuildDesc desc;
 		desc.pRootTarget = &target;
 
+		for (auto dep : mEnv->GetSingleTargetLocalDepSet(&target))
+		{
+			dep->var_parent = &mVars;
+			mEnv->InitializeTargetLinkEnvWithDeps(dep, desc);
+		}
+
 		auto deps = mEnv->GetSingleTargetDepSet(desc.pRootTarget);
 
-		for (auto& dep : deps)
+		for (auto dep : deps)
+		{
+			dep->var_parent = &mVars;
+
+			mEnv->InitializeTargetLinkEnvWithDeps(dep, desc);
+			mVars.AddNamespace("target." + target.module, &target);
+
 			mEnv->RunActionsCategorized(dep, nullptr, "pre-configure");
+		}
 
 		mEnv->PopulateBuildDescWithDeps(&target, desc);
 
@@ -97,12 +106,16 @@ namespace re
 		out_dir /= vars.Resolve(target.GetCfgEntry<std::string>("out-dir-triplet", CfgEntryKind::Recursive).value_or(kDefaultDirTriplet));
 
 		std::filesystem::create_directories(out_dir);
+		std::ofstream create_temp{ out_dir / ".re-ignore-this" };
 
 		desc.out_dir = out_dir;
 
 		for (auto& dep : deps)
 		{
-			LocalVarScope module_name_scope{ &target.build_var_scope.value() };
+			if (!dep->build_var_scope)
+				continue;
+
+			LocalVarScope module_name_scope{ &dep->build_var_scope.value(), dep->module };
 
 			auto artifact_out_format = dep->GetCfgEntry<std::string>("out-artifact-dir", CfgEntryKind::Recursive).value_or("build/${module}");
 			auto object_out_format = dep->GetCfgEntry<std::string>("out-object-dir", CfgEntryKind::Recursive).value_or("obj/${module}");
@@ -114,8 +127,8 @@ namespace re
 			auto artifact_dir = module_name_scope.Resolve(artifact_out_format);
 			auto object_dir = module_name_scope.Resolve(object_out_format);
 
-			desc.vars["re_target_artifact_directory_" + GetEscapedModulePath(*dep)] = artifact_dir;
-			desc.vars["re_target_object_directory_" + GetEscapedModulePath(*dep)] = object_dir;
+			desc.init_vars["re_target_artifact_directory_" + GetEscapedModulePath(*dep)] = artifact_dir;
+			desc.init_vars["re_target_object_directory_" + GetEscapedModulePath(*dep)] = object_dir;
 		}
 
 		return desc;

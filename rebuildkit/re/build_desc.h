@@ -62,6 +62,9 @@ namespace re
 		std::string object_out_format;
 		std::string artifact_out_format;
 
+		// Vars that go in the very beginning of the build file
+		BuildVars init_vars;
+
 		// Substituted variables: those WILL end up in the build script
 		BuildVars vars;
 
@@ -74,14 +77,19 @@ namespace re
 
 		Target* pRootTarget = nullptr;
 
-		std::string GetObjectDirectory(std::string_view module) const
+		std::string GetObjectDirectory(const std::string& module) const
 		{
-			return fmt::format(object_out_format, fmt::arg("module", module));
+			return vars.at("re_target_object_directory_" + module);
 		}
 
-		std::string GetArtifactDirectory(std::string_view module) const
+		std::string GetArtifactDirectory(const std::string& module) const
 		{
-			return fmt::format(artifact_out_format, fmt::arg("module", module));
+			return vars.at("re_target_artifact_directory_" + module);
+		}
+
+		bool HasArtifactsFor(const std::string& module) const
+		{
+			return vars.find("re_target_artifact_directory_" + module) != vars.end();
 		}
 	};
 }
