@@ -6,6 +6,7 @@
 #include <fmt/format.h>
 
 #include <re/fs.h>
+#include <re/vars.h>
 
 namespace re
 {

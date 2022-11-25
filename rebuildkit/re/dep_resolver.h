@@ -4,6 +4,8 @@
 #include <string_view>
 #include <memory>
 
+#include <re/vars.h>
+
 namespace re
 {
 	struct IDepResolver

@@ -9,23 +9,36 @@
 inherits:
     - generic
 
+vars:
+    arch: ${target:arch | $re:arch | $env:VSCMD_ARG_TGT_ARCH}
+
+    vc-tools-root: ${env:VCToolsInstallDir | .}
+    vc-tools-bin: ${vc-tools-root}/bin/Host${re:host-arch}/${arch}
+    
+    vc-tools-cl: ${vc-tools-bin}/cl.exe
+    vc-tools-link: ${vc-tools-bin}/link.exe
+    vc-tools-archiver: ${vc-tools-bin}/lib.exe
+
+    windows-kits-root: ${env:WindowsSdkDir | .}
+    windows-kits-ver: ${env:WindowsSDKLibVersion | 0}
+    windows-kits-lib-path: ${windows-kits-root}/lib/${windows-kits-ver}
+
+    platform-link-paths: /LIBPATH:"${vc-tools-root}/lib/${arch}" /LIBPATH:"${windows-kits-lib-path}/um/${arch}" /LIBPATH:"${windows-kits-lib-path}/ucrt/${arch}"
+
 #
 # Specifies the paths to build tools. Can be absolute or relative - it doesn't matter - but the paths obviously need to resolve properly.
 #
 tools:
-    compiler:  ${msvc-compiler-path | $env:RE_MSVC_COMPILER_PATH | cl.exe}
-    linker:    ${msvc-linker-path   | $env:RE_MSVC_LINKER_PATH   | link.exe}
-    archiver:  ${msvc-archiver-path | $env:RE_MSVC_ARCHIVER_PATH | lib.exe}
-
-vars:
-    arch: "${env:VSCMD_ARG_TGT_ARCH | $target:arch}"
+    compiler:  ${msvc-compiler-path | $env:RE_MSVC_COMPILER_PATH | $vc-tools-cl       | cl.exe}
+    linker:    ${msvc-linker-path   | $env:RE_MSVC_LINKER_PATH   | $vc-tools-link     | link.exe}
+    archiver:  ${msvc-archiver-path | $env:RE_MSVC_ARCHIVER_PATH | $vc-tools-archiver | lib.exe}
 
 #
 # Default tool invoke flags. Can be overridden in targets using the 'build-flags' map property.
 #
 default-flags:
     compiler:  "/nologo /showIncludes /interface /experimental:module /EHsc /MD"
-    linker:    "/nologo /ignore:4006 /MACHINE:${arch}"
+    linker:    "/nologo /ignore:4006 ${platform-link-paths} /MACHINE:${arch}"
 
 #
 # Platform-specific C preprocessor macros. They will be defined in all source files using this environment.
