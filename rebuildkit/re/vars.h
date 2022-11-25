@@ -67,6 +67,8 @@ namespace re
 			return LocalVarScope{ mContext, alias, this };
 		}
 
+		inline VarContext* GetContext() const { return mContext; }
+
 	private:
 		VarContext* mContext;
 		const IVarNamespace* mParent = nullptr;

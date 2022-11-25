@@ -13,13 +13,6 @@ namespace re
 {
 	namespace
 	{
-		inline std::string GetEscapedModulePath(const Target& target)
-		{
-			auto module_escaped = target.module;
-			std::replace(module_escaped.begin(), module_escaped.end(), '.', '_');
-			return module_escaped;
-		}
-
 		void MergeNode(YAML::Node& target, const YAML::Node& source, bool overridden);
 
 		void MergeMap(YAML::Node& target, const YAML::Node& source, bool overridden);
@@ -185,7 +178,20 @@ namespace re
 							std::vector<std::string> categories;
 							boost::algorithm::split(categories, raw, boost::is_any_of("|"));
 
-							if (raw == "any" || std::find(categories.begin(), categories.end(), value) != categories.end())
+							bool supported = (raw == "any");
+
+							for (auto& category : categories)
+							{
+								if (supported)
+									break;
+
+								supported |= (category == value);
+
+								if (category.front() == '!')
+									supported |= (category != value.substr(1));
+							}
+
+							if (supported)
 							{
 								if (kv.second.IsScalar() && kv.second.Scalar() == "unsupported")
 									RE_THROW Exception("unsupported {} '{}'", category, value);
@@ -233,8 +239,8 @@ namespace re
 		}
 	}
 
-	CxxLangProvider::CxxLangProvider(const fs::path& env_search_path, VarContext* var_ctx)
-		: mEnvSearchPath{ env_search_path }, mVarCtx{ var_ctx }
+	CxxLangProvider::CxxLangProvider(const fs::path& env_search_path, LocalVarScope* var_scope)
+		: mEnvSearchPath{ env_search_path }, mVarScope{ var_scope }
 	{
 	}
 
@@ -243,7 +249,7 @@ namespace re
 		// Do nothing
 	}
 
-	bool CxxLangProvider::InitBuildTarget(NinjaBuildDesc& desc, const Target& target)
+	bool CxxLangProvider::InitBuildTarget(NinjaBuildDesc& desc, Target& target)
 	{
 		// if (target.type != TargetType::Executable && target.type != TargetType::StaticLibrary && target.type != TargetType::SharedLibrary)
 		//	return false;
@@ -252,8 +258,8 @@ namespace re
 
 		auto path = GetEscapedModulePath(target);
 
-		LocalVarScope target_vars{ mVarCtx, "target", &target };
-		LocalVarScope vars{ mVarCtx, "build", &target_vars };
+		auto& target_vars = target.target_var_scope.emplace(mVarScope->GetContext(), "target", &target);
+		auto& vars = target.build_var_scope.emplace(mVarScope->GetContext(), "build", &target_vars);
 
 		// Choose and load the correct build environment.
 
@@ -288,7 +294,18 @@ namespace re
 
 		if (auto vars_cfg = env["vars"])
 			for (const auto& kv : vars_cfg)
-				vars.SetVar(kv.first.as<std::string>(), kv.second.as<std::string>());
+			{
+				auto key = kv.first.as<std::string>();
+				auto value = kv.second.as<std::string>();
+
+				vars.SetVar(key, value);
+
+				/*
+				// If a global var like that doesn't exist, create it with this one's value.
+				if (!mVarScope->GetVar(key))
+					mVarScope->SetVar(key, vars.Resolve(value));
+					*/
+			}
 
 		auto config = GetTargetResolvedCfg(target, {
 			{ "arch", vars.Resolve("${arch}") },
@@ -329,7 +346,7 @@ namespace re
 
 		extra_flags.push_back(fmt::format(
 			templates["cxx-module-output"].as<std::string>(),
-			fmt::arg("directory", desc.GetObjectDirectory(target.module))
+			fmt::arg("directory", fmt::format("$re_target_object_directory_{}", path))
 		));
 
 		auto cxx_include_dir = templates["cxx-include-dir"].as<std::string>();
@@ -545,7 +562,7 @@ namespace re
 		build_target.pSourceFile = &file;
 
 		build_target.in = "$cxx_path_" + path + "/" + local_path;
-		build_target.out = fmt::format("$builddir/{}/{}.{}", desc.GetObjectDirectory(target.module), local_path, extension);
+		build_target.out = fmt::format("$builddir/{}/{}.{}", fmt::format("$re_target_object_directory_{}", path), local_path, extension);
 		build_target.rule = "cxx_compile_" + path;
 
 		desc.targets.emplace_back(std::move(build_target));
@@ -564,7 +581,7 @@ namespace re
 
 		link_target.type = BuildTargetType::Artifact;
 		link_target.pSourceTarget = &target;
-		link_target.out = "$builddir/" + desc.GetArtifactDirectory(target.module) + "/" + target.module;
+		link_target.out = "$builddir/" + fmt::format("$re_target_artifact_directory_{}", path) + "/" + target.module;
 		link_target.rule = "cxx_link_" + path;
 
 		std::string extension = "";

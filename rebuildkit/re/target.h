@@ -153,6 +153,9 @@ namespace re
 
         LocalVarScope* var_parent = nullptr;
 
+        std::optional<LocalVarScope> target_var_scope;
+        std::optional<LocalVarScope> build_var_scope;
+
         std::optional<std::string> GetVar(const std::string& key) const;
 
         /*
@@ -217,7 +220,7 @@ namespace re
             name.erase(0, 1);
 
             if (parent)
-                return ModulePathCombine(parent->module, name);
+                return ModulePathCombine(ResolveTargetParentRef(parent->module, parent->parent), name);
             else
                 return name;
         }
@@ -225,5 +228,12 @@ namespace re
         {
             return name;
         }
+    }
+
+    inline static std::string GetEscapedModulePath(const Target& target)
+    {
+        auto module_escaped = target.module;
+        std::replace(module_escaped.begin(), module_escaped.end(), '.', '_');
+        return module_escaped;
     }
 }

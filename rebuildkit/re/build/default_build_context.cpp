@@ -19,10 +19,11 @@ namespace re
 		mVars.SetVar("version", "1.0");
 		mVars.SetVar("platform", "windows");
 		mVars.SetVar("platform-closest", "unix");
-		mVars.SetVar("arch", "x64");
-		mVars.SetVar("configuration", "release");
+
 		mVars.SetVar("cxx-default-include-dirs", ".");
 		mVars.SetVar("cxx-default-lib-dirs", ".");
+
+		mVars.SetVar("host-arch", "x64");
 	}
 
 	void DefaultBuildContext::LoadDefaultEnvironment(const fs::path& re_path)
@@ -31,7 +32,7 @@ namespace re
 
 		mEnv = std::make_unique<BuildEnv>(mVars);
 
-		auto& cxx = mLangs.emplace_back(std::make_unique<CxxLangProvider>(mRePath / "data" / "environments" / "cxx", &mVarContext));
+		auto& cxx = mLangs.emplace_back(std::make_unique<CxxLangProvider>(mRePath / "data" / "environments" / "cxx", &mVars));
 		mEnv->AddLangProvider("cpp", cxx.get());
 
 		auto& vcpkg_resolver = std::make_unique<VcpkgDepResolver>(mRePath / "deps" / "vcpkg");
@@ -69,30 +70,54 @@ namespace re
 
 	NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTarget(Target& target)
 	{
-		LocalVarScope vars{&mVarContext, "", &target};
-
-		auto arch = vars.Resolve("${arch}");
-		auto platform = vars.Resolve("${platform}");
-		auto configuration = vars.Resolve("${configuration}");
-
 		NinjaBuildDesc desc;
 		desc.pRootTarget = &target;
 
-		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+		auto deps = mEnv->GetSingleTargetDepSet(desc.pRootTarget);
+
+		for (auto& dep : deps)
 			mEnv->RunActionsCategorized(dep, nullptr, "pre-configure");
 
-		auto out_dir = target.path / "out" / fmt::format("{}-{}", arch, platform) / configuration;
+		mEnv->PopulateBuildDescWithDeps(&target, desc);
 
-		if (auto entry = target.GetCfgEntry<std::string>("output-directory"))
-			out_dir = fmt::format(*entry, fmt::arg("arch", arch), fmt::arg("platform", platform));
+		auto& vars = target.build_var_scope.value();
+
+		auto root_arch = vars.Resolve("${arch}");
+
+		auto out_dir = target.path / "out";
+
+		if (auto entry = target.GetCfgEntry<std::string>("out-dir"))
+		{
+			out_dir = vars.Resolve(*entry);
+			if (!out_dir.is_absolute())
+				out_dir = target.path / out_dir;
+		}
+
+		constexpr auto kDefaultDirTriplet = "${arch}-${platform}-${configuration}";
+		out_dir /= vars.Resolve(target.GetCfgEntry<std::string>("out-dir-triplet", CfgEntryKind::Recursive).value_or(kDefaultDirTriplet));
 
 		std::filesystem::create_directories(out_dir);
 
 		desc.out_dir = out_dir;
-		desc.artifact_out_format = target.GetCfgEntry<std::string>("artifact-dir-format", CfgEntryKind::Recursive).value_or("build");
-		desc.object_out_format = target.GetCfgEntry<std::string>("object-dir-format", CfgEntryKind::Recursive).value_or("{module}");
 
-		mEnv->PopulateBuildDescWithDeps(&target, desc);
+		for (auto& dep : deps)
+		{
+			LocalVarScope module_name_scope{ &target.build_var_scope.value() };
+
+			auto artifact_out_format = dep->GetCfgEntry<std::string>("out-artifact-dir", CfgEntryKind::Recursive).value_or("build/${module}");
+			auto object_out_format = dep->GetCfgEntry<std::string>("out-object-dir", CfgEntryKind::Recursive).value_or("obj/${module}");
+
+			module_name_scope.SetVar("module", dep->module);
+			module_name_scope.SetVar("src", dep->path.u8string());
+			module_name_scope.SetVar("out", out_dir.u8string());
+
+			auto artifact_dir = module_name_scope.Resolve(artifact_out_format);
+			auto object_dir = module_name_scope.Resolve(object_out_format);
+
+			desc.vars["re_target_artifact_directory_" + GetEscapedModulePath(*dep)] = artifact_dir;
+			desc.vars["re_target_object_directory_" + GetEscapedModulePath(*dep)] = object_dir;
+		}
+
 		return desc;
 	}
 
