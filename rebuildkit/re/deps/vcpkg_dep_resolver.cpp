@@ -55,8 +55,11 @@ namespace re
             */
         }
 
-        auto re_arch = std::getenv("RE_ARCH");
-        auto re_platform = std::getenv("RE_PLATFORM");
+        auto [scope, context] = target.GetBuildVarScope();
+
+        auto re_arch = scope.Resolve("${arch}");
+        auto re_platform = scope.Resolve("${platform}");
+        auto re_config = scope.Resolve("${configuration}");
 
         auto path = vcpkg_root / "packages" / (dep.name + fmt::format("_{}-{}", re_arch, re_platform));
 
@@ -175,6 +178,14 @@ namespace re
                 package_target->dependencies.emplace_back(std::move(dep));
             }
         }
+
+        package_target->config["arch"] = re_arch;
+        package_target->config["platform"] = re_platform;
+        package_target->config["configuration"] = re_config;
+
+        package_target->var_parent = target.var_parent;
+        package_target->local_var_ctx = context;
+        package_target->build_var_scope.emplace(&package_target->local_var_ctx, "build", &scope);
 
         /*
         package_target->config["name"] = package_target->name;

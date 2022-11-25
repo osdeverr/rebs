@@ -59,7 +59,10 @@ namespace re
 
 		inline std::string Resolve(const std::string& str) const
 		{
-			return VarSubstitute(*mContext, str, mLocalName);
+			// fmt::print(" * Resolving '{}': ", str);
+			auto result = VarSubstitute(*mContext, str, mLocalName);
+			// fmt::print("=> '{}'\n", result);
+			return result;
 		}
 
 		inline LocalVarScope Subscope(const std::string& alias = "")

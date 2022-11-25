@@ -7,22 +7,27 @@
 
 namespace re
 {
-	void PopulateTargetDependencySet(Target *pTarget, std::vector<Target *> &to, std::function<Target *(const TargetDependency &)> dep_resolver)
+	void PopulateTargetDependencySet(Target *pTarget, std::vector<Target *> &to, std::function<Target *(const Target&, const TargetDependency &)> dep_resolver, bool throw_on_missing)
 	{
 		if (std::find(to.begin(), to.end(), pTarget) != to.end())
 			return;
 
 		for (auto &child : pTarget->children)
-			PopulateTargetDependencySet(child.get(), to, dep_resolver);
+			PopulateTargetDependencySet(child.get(), to, dep_resolver, throw_on_missing);
 
 		for (auto &dep : pTarget->dependencies)
 		{
-			dep.resolved = dep_resolver(dep);
+			dep.resolved = dep_resolver(*pTarget, dep);
 
 			if (!dep.resolved)
-				RE_THROW TargetDependencyException(pTarget, "unresolved dependency {}", dep.name);
-
-			dep.resolved->dependents.insert(pTarget);
+			{
+				if (throw_on_missing)
+					RE_THROW TargetDependencyException(pTarget, "unresolved dependency {}", dep.name);
+			}
+			else
+			{
+				dep.resolved->dependents.insert(pTarget);
+			}
 		}
 
 		to.push_back(pTarget);
@@ -103,6 +108,13 @@ namespace re
 		return result;
 	}
 
+	std::vector<Target*> BuildEnv::GetSingleTargetLocalDepSet(Target* pTarget)
+	{
+		std::vector<Target*> result;
+		AppendDepsAndSelf(pTarget, result, false, false);
+		return result;
+	}
+
 	std::vector<Target*> BuildEnv::GetTargetsInDependencyOrder()
 	{
 		std::vector<Target*> result;
@@ -123,25 +135,8 @@ namespace re
 		return mLangProviders[name.data()];
 	}
 
-	void BuildEnv::PopulateBuildDesc(Target* target, NinjaBuildDesc& desc)
+	ILangProvider* BuildEnv::InitializeTargetLinkEnv(Target* target, NinjaBuildDesc& desc)
 	{
-		auto langs = target->GetCfgEntry<TargetConfig>("langs", CfgEntryKind::Recursive).value_or(TargetConfig{ YAML::NodeType::Sequence });
-
-		for (const auto& lang : langs)
-		{
-			auto lang_id = lang.as<std::string>();
-
-			auto provider = GetLangProvider(lang_id);
-			if (!provider)
-				RE_THROW TargetLoadException(target, "unknown language {}", lang_id);
-
-			if (provider->InitBuildTarget(desc, *target))
-			{
-				for (auto& source : target->sources)
-					provider->ProcessSourceFile(desc, *target, source);
-			}
-		}
-
 		auto link_cfg = target->GetCfgEntry<TargetConfig>("link-with", re::CfgEntryKind::Recursive).value_or(YAML::Node{ YAML::NodeType::Null });
 		std::optional<std::string> link_language;
 
@@ -163,13 +158,49 @@ namespace re
 			link_language = link_cfg.as<std::string>();
 		}
 
-		if (link_language)
+		ILangProvider* link_provider = link_language ? GetLangProvider(*link_language) : nullptr;
+
+		if (link_language && !link_provider)
+			RE_THROW TargetLoadException(target, "unknown link-with language {}", *link_language);
+
+		if (link_provider)
+			link_provider->InitLinkTargetEnv(desc, *target);
+
+		return link_provider;
+	}
+
+	void BuildEnv::InitializeTargetLinkEnvWithDeps(Target* target, NinjaBuildDesc& desc)
+	{
+		std::vector<Target*> deps;
+		AppendDepsAndSelf(target, deps, false, false);
+
+		for (auto& dep : deps)
+			InitializeTargetLinkEnv(dep, desc);
+	}
+
+	void BuildEnv::PopulateBuildDesc(Target* target, NinjaBuildDesc& desc)
+	{
+		auto langs = target->GetCfgEntry<TargetConfig>("langs", CfgEntryKind::Recursive).value_or(TargetConfig{ YAML::NodeType::Sequence });
+
+		ILangProvider* link_provider = InitializeTargetLinkEnv(target, desc);
+
+		for (const auto& lang : langs)
 		{
-			if (auto link_provider = GetLangProvider(*link_language))
-				link_provider->CreateTargetArtifact(desc, *target);
-			else
-				RE_THROW TargetLoadException(target, "unknown link-with language {}", *link_language);
+			auto lang_id = lang.as<std::string>();
+
+			auto provider = GetLangProvider(lang_id);
+			if (!provider)
+				RE_THROW TargetLoadException(target, "unknown language {}", lang_id);
+
+			if (provider->InitBuildTargetRules(desc, *target))
+			{
+				for (auto& source : target->sources)
+					provider->ProcessSourceFile(desc, *target, source);
+			}
 		}
+
+		if (link_provider)
+			link_provider->CreateTargetArtifact(desc, *target);
 	}
 
 	void BuildEnv::PopulateBuildDescWithDeps(Target* target, NinjaBuildDesc& desc)
@@ -203,7 +234,7 @@ namespace re
 
 			std::filesystem::copy(
 				target.path / from,
-				desc->out_dir / desc->GetArtifactDirectory(target.module) / to,
+				desc->out_dir / desc->GetArtifactDirectory(GetEscapedModulePath(target)) / to,
 				std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
 			);
 		}
@@ -214,14 +245,19 @@ namespace re
 
 			for (auto& dependent : target.dependents)
 			{
-				auto to_dep = desc->out_dir / desc->GetArtifactDirectory(dependent->module);
+				auto path = GetEscapedModulePath(*dependent);
 
-				if (std::filesystem::exists(to_dep))
-					std::filesystem::copy(
-						target.path / from,
-						to_dep / to,
-						std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
-					);
+				if (desc->HasArtifactsFor(path))
+				{
+					auto to_dep = desc->out_dir / desc->GetArtifactDirectory(path);
+
+					if (std::filesystem::exists(to_dep))
+						std::filesystem::copy(
+							target.path / from,
+							to_dep / to,
+							std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
+						);
+				}
 			}
 		}
 		else if (type == "run")
@@ -274,15 +310,27 @@ namespace re
 		mDepResolvers[name.data()] = resolver;
 	}
 
-	Target* BuildEnv::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
+	Target* BuildEnv::ResolveTargetDependencyImpl(const Target& target, const TargetDependency& dep, bool use_external)
 	{
 		if (dep.ns.empty() || dep.ns == "local")
 			return GetTargetOrNull(dep.name);
 
-		if (auto resolver = mDepResolvers[dep.ns])
-			return resolver->ResolveTargetDependency(target, dep);
+		if (use_external)
+		{
+			if (auto resolver = mDepResolvers[dep.ns])
+				return resolver->ResolveTargetDependency(target, dep);
+			else
+				RE_THROW TargetLoadException(&target, "dependency '{}': unknown target namespace '{}'", dep.ToString(), dep.ns);
+		}
 		else
-			RE_THROW TargetLoadException(&target, "dependency '{}': unknown target namespace '{}'", dep.ToString(), dep.ns);
+		{
+			return nullptr;
+		}
+	}
+
+	Target* BuildEnv::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
+	{
+		return ResolveTargetDependencyImpl(target, dep, true);
 	}
 
 	void BuildEnv::PopulateTargetMap(Target* pTarget)
@@ -298,20 +346,20 @@ namespace re
 			PopulateTargetMap(child.get());
 	}
 
-	void BuildEnv::AppendDepsAndSelf(Target* pTarget, std::vector<Target*>& to)
+	void BuildEnv::AppendDepsAndSelf(Target* pTarget, std::vector<Target*>& to, bool throw_on_missing, bool use_external)
 	{
-		PopulateTargetDependencySet(pTarget, to, [this, &to, pTarget](const TargetDependency& dep) -> Target*
+		PopulateTargetDependencySet(pTarget, to, [this, &to, pTarget, use_external](const Target& target, const TargetDependency& dep) -> Target*
 		{
-			if (auto target = ResolveTargetDependency(*pTarget, dep))
+			if (auto resolved = ResolveTargetDependencyImpl(target, dep, use_external))
 			{
-				target->dependents.insert(pTarget);
+				resolved->dependents.insert(pTarget);
 
-				AppendDepsAndSelf(target, to);
-				return target;
+				AppendDepsAndSelf(resolved, to);
+				return resolved;
 			}
 
 			return nullptr;
-		});
+		}, throw_on_missing);
 	}
 
 	void BuildEnv::RunActionList(const NinjaBuildDesc* desc, Target *target, const TargetConfig &list, std::string_view run_type, const std::string &default_run_type)
@@ -320,10 +368,14 @@ namespace re
 		{
 			for (const auto &kv : v)
 			{
-				std::string run = kv.first.as<std::string>();
-
+				auto type = kv.first.as<std::string>();
 				auto& data = kv.second;
-				auto& type = kv.second["type"].Scalar();
+
+				std::string run = default_run_type;
+				// fmt::print("{}\n", type);
+
+				if (auto run_val = data["at"])
+					run = run_val.as<std::string>();
 
 				if (run == run_type)
 					RunTargetAction(desc, *target, type, data);

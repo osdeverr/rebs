@@ -24,11 +24,13 @@ int main(int argc, const char** argv)
 
         re::DefaultBuildContext context;
         context.LoadDefaultEnvironment(re::GetCurrentExecutablePath());
+        // context.LoadDefaultEnvironment(L"D:/Programs/ReBS/bin");
 
         context.SetVar("configuration", "release");
 
         if (args.size() == 1)
         {
+            // return context.BuildTargetInDir(L"D:/PlakSystemsSW/re-packages-test");
             return context.BuildTargetInDir(".");
         }
         else if (args[1] == "build")

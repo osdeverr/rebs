@@ -153,10 +153,22 @@ namespace re
 
         LocalVarScope* var_parent = nullptr;
 
+        mutable VarContext local_var_ctx;
+
         std::optional<LocalVarScope> target_var_scope;
         std::optional<LocalVarScope> build_var_scope;
 
         std::optional<std::string> GetVar(const std::string& key) const;
+
+        inline std::pair<const LocalVarScope&, VarContext&> GetBuildVarScope() const
+        {
+            if (build_var_scope)
+                return std::make_pair(std::ref(*build_var_scope), std::ref(local_var_ctx));
+            else if (parent)
+                return parent->GetBuildVarScope();
+            else
+                RE_THROW TargetConfigException(this, "reached top of hierarchy without finding a valid build var scope");
+        }
 
         /*
         // Contains the entire flattened dependency cache for this target in the order {children}..{dependencies recursively}..{itself}.
