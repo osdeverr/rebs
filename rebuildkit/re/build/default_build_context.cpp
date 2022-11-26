@@ -6,6 +6,7 @@
 #include <re/deps/vcpkg_dep_resolver.h>
 #include <re/deps/git_dep_resolver.h>
 #include <re/deps/github_dep_resolver.h>
+#include <re/deps/arch_coerced_dep_resolver.h>
 
 #include <re/process_util.h>
 
@@ -37,9 +38,11 @@ namespace re
 		auto& cxx = mLangs.emplace_back(std::make_unique<CxxLangProvider>(mRePath / "data" / "environments" / "cxx", &mVars));
 		mEnv->AddLangProvider("cpp", cxx.get());
 
-		auto& vcpkg_resolver = std::make_unique<VcpkgDepResolver>(mRePath / "deps" / "vcpkg");
-		auto& git_resolver = std::make_unique<GitDepResolver>(mEnv.get());
-		auto& github_resolver = std::make_unique<GithubDepResolver>(git_resolver.get());
+		auto vcpkg_resolver = std::make_unique<VcpkgDepResolver>(mRePath / "deps" / "vcpkg");
+		auto git_resolver = std::make_unique<GitDepResolver>(mEnv.get());
+		auto github_resolver = std::make_unique<GithubDepResolver>(git_resolver.get());
+
+		auto ac_resolver = std::make_unique<ArchCoercedDepResolver>(mEnv.get());
 
 		mEnv->AddDepResolver("vcpkg", vcpkg_resolver.get());
 		mEnv->AddDepResolver("vcpkg-dep", vcpkg_resolver.get());
@@ -48,9 +51,12 @@ namespace re
 		mEnv->AddDepResolver("github", github_resolver.get());
 		mEnv->AddDepResolver("github-ssh", github_resolver.get());
 
+		mEnv->AddDepResolver("arch-coerced", ac_resolver.get());
+
 		mDepResolvers.emplace_back(std::move(vcpkg_resolver));
 		mDepResolvers.emplace_back(std::move(git_resolver));
 		mDepResolvers.emplace_back(std::move(github_resolver));
+		mDepResolvers.emplace_back(std::move(ac_resolver));
 
 		mEnv->LoadCoreProjectTarget(mRePath / "data" / "core-project");
 	}
@@ -91,7 +97,7 @@ namespace re
 
 		auto& vars = target.build_var_scope.value();
 
-		auto root_arch = vars.Resolve("${arch}");
+		auto root_arch = vars.ResolveLocal("arch");
 
 		auto out_dir = target.path / "out";
 

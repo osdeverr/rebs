@@ -169,7 +169,7 @@ namespace re
         if (path.empty())
             path = this->path;
 
-        fmt::print(" [DBG] Traversing '{}'\n", path.u8string());
+        // fmt::print(" [DBG] Traversing '{}'\n", path.u8string());
 
         // rpnint" -- DEBUG: Traversing '%s' srcmodpath='%s'\n", fspath.string().c_str(), src_module_path.c_str());
 

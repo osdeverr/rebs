@@ -149,7 +149,7 @@ namespace re
         TargetConfig resolved_config{ YAML::NodeType::Null };
 
         // Targets that depend on this target.
-        std::unordered_set<Target*> dependents;
+        std::unordered_set<const Target*> dependents;
 
         LocalVarScope* var_parent = nullptr;
 

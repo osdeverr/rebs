@@ -65,6 +65,14 @@ namespace re
 			return result;
 		}
 
+		inline std::string ResolveLocal(const std::string& key) const
+		{
+			if (auto var = GetVar(key))
+				return Resolve(*var);
+			else
+				RE_THROW VarSubstitutionException("local variable '{}' not found", key);
+		}
+
 		inline LocalVarScope Subscope(const std::string& alias = "")
 		{
 			return LocalVarScope{ mContext, alias, this };

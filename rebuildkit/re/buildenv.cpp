@@ -4,6 +4,7 @@
 
 #include <re/error.h>
 #include <re/process_util.h>
+#include <re/debug.h>
 
 namespace re
 {
@@ -64,10 +65,6 @@ namespace re
 	{
 		auto target = std::make_unique<Target>(path, mTheCoreProjectTarget.get());
 
-		target->LoadDependencies();
-		target->LoadMiscConfig();
-		target->LoadSourceTree();
-
 		// mTargetMap.clear();
 		// PopulateTargetMap(target.get());
 
@@ -77,6 +74,9 @@ namespace re
 	Target& BuildEnv::LoadTarget(const fs::path& path)
 	{
 		auto target = LoadFreeTarget(path);
+		target->LoadDependencies();
+		target->LoadMiscConfig();
+		target->LoadSourceTree();
 
 		// mTargetMap.clear();
 		PopulateTargetMap(target.get());
@@ -225,6 +225,45 @@ namespace re
 
 	}
 
+	void BuildEnv::PerformCopyToDependentsImpl(const Target& target, const Target* dependent, const NinjaBuildDesc* desc, const fs::path& from, const std::string& to)
+	{
+		auto path = GetEscapedModulePath(*dependent);
+
+		RE_TRACE("    for dependent '{}':\n", dependent->module);
+
+		if (desc->HasArtifactsFor(path))
+		{
+			auto to_dep = desc->out_dir / desc->GetArtifactDirectory(path);
+
+			auto& from_path = from;
+			fs::path to_path = to_dep / to;
+
+			RE_TRACE("        copying from '{}' to '{}'\n", from_path.u8string(), to_path.u8string());
+
+			if (std::filesystem::exists(to_dep))
+			{
+				std::filesystem::copy(
+					from_path,
+					to_path,
+					std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
+				);
+
+				RE_TRACE("            done\n");
+			}
+			else
+			{
+				RE_TRACE("            !!! no to_dep dir\n");
+			}
+		}
+		else
+		{
+			RE_TRACE("        no artifacts\n");
+		}
+
+		for (auto& inner_dep : dependent->dependents)
+			PerformCopyToDependentsImpl(target, inner_dep, desc, from, to);
+	}
+
 	void BuildEnv::RunTargetAction(const NinjaBuildDesc* desc, const Target& target, const std::string& type, const TargetConfig& data)
 	{
 		if (type == "copy")
@@ -243,21 +282,11 @@ namespace re
 			auto from = data["from"].as<std::string>();
 			auto to = data["to"].as<std::string>();
 
+			auto from_path = target.path / from;
+
 			for (auto& dependent : target.dependents)
 			{
-				auto path = GetEscapedModulePath(*dependent);
-
-				if (desc->HasArtifactsFor(path))
-				{
-					auto to_dep = desc->out_dir / desc->GetArtifactDirectory(path);
-
-					if (std::filesystem::exists(to_dep))
-						std::filesystem::copy(
-							target.path / from,
-							to_dep / to,
-							std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
-						);
-				}
+				PerformCopyToDependentsImpl(target, dependent, desc, from_path, to);
 			}
 		}
 		else if (type == "run")
@@ -313,7 +342,42 @@ namespace re
 	Target* BuildEnv::ResolveTargetDependencyImpl(const Target& target, const TargetDependency& dep, bool use_external)
 	{
 		if (dep.ns.empty() || dep.ns == "local")
-			return GetTargetOrNull(dep.name);
+		{
+			auto result = GetTargetOrNull(dep.name);
+
+			// Arch coercion - this is SOMETIMES very useful
+			if (result)
+			{
+				if (target.build_var_scope && result->build_var_scope)
+				{
+					auto target_arch = target.build_var_scope->ResolveLocal("arch");
+					auto dep_arch = result->build_var_scope->ResolveLocal("arch");
+
+					if (target_arch != dep_arch)
+					{
+						if (use_external)
+						{
+							RE_TRACE(" *** Performing arch coercion: {}:{} <- {}:{}\n", target.module, target_arch, result->module, dep_arch);
+
+							if (auto resolver = mDepResolvers["arch-coerced"])
+								result = resolver->ResolveCoercedTargetDependency(target, *result);
+							else
+								RE_THROW TargetLoadException(
+									&target,
+									"dependency '{}': architecture mismatch (target:{} != dep:{}) without a multi-arch dep resolver",
+									dep.ToString(),
+									target_arch,
+									dep_arch
+								);
+						}
+						else
+							result = nullptr;
+					}
+				}
+			}
+
+			return result;
+		}
 
 		if (use_external)
 		{
@@ -348,11 +412,15 @@ namespace re
 
 	void BuildEnv::AppendDepsAndSelf(Target* pTarget, std::vector<Target*>& to, bool throw_on_missing, bool use_external)
 	{
-		PopulateTargetDependencySet(pTarget, to, [this, &to, pTarget, use_external](const Target& target, const TargetDependency& dep) -> Target*
+		PopulateTargetDependencySet(pTarget, to, [this, &to, pTarget, throw_on_missing, use_external](const Target& target, const TargetDependency& dep) -> Target*
 		{
 			if (auto resolved = ResolveTargetDependencyImpl(target, dep, use_external))
 			{
-				resolved->dependents.insert(pTarget);
+				std::vector<Target*> stuff;
+				//AppendDepsAndSelf(resolved, stuff, false, use_external);
+
+				//for (auto temp : stuff)
+				//	temp->dependents.insert(pTarget);
 
 				AppendDepsAndSelf(resolved, to);
 				return resolved;
@@ -372,7 +440,7 @@ namespace re
 				auto& data = kv.second;
 
 				std::string run = default_run_type;
-				// fmt::print("{}\n", type);
+				RE_TRACE("{} -> action {}\n", target->module, type);
 
 				if (auto run_val = data["at"])
 					run = run_val.as<std::string>();

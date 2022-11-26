@@ -85,5 +85,7 @@ namespace re
 		void InstallPathToTarget(const Target *pTarget, const fs::path &from);
 
 		Target* ResolveTargetDependencyImpl(const Target& target, const TargetDependency& dep, bool use_external = true);
+
+		void PerformCopyToDependentsImpl(const Target& target, const Target* dependent, const NinjaBuildDesc* desc, const fs::path& from, const std::string& to);
 	};
 }

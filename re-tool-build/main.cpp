@@ -30,8 +30,8 @@ int main(int argc, const char** argv)
 
         if (args.size() == 1)
         {
-            // return context.BuildTargetInDir(L"D:/PlakSystemsSW/re-packages-test");
             return context.BuildTargetInDir(".");
+            // return context.BuildTargetInDir(L"D:/PlakSystemsSW/re-packages-test");
         }
         else if (args[1] == "build")
         {

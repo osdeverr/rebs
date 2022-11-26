@@ -79,17 +79,17 @@ namespace re
 
 		std::string GetObjectDirectory(const std::string& module) const
 		{
-			return vars.at("re_target_object_directory_" + module);
+			return init_vars.at("re_target_object_directory_" + module);
 		}
 
 		std::string GetArtifactDirectory(const std::string& module) const
 		{
-			return vars.at("re_target_artifact_directory_" + module);
+			return init_vars.at("re_target_artifact_directory_" + module);
 		}
 
 		bool HasArtifactsFor(const std::string& module) const
 		{
-			return vars.find("re_target_artifact_directory_" + module) != vars.end();
+			return init_vars.find("re_target_artifact_directory_" + module) != init_vars.end();
 		}
 	};
 }
