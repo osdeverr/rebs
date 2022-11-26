@@ -33,18 +33,17 @@ int main(int argc, const char** argv)
             return context.BuildTargetInDir(".");
             // return context.BuildTargetInDir(L"D:/PlakSystemsSW/re-packages-test");
         }
-        else if (args[1] == "build")
-        {
-            return context.BuildTargetInDir(args[2]);
-        }
         else
         {
-            auto desc = context.GenerateBuildDescForTargetInDir(args[1]);
+            if (args.size() > 2 && args[2] != "-")
+                context.SetVar("arch", args[2].data());
+
+            if (args.size() > 3 && args[3] != "-")
+                context.SetVar("configuration", args[3].data());
+
+            auto desc = context.GenerateBuildDescForTargetInDir(args[1] == "b" ? "." : args[1]);
             
             context.BuildTarget(desc);
-
-            if (args.size() > 2 && args[2] == "install")
-                context.InstallTarget(desc);
 
             return 0;
         }

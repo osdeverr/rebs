@@ -97,13 +97,27 @@ namespace re
         }
     }
 
-    void Target::LoadDependencies()
+    void Target::LoadDependencies(std::string_view key)
     {
-        if (auto deps = GetCfgEntry<TargetConfig>("deps"))
+        auto used_key = key.empty() ? "deps" : key;
+
+        // Use the relevant config instance.
+        auto deps = resolved_config ? resolved_config[used_key.data()] : config[used_key.data()];
+
+        if (deps)
         {
-            for (const auto &dep : *deps)
+            for (const auto &dep : deps)
             {
                 auto str = dep.as<std::string>();
+
+                bool exists = false;
+
+                for (auto& existing : dependencies)
+                    if (existing.raw == str)
+                        exists = true;
+
+                if (exists)
+                    continue;
 
                 std::regex dep_regex{"(.+?:)?([^@]+)(@.+)?"};
                 std::smatch match;
@@ -133,6 +147,11 @@ namespace re
                 dependencies.emplace_back(std::move(dep));
             }
         }
+    }
+
+    void Target::LoadConditionalDependencies()
+    {
+        LoadDependencies("cond-deps");
     }
 
     void Target::LoadMiscConfig()

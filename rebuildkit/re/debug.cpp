@@ -16,12 +16,12 @@ namespace re
 
 		fmt::print(
 			style,
-			"\n *** [PERF] [{}]\n", mName
+			"\n *** {}\n", mName
 		);
 
 		fmt::print(
 			style,
-			"    {} ", mFinished ? "finished in" : "running for"
+			"       {} ", mFinished ? "finished in" : "running for"
 		);
 
 		auto point = mFinished ? mEndTime : std::chrono::high_resolution_clock::now();
@@ -33,7 +33,7 @@ namespace re
 
 		fmt::print(
 			style, 
-			"{}s / {}ms / {}ns\n", s, ms, ns
+			"{}s / {}ms / {}ns\n\n", s, ms, ns
 		);
 	}
 }
