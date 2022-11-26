@@ -13,5 +13,6 @@ namespace re
 		virtual ~IDepResolver() = default;
 
 		virtual Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep) = 0;
+		virtual Target* ResolveCoercedTargetDependency(const Target& target, const Target& dep) { return nullptr; }
 	};
 }

@@ -24,7 +24,17 @@ namespace re
 			if (c == '/' || c == ':')
 				c = '_';
 
-		if (auto& cached = mTargetCache[cached_dir])
+		auto [scope, context] = target.GetBuildVarScope();
+
+		auto re_arch = scope.ResolveLocal("arch");
+		auto re_platform = scope.ResolveLocal("platform");
+		auto re_config = scope.ResolveLocal("configuration");
+
+		auto triplet = fmt::format("{}-{}-{}", re_arch, re_platform, re_config);
+
+		auto cache_path = cached_dir + "-" + triplet;
+
+		if (auto& cached = mTargetCache[cache_path])
 			return cached.get();
 
 		auto cache = target.GetCfgEntryOrThrow<std::string>("re-cache-dir", "failed to find cache directory", CfgEntryKind::Recursive);
@@ -68,13 +78,7 @@ namespace re
 			);
 		}
 
-		auto& result = (mTargetCache[cached_dir] = mLoader->LoadFreeTarget(git_cached));
-
-		auto [scope, context] = target.GetBuildVarScope();
-
-		auto re_arch = scope.Resolve("${arch}");
-		auto re_platform = scope.Resolve("${platform}");
-		auto re_config = scope.Resolve("${configuration}");
+		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(git_cached));
 
 		result->config["arch"] = re_arch;
 		result->config["platform"] = re_platform;
@@ -83,6 +87,12 @@ namespace re
 		result->var_parent = target.var_parent;
 		result->local_var_ctx = context;
 		result->build_var_scope.emplace(&result->local_var_ctx, "build", &scope);
+
+		result->module = fmt::format("git.{}.{}", triplet, result->module);
+
+		result->LoadDependencies();
+		result->LoadMiscConfig();
+		result->LoadSourceTree();
 
 		mLoader->RegisterLocalTarget(result.get());
 		return result.get();

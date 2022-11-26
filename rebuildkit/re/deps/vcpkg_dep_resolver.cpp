@@ -5,11 +5,21 @@
 
 #include <re/process_util.h>
 
+#include <fstream>
+
 namespace re
 {
 	Target* VcpkgDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
 	{
-        if (auto& cached = mTargetCache[dep.name])
+        auto [scope, context] = target.GetBuildVarScope();
+
+        auto re_arch = scope.ResolveLocal("arch");
+        auto re_platform = scope.ResolveLocal("platform");
+        auto re_config = scope.ResolveLocal("configuration");
+
+        auto cache_path = fmt::format("{}-{}-{}-{}", dep.name, re_arch, re_platform, re_config);
+
+        if (auto& cached = mTargetCache[cache_path])
             return cached.get();
 
         auto vcpkg_root = mVcpkgPath;
@@ -54,12 +64,6 @@ namespace re
             );
             */
         }
-
-        auto [scope, context] = target.GetBuildVarScope();
-
-        auto re_arch = scope.Resolve("${arch}");
-        auto re_platform = scope.Resolve("${platform}");
-        auto re_config = scope.Resolve("${configuration}");
 
         auto path = vcpkg_root / "packages" / (dep.name + fmt::format("_{}-{}", re_arch, re_platform));
 
@@ -114,6 +118,10 @@ namespace re
                 );
             }
         }
+
+        // Support custom configurations
+        if (fs::exists(path / re_config))
+            path /= re_config;
 
         YAML::Node config{ YAML::NodeType::Map };
 
@@ -199,11 +207,11 @@ namespace re
         YAML::Emitter emitter;
         emitter << package_target->config;
 
-        std::ofstream of{ "debug/vcpkg-packages/" + dep.name + ".yml" };
+        std::ofstream of{ "debug/vcpkg-packages/" + cache_path + ".yml" };
         of << emitter.c_str();
         */
 
-        auto& result = (mTargetCache[dep.name] = std::move(package_target));
+        auto& result = (mTargetCache[cache_path] = std::move(package_target));
         return result.get();
 	}
 }

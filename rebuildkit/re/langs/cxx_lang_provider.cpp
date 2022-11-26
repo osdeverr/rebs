@@ -269,8 +269,8 @@ namespace re
 		}
 		else
 		{
-			auto platform = vars.Resolve("${platform}");
-			auto platform_closest = vars.Resolve("${platform-closest}");
+			auto platform = vars.ResolveLocal("platform");
+			auto platform_closest = vars.ResolveLocal("platform-closest");
 
 			if (auto val = env_cfg[platform])
 				env_cached_name = val.as<std::string>();
@@ -306,9 +306,6 @@ namespace re
 
 		for (const auto& kv : env["default-flags"])
 			vars.SetVar("platform-default-flags-" + kv.first.Scalar(), vars.Resolve(kv.second.Scalar()));
-
-		auto arch = vars.Resolve("${arch}");
-		// fmt::print("\n !!! ARCH for {} = {}\n\n", target.module, arch);
 	}
 
 	bool CxxLangProvider::InitBuildTargetRules(NinjaBuildDesc& desc, const Target& target)
@@ -322,9 +319,9 @@ namespace re
 		/////////////////////////////////////////////////////////////////
 
 		std::unordered_map<std::string, std::string> configuration = {
-			{ "arch", vars.Resolve("${arch}") },
-			{ "platform", vars.Resolve("${platform}") },
-			{ "config", vars.Resolve("${configuration}") }
+			{ "arch", vars.ResolveLocal("arch") },
+			{ "platform", vars.ResolveLocal("platform") },
+			{ "config", vars.ResolveLocal("configuration") }
 		};
 
 		//for (auto& [k, v] : configuration)
@@ -374,9 +371,9 @@ namespace re
 		for (auto& target : include_deps)
 		{
 			auto config = GetTargetResolvedCfg(*target, {
-				{ "arch", vars.Resolve("${arch}") },
-				{ "platform", vars.Resolve("${platform}") },
-				{ "config", vars.Resolve("${configuration}") }
+				{ "arch", vars.ResolveLocal("arch") },
+				{ "platform", vars.ResolveLocal("platform") },
+				{ "config", vars.ResolveLocal("configuration") }
 			});
 
 			auto dependency_defines = config["cxx-compile-definitions-public"];
