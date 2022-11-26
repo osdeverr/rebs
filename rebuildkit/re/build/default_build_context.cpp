@@ -10,6 +10,8 @@
 
 #include <re/process_util.h>
 
+#include <re/debug.h>
+
 #include <fstream>
 
 namespace re
@@ -31,6 +33,8 @@ namespace re
 
 	void DefaultBuildContext::LoadDefaultEnvironment(const fs::path& re_path)
 	{
+		re::PerfProfile _{ __FUNCTION__ };
+
 		mRePath = re_path;
 
 		mEnv = std::make_unique<BuildEnv>(mVars);
@@ -63,6 +67,8 @@ namespace re
 
 	Target& DefaultBuildContext::LoadTarget(const fs::path& path)
 	{
+		re::PerfProfile _{ fmt::format(R"({}("{}"))", __FUNCTION__, path.u8string())};
+
 		if (!DoesDirContainTarget(path))
 			RE_THROW TargetLoadException(nullptr, "The directory '{}' does not contain a valid Re target.", path.u8string());
 
@@ -72,6 +78,8 @@ namespace re
 
 	NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTarget(Target& target)
 	{
+		re::PerfProfile _{ fmt::format(R"({}("{}"))", __FUNCTION__, target.module) };
+
 		NinjaBuildDesc desc;
 		desc.pRootTarget = &target;
 
@@ -148,6 +156,8 @@ namespace re
 
 	int DefaultBuildContext::BuildTarget(const NinjaBuildDesc& desc)
 	{
+		re::PerfProfile _{ fmt::format(R"({}("{}"))", __FUNCTION__, desc.out_dir.u8string()) };
+
 		re::GenerateNinjaBuildFile(desc, desc.out_dir);
 
 		auto path_to_ninja = mRePath / "ninja.exe";
