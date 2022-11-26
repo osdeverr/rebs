@@ -13,21 +13,29 @@ namespace re
 		if (std::find(to.begin(), to.end(), pTarget) != to.end())
 			return;
 
+		if (pTarget->resolved_config && !pTarget->resolved_config["enabled"].as<bool>())
+		{
+			RE_TRACE(" PopulateTargetDependencySet: Skipping '{}' because it's not enabled\n", pTarget->module);
+		}
+
 		for (auto &child : pTarget->children)
 			PopulateTargetDependencySet(child.get(), to, dep_resolver, throw_on_missing);
 
 		for (auto &dep : pTarget->dependencies)
 		{
+			RE_TRACE(" PopulateTargetDependencySet: Attempting to resolve '{}' <- '{}'\n", pTarget->module, dep.ToString());
 			dep.resolved = dep_resolver(*pTarget, dep);
 
 			if (!dep.resolved)
 			{
+				RE_TRACE("     failed\n");
 				if (throw_on_missing)
 					RE_THROW TargetDependencyException(pTarget, "unresolved dependency {}", dep.name);
 			}
 			else
 			{
 				dep.resolved->dependents.insert(pTarget);
+				RE_TRACE("     done\n");
 			}
 		}
 
@@ -44,6 +52,8 @@ namespace re
 
 		for (auto &dep : pTarget->dependencies)
 		{
+			RE_TRACE(" PopulateTargetDependencySetNoResolve - {} <- {} @ {}\n", pTarget->module, dep.ToString(), (const void*) &dep);
+
 			if (dep.resolved)
 				PopulateTargetDependencySetNoResolve(dep.resolved, to);
 			else
@@ -183,6 +193,12 @@ namespace re
 		auto langs = target->GetCfgEntry<TargetConfig>("langs", CfgEntryKind::Recursive).value_or(TargetConfig{ YAML::NodeType::Sequence });
 
 		ILangProvider* link_provider = InitializeTargetLinkEnv(target, desc);
+
+		if (target->resolved_config && !target->resolved_config["enabled"].as<bool>())
+		{
+			RE_TRACE(" PopulateBuildDesc: Skipping '{}' because it's not enabled\n", target->module);
+			return;
+		}
 
 		for (const auto& lang : langs)
 		{
@@ -399,7 +415,7 @@ namespace re
 
 	void BuildEnv::PopulateTargetMap(Target* pTarget)
 	{
-		// fmt::print(" [DBG] Adding to target map: '{}'\n", pTarget->module);
+		RE_TRACE(" [DBG] Adding to target map: '{}'\n", pTarget->module);
 
 		if (mTargetMap[pTarget->module] != nullptr)
 			RE_THROW TargetLoadException(pTarget, "target defined more than once");

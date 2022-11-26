@@ -146,7 +146,7 @@ namespace re
         TargetConfig config;
 
         // This is the "flat" config representation. It is only built once.
-        TargetConfig resolved_config{ YAML::NodeType::Null };
+        TargetConfig resolved_config{ YAML::NodeType::Undefined };
 
         // Targets that depend on this target.
         std::unordered_set<const Target*> dependents;
@@ -212,7 +212,8 @@ namespace re
         */
 
         void LoadBaseData();
-        void LoadDependencies();
+        void LoadDependencies(std::string_view key = "");
+        void LoadConditionalDependencies();
         void LoadMiscConfig();
 
         void LoadSourceTree(fs::path path = "");

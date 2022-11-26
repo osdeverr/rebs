@@ -101,6 +101,8 @@ namespace re
 			mEnv->RunActionsCategorized(dep, nullptr, "pre-configure");
 		}
 
+		deps = mEnv->GetSingleTargetDepSet(desc.pRootTarget);
+
 		mEnv->PopulateBuildDescWithDeps(&target, desc);
 
 		auto& vars = target.build_var_scope.value();

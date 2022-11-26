@@ -10,6 +10,8 @@ type: project
 
 name: ""
 
+enabled: true
+
 # Re includes the C++ language provider by default
 langs:
     - cpp

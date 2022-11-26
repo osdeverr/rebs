@@ -1,5 +1,7 @@
 #include "arch_coerced_dep_resolver.h"
 
+#include <re/target_cfg_utils.h>
+
 namespace re
 {
 	Target* ArchCoercedDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
@@ -35,6 +37,14 @@ namespace re
 		result->LoadDependencies();
 		result->LoadMiscConfig();
 		result->LoadSourceTree();
+
+		result->resolved_config = GetResolvedTargetCfg(*result, {
+			{ "arch", re_arch },
+			{ "platform", re_platform },
+			{ "config", re_config }
+		});
+
+		result->LoadConditionalDependencies();
 
 		mLoader->RegisterLocalTarget(result.get());
 		return result.get();

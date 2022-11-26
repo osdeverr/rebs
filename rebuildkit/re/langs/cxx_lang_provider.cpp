@@ -2,87 +2,16 @@
 
 #include <re/target.h>
 #include <re/buildenv.h>
+#include <re/target_cfg_utils.h>
 
 #include <fmt/format.h>
 
 #include <fstream>
 
-#include <boost/algorithm/string.hpp>
-
 namespace re
 {
 	namespace
 	{
-		void MergeNode(YAML::Node& target, const YAML::Node& source, bool overridden);
-
-		void MergeMap(YAML::Node& target, const YAML::Node& source, bool overridden);
-
-		void MergeSequences(YAML::Node& target, const YAML::Node& source, bool overridden);
-
-
-		void MergeNode(YAML::Node& target, const YAML::Node& source, bool overridden = false)
-		{
-			switch (source.Type())
-			{
-			case YAML::NodeType::Scalar:
-				target = source.Scalar();
-				break;
-			case YAML::NodeType::Map:
-				MergeMap(target, source, overridden);
-				break;
-			case YAML::NodeType::Sequence:
-				MergeSequences(target, source, overridden);
-				break;
-			case YAML::NodeType::Null:
-				target = source;
-				break;
-				// throw std::runtime_error("merge_node: Null source nodes not supported");
-			case YAML::NodeType::Undefined:
-				RE_THROW std::runtime_error(
-					"MergeNode: Undefined source nodes not supported");
-			}
-		}
-
-		void MergeMap(YAML::Node& target, const YAML::Node& source, bool overridden = false)
-		{
-			if (overridden)
-			{
-				target = Clone(source);
-				return;
-			}
-
-			for (auto const& j : source) {
-				auto key = j.first.Scalar();
-
-				constexpr auto kOverridePrefix = "override.";
-
-				if (overridden || key.find(kOverridePrefix) == 0)
-					MergeNode(target[key.substr(sizeof kOverridePrefix + 1)], j.second, true);
-				else
-					MergeNode(target[key], j.second);
-			}
-		}
-
-		void MergeSequences(YAML::Node& target, const YAML::Node& source, bool overridden = false)
-		{
-			if (overridden)
-			{
-				target = Clone(source);
-				return;
-			}
-
-			for (std::size_t i = 0; i != source.size(); ++i) {
-				target.push_back(YAML::Clone(source[i]));
-			}
-		}
-
-		YAML::Node MergeNodes(const YAML::Node& defaultNode, const YAML::Node& overrideNode)
-		{
-			auto cloned = Clone(defaultNode);
-			MergeNode(cloned, overrideNode);
-			return cloned;
-		}
-
 		inline TargetConfig GetRecursiveMapCfg(const Target& leaf, std::string_view key)
 		{
 			auto result = TargetConfig{ YAML::NodeType::Map };
@@ -91,7 +20,7 @@ namespace re
 			while (p)
 			{
 				if (auto map = p->GetCfgEntry<TargetConfig>(key))
-					result = MergeNodes(*map, result);
+					result = MergeYamlNodes(*map, result);
 
 				p = p->parent;
 			}
@@ -107,7 +36,7 @@ namespace re
 			while (p)
 			{
 				if (auto map = p->GetCfgEntry<TargetConfig>(key))
-					result = MergeNodes(*map, result);
+					result = MergeYamlNodes(*map, result);
 
 				p = p->parent;
 			}
@@ -158,85 +87,6 @@ namespace re
 				out_deps.insert(fmt::format("\"{}\"", vars.Resolve(dep.as<std::string>())));
 		}
 
-		TargetConfig GetFlatResolvedCfg(const TargetConfig& cfg, const std::unordered_map<std::string, std::string>& mappings)
-		{
-			// recurse the ky
-			auto result = Clone(cfg);
-
-			if (cfg.IsMap())
-			{
-				for (auto& kv : cfg)
-				{
-					std::string key = kv.first.as<std::string>();
-
-					for (const auto& [category, value] : mappings)
-					{
-						if (key.find(category + ".") == 0)
-						{
-							auto raw = key.substr(category.size() + 1);
-
-							std::vector<std::string> categories;
-							boost::algorithm::split(categories, raw, boost::is_any_of("|"));
-
-							bool supported = (raw == "any");
-
-							for (auto& category : categories)
-							{
-								if (supported)
-									break;
-
-								supported |= (category == value);
-
-								if (category.front() == '!')
-									supported |= (category != value.substr(1));
-							}
-
-							if (supported)
-							{
-								if (kv.second.IsScalar() && kv.second.Scalar() == "unsupported")
-									RE_THROW Exception("unsupported {} '{}'", category, value);
-
-								auto cloned = GetFlatResolvedCfg(kv.second, mappings);
-
-								if (cloned.IsMap())
-								{
-									for (auto& inner_kv : cloned)
-										inner_kv.second = GetFlatResolvedCfg(inner_kv.second, mappings);
-								}
-
-								MergeNode(result, cloned);
-							}
-
-							result.remove(key);
-							break;
-						}
-					}
-				}
-			}
-
-			return result;
-		}
-
-		TargetConfig GetTargetResolvedCfg(const Target& leaf, const std::unordered_map<std::string, std::string>& mappings)
-		{
-			auto result = GetFlatResolvedCfg(leaf.config, mappings);
-			auto p = leaf.parent;
-
-			while (p)
-			{
-				result = MergeNodes(GetFlatResolvedCfg(p->config, mappings), result);
-				p = p->parent;
-			}
-
-			/*
-			YAML::Emitter emitter;
-			emitter << result;
-
-			fmt::print(" [DBG] Flat target config for '{}':\n\n{}\n\n", leaf.module, emitter.c_str());
-			*/
-
-			return result;
-		}
 	}
 
 	CxxLangProvider::CxxLangProvider(const fs::path& env_search_path, LocalVarScope* var_scope)
@@ -306,6 +156,15 @@ namespace re
 
 		for (const auto& kv : env["default-flags"])
 			vars.SetVar("platform-default-flags-" + kv.first.Scalar(), vars.Resolve(kv.second.Scalar()));
+
+		std::unordered_map<std::string, std::string> configuration = {
+			{ "arch", vars.ResolveLocal("arch") },
+			{ "platform", vars.ResolveLocal("platform") },
+			{ "config", vars.ResolveLocal("configuration") }
+		};
+
+		target.resolved_config = GetResolvedTargetCfg(target, configuration);
+		target.LoadConditionalDependencies();
 	}
 
 	bool CxxLangProvider::InitBuildTargetRules(NinjaBuildDesc& desc, const Target& target)
@@ -318,16 +177,13 @@ namespace re
 
 		/////////////////////////////////////////////////////////////////
 
-		std::unordered_map<std::string, std::string> configuration = {
-			{ "arch", vars.ResolveLocal("arch") },
-			{ "platform", vars.ResolveLocal("platform") },
-			{ "config", vars.ResolveLocal("configuration") }
-		};
-
 		//for (auto& [k, v] : configuration)
 		//	fmt::print(" *** '{}' -> {}={}\n", target.module, k, v);
 
-		auto config = GetTargetResolvedCfg(target, configuration);
+		auto& config = target.resolved_config;
+
+		if (!config["enabled"].as<bool>())
+			return false;
 
 		TargetConfig definitions = config["cxx-compile-definitions"];
 		TargetConfig definitions_pub = config["cxx-compile-definitions-public"];
@@ -370,11 +226,10 @@ namespace re
 		
 		for (auto& target : include_deps)
 		{
-			auto config = GetTargetResolvedCfg(*target, {
-				{ "arch", vars.ResolveLocal("arch") },
-				{ "platform", vars.ResolveLocal("platform") },
-				{ "config", vars.ResolveLocal("configuration") }
-			});
+			auto& config = target->resolved_config;
+
+			if (!config)
+				continue;
 
 			auto dependency_defines = config["cxx-compile-definitions-public"];
 
@@ -588,11 +443,13 @@ namespace re
 		auto& env = mEnvCache.at(desc.state.at("re_cxx_env_for_" + path));
 		const auto& default_extensions = env["default-extensions"];
 
+		auto artifact_name = target.GetCfgEntry<std::string>("artifact-name").value_or(target.name);
+
 		BuildTarget link_target;
 
 		link_target.type = BuildTargetType::Artifact;
 		link_target.pSourceTarget = &target;
-		link_target.out = "$builddir/" + fmt::format("$re_target_artifact_directory_{}", path) + "/" + target.module;
+		link_target.out = "$builddir/" + fmt::format("$re_target_artifact_directory_{}", path) + "/" + artifact_name;
 		link_target.rule = "cxx_link_" + path;
 
 		std::string extension = "";

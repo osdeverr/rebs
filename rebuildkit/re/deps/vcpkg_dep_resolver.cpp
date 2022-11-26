@@ -4,6 +4,7 @@
 #include <fmt/color.h>
 
 #include <re/process_util.h>
+#include <re/target_cfg_utils.h>
 
 #include <fstream>
 
@@ -194,6 +195,14 @@ namespace re
         package_target->var_parent = target.var_parent;
         package_target->local_var_ctx = context;
         package_target->build_var_scope.emplace(&package_target->local_var_ctx, "build", &scope);
+
+        package_target->resolved_config = GetResolvedTargetCfg(*package_target, {
+            { "arch", re_arch },
+            { "platform", re_platform },
+            { "config", re_config }
+        });
+
+        package_target->LoadConditionalDependencies();
 
         /*
         package_target->config["name"] = package_target->name;

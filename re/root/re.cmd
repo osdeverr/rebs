@@ -7,8 +7,11 @@ if "%1"=="new" goto run_tool
 if "%1"=="help" goto run_tool
 if "%1"=="run" goto run_tool
 
-if "%2"=="install" goto default_build
-if "%2"=="" goto default_build
+if "%1"=="b" goto default_build
+if "%1"=="cfg" goto default_build
+if "%1"=="config" goto default_build
+if "%1"=="c" goto default_build
+goto default_build
 
 echo Invalid Re command: %1
 echo Try 're help'.
