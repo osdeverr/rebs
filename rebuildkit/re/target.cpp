@@ -110,7 +110,7 @@ namespace re
 
         auto dep_from_str = [this](const std::string& str)
         {
-            std::regex dep_regex{ R"(\s*(?:(.+?:)?)\s*(?:([^@]+))\s*(?:(@[^\s]*)?)(?:\s*)?(?:(?:\[)(.+)(?:\]))?)" };
+            std::regex dep_regex{ R"(\s*(?:(.+?:)?)\s*(?:([^@\s]+))\s*(?:(@[^\s]*)?)(?:\s*)?(?:(?:\[)(.+)(?:\]))?)" };
             std::smatch match;
 
             if (!std::regex_match(str, match, dep_regex))
