@@ -6,6 +6,8 @@
 #include <re/process_util.h>
 #include <re/debug.h>
 
+#include <boost/algorithm/string.hpp>
+
 namespace re
 {
 	void PopulateTargetDependencySet(Target *pTarget, std::vector<Target *> &to, std::function<Target *(const Target&, const TargetDependency &)> dep_resolver, bool throw_on_missing)
@@ -18,8 +20,20 @@ namespace re
 			RE_TRACE(" PopulateTargetDependencySet: Skipping '{}' because it's not enabled\n", pTarget->module);
 		}
 
-		for (auto &child : pTarget->children)
-			PopulateTargetDependencySet(child.get(), to, dep_resolver, throw_on_missing);
+		for (auto& [name, dep] : pTarget->used_mapping)
+		{
+
+			RE_TRACE(" PopulateTargetDependencySet: Attempting to resolve uses-mapping '{}' <- '{}'\n", pTarget->module, dep->ToString());
+			dep->resolved = dep_resolver(*pTarget, *dep);
+
+			if (!dep->resolved)
+			{
+				RE_TRACE("     failed\n");
+
+				if (throw_on_missing)
+					RE_THROW TargetDependencyException(pTarget, "unresolved uses-map dependency {}", dep->name);
+			}
+		}
 
 		for (auto &dep : pTarget->dependencies)
 		{
@@ -29,15 +43,21 @@ namespace re
 			if (!dep.resolved)
 			{
 				RE_TRACE("     failed\n");
+
 				if (throw_on_missing)
 					RE_THROW TargetDependencyException(pTarget, "unresolved dependency {}", dep.name);
 			}
 			else
 			{
+				PopulateTargetDependencySet(dep.resolved, to, dep_resolver, throw_on_missing);
+
 				dep.resolved->dependents.insert(pTarget);
 				RE_TRACE("     done\n");
 			}
 		}
+
+		for (auto& child : pTarget->children)
+			PopulateTargetDependencySet(child.get(), to, dep_resolver, throw_on_missing);
 
 		to.push_back(pTarget);
 	}
@@ -84,6 +104,8 @@ namespace re
 	Target& BuildEnv::LoadTarget(const fs::path& path)
 	{
 		auto target = LoadFreeTarget(path);
+		target->root_path = path;
+
 		target->LoadDependencies();
 		target->LoadMiscConfig();
 		target->LoadSourceTree();
@@ -397,6 +419,44 @@ namespace re
 
 		if (use_external)
 		{
+			if (dep.ns == "uses")
+			{
+				auto used = target.GetUsedDependency(dep.name);
+
+				if (!used)
+					RE_THROW TargetDependencyException(&target, "uses-dependency '{}' not found", dep.ToString());
+
+				auto result = used->resolved;
+
+				if (!result)
+					RE_THROW TargetDependencyException(&target, "unresolved uses-dependency '{}' <- '{}'", dep.ToString(), used->ToString());
+
+				if (!dep.version.empty())
+				{
+					// RE_THROW TargetDependencyException(&target, "uses-dependency '{}' <- '{}' - partial target deps are not yet implemented", dep.ToString(), used->ToString());
+				
+					
+
+					std::vector<std::string> parts;
+					boost::algorithm::split(parts, dep.version, boost::is_any_of("."));
+
+					for (auto& part : parts)
+					{
+						if (!part.empty())
+							result = result->FindChild(part);
+
+						if (!result)
+							RE_THROW TargetDependencyException(
+								&target,
+								"unresolved partial uses-dependency '{}' <- '{}' (failed at part '{}')",
+								dep.ToString(), used->ToString(), part
+							);
+					}
+				}
+
+				return result;
+			}
+
 			if (auto resolver = mDepResolvers[dep.ns])
 				return resolver->ResolveTargetDependency(target, dep);
 			else
@@ -430,19 +490,7 @@ namespace re
 	{
 		PopulateTargetDependencySet(pTarget, to, [this, &to, pTarget, throw_on_missing, use_external](const Target& target, const TargetDependency& dep) -> Target*
 		{
-			if (auto resolved = ResolveTargetDependencyImpl(target, dep, use_external))
-			{
-				std::vector<Target*> stuff;
-				//AppendDepsAndSelf(resolved, stuff, false, use_external);
-
-				//for (auto temp : stuff)
-				//	temp->dependents.insert(pTarget);
-
-				AppendDepsAndSelf(resolved, to, throw_on_missing, use_external);
-				return resolved;
-			}
-
-			return nullptr;
+			return ResolveTargetDependencyImpl(target, dep, use_external);
 		}, throw_on_missing);
 	}
 

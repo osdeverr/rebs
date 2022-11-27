@@ -188,6 +188,8 @@ namespace re
             }
         }
 
+        package_target->root_path = target.root_path;
+
         package_target->config["enabled"] = true;
 
         package_target->config["arch"] = re_arch;
