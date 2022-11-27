@@ -143,7 +143,7 @@ namespace re
                 if (dep.name.empty())
                     RE_THROW TargetDependencyException(this, "dependency {} does not have a name specified", str);
 
-                dep.name = ResolveTargetParentRef(dep.name, parent);
+                dep.name = ResolveTargetParentRef(dep.name, this);
                 dependencies.emplace_back(std::move(dep));
             }
         }
@@ -299,5 +299,27 @@ namespace re
     TargetException::TargetException(std::string_view type, const Target *target, const std::string &str)
         : Exception{"{} in target '{}':\n      {}", type, target ? target->module : "null", str}
     {
+    }
+
+    std::string ResolveTargetParentRef(std::string name, Target* target)
+    {
+        std::string prefix = "";
+        Target* parent = nullptr;
+
+        while (!name.empty() && name.front() == '.')
+        {
+            name.erase(0, 1);
+
+            if (!parent)
+                parent = target;
+
+            if (parent && parent->parent)
+                parent = parent->parent;
+        }
+
+        if (parent && !parent->module.empty())
+            prefix = parent->module + ".";
+
+        return prefix + name;
     }
 }

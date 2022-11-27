@@ -438,7 +438,7 @@ namespace re
 				//for (auto temp : stuff)
 				//	temp->dependents.insert(pTarget);
 
-				AppendDepsAndSelf(resolved, to);
+				AppendDepsAndSelf(resolved, to, throw_on_missing, use_external);
 				return resolved;
 			}
 
