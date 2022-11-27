@@ -37,6 +37,8 @@ config.debug:
 config.release:
     cxx-compile-definitions:
         NDEBUG: 1
+
+cxx-compile-definitions-public: {}
         
 cxx-include-dirs:
     - ${cxx-default-include-dirs}
