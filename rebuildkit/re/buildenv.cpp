@@ -75,7 +75,7 @@ namespace re
 			RE_TRACE(" PopulateTargetDependencySetNoResolve - {} <- {} @ {}\n", pTarget->module, dep.ToString(), (const void*) &dep);
 
 			if (dep.resolved.empty())
-				RE_THROW TargetDependencyException(pTarget, "unresolved dependency {}", dep.name);
+				RE_THROW TargetDependencyException(pTarget, "unresolved dependency '{}'", dep.ToString());
 
 			for(auto& t : dep.resolved)
 				PopulateTargetDependencySetNoResolve(t, to);
@@ -447,6 +447,13 @@ namespace re
 							);
 					}
 
+					if (!temp)
+						RE_THROW TargetDependencyException(
+							&target,
+							"unresolved partial dependency filter '{}' for '{}' <- '{}'",
+							filter, result->module, dep.ToString()
+						);
+
 					out.emplace_back(temp);
 				}
 			};
@@ -457,12 +464,20 @@ namespace re
 				auto used = target.GetUsedDependency(dep.name);
 
 				if (!used)
-					RE_THROW TargetDependencyException(&target, "uses-dependency '{}' not found", dep.ToString());
+					RE_THROW TargetDependencyException(
+						&target,
+						"uses-dependency '{}' not found",
+						dep.ToString()
+					);
 
 				auto result = used->resolved;
 
 				if (result.empty())
-					RE_THROW TargetDependencyException(&target, "unresolved uses-dependency '{}' <- '{}'", dep.ToString(), used->ToString());
+					RE_THROW TargetDependencyException(
+						&target,
+						"unresolved uses-dependency '{}' <- '{}'",
+						dep.ToString(), used->ToString()
+					);
 
 				if (!dep.filters.empty())
 				{
@@ -473,21 +488,38 @@ namespace re
 						for (auto& filter : dep.filters)
 						{
 							if (std::find(used->filters.begin(), used->filters.end(), filter) == used->filters.end())
-								RE_THROW TargetDependencyException(&target, "invalid filter in uses-dependency '{}' <- '{}': '{}' is not part of original filters", dep.ToString(), used->ToString());
+								RE_THROW TargetDependencyException(
+									&target,
+									"invalid filter in uses-dependency '{}' <- '{}': '{}' is not part of original filters",
+									dep.ToString(), used->ToString()
+								);
 						}
 
 						for (auto& filter : used->filters)
 						{
-							if (std::find(dep.filters.begin(), dep.filters.end(), filter) == dep.filters.end())
-								it = result.erase(it);
-							else
-								it++;
+							if (std::find(dep.filters.begin(), dep.filters.end(), filter) != dep.filters.end())
+								out.emplace_back(*it);
+
+							it++;
 						}
+
+						if (out.empty())
+							RE_THROW TargetDependencyException(
+								&target,
+								"error in uses-dependency '{}' <- '{}': everything got filtered out!",
+								dep.ToString(), used->ToString()
+							);
 					}
 					else
 					{
 						if (result.size() == 1)
 							handle_single_target_filter_deps(result.front());
+						else
+							RE_THROW TargetDependencyException(
+								&target,
+								"error in uses-dependency '{}' <- '{}': bad bug!",
+								dep.ToString(), used->ToString()
+							);
 					}
 					// RE_THROW TargetDependencyException(&target, "error resolving uses-dependency '{}' <- '{}': filters are not yet implemented", dep.ToString(), used->ToString());
 				}
@@ -496,7 +528,7 @@ namespace re
 					out = std::move(result);
 				}
 
-				return true;
+				return out.size() > 0;
 			}
 
 			if (auto resolver = mDepResolvers[dep.ns])
@@ -512,7 +544,7 @@ namespace re
 					handle_single_target_filter_deps(result);
 				}
 
-				return true;
+				return out.size() > 0;
 			}
 			else
 				RE_THROW TargetLoadException(&target, "dependency '{}': unknown target namespace '{}'", dep.ToString(), dep.ns);
