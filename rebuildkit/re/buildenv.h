@@ -15,10 +15,12 @@
 
 namespace re
 {
-	void PopulateTargetDependencySet(Target* pTarget, std::vector<Target*>& to, std::function<Target* (const Target&, const TargetDependency&)> dep_resolver = {}, bool throw_on_missing = true);
+	using TargetDepResolver = std::function<bool (const Target&, const TargetDependency&, std::vector<Target*>&)>;
+
+	void PopulateTargetDependencySet(Target* pTarget, std::vector<Target*>& to, TargetDepResolver dep_resolver = {}, bool throw_on_missing = true);
 	void PopulateTargetDependencySetNoResolve(const Target* pTarget, std::vector<const Target*>& to);
 
-	class BuildEnv : public ILangLocator, public IDepResolver, public ITargetLoader
+	class BuildEnv : public ILangLocator, public ITargetLoader
 	{
 	public:
 		BuildEnv(LocalVarScope& scope);
@@ -53,7 +55,6 @@ namespace re
 		void RunInstallActions(Target* target, const NinjaBuildDesc& desc);
 
 		void AddDepResolver(std::string_view name, IDepResolver* resolver);
-		Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep) override;
 
 	private:
 		std::unique_ptr<Target> mTheCoreProjectTarget;
@@ -84,7 +85,7 @@ namespace re
 
 		void InstallPathToTarget(const Target *pTarget, const fs::path &from);
 
-		Target* ResolveTargetDependencyImpl(const Target& target, const TargetDependency& dep, bool use_external = true);
+		bool ResolveTargetDependencyImpl(const Target& target, const TargetDependency& dep, std::vector<Target*>& out, bool use_external = true);
 
 		void PerformCopyToDependentsImpl(const Target& target, const Target* dependent, const NinjaBuildDesc* desc, const fs::path& from, const std::string& to);
 	};

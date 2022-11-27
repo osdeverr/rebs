@@ -10,7 +10,7 @@
 
 namespace re
 {
-	void PopulateTargetDependencySet(Target *pTarget, std::vector<Target *> &to, std::function<Target *(const Target&, const TargetDependency &)> dep_resolver, bool throw_on_missing)
+	void PopulateTargetDependencySet(Target *pTarget, std::vector<Target *> &to, TargetDepResolver dep_resolver, bool throw_on_missing)
 	{
 		if (std::find(to.begin(), to.end(), pTarget) != to.end())
 			return;
@@ -22,11 +22,9 @@ namespace re
 
 		for (auto& [name, dep] : pTarget->used_mapping)
 		{
-
 			RE_TRACE(" PopulateTargetDependencySet: Attempting to resolve uses-mapping '{}' <- '{}'\n", pTarget->module, dep->ToString());
-			dep->resolved = dep_resolver(*pTarget, *dep);
 
-			if (!dep->resolved)
+			if (!dep_resolver(*pTarget, *dep, dep->resolved))
 			{
 				RE_TRACE("     failed\n");
 
@@ -38,9 +36,8 @@ namespace re
 		for (auto &dep : pTarget->dependencies)
 		{
 			RE_TRACE(" PopulateTargetDependencySet: Attempting to resolve '{}' <- '{}'\n", pTarget->module, dep.ToString());
-			dep.resolved = dep_resolver(*pTarget, dep);
 
-			if (!dep.resolved)
+			if (!dep_resolver(*pTarget, dep, dep.resolved))
 			{
 				RE_TRACE("     failed\n");
 
@@ -49,9 +46,12 @@ namespace re
 			}
 			else
 			{
-				PopulateTargetDependencySet(dep.resolved, to, dep_resolver, throw_on_missing);
+				for (auto& t : dep.resolved)
+				{
+					PopulateTargetDependencySet(t, to, dep_resolver, throw_on_missing);
+					t->dependents.insert(pTarget);
+				}
 
-				dep.resolved->dependents.insert(pTarget);
 				RE_TRACE("     done\n");
 			}
 		}
@@ -74,10 +74,11 @@ namespace re
 		{
 			RE_TRACE(" PopulateTargetDependencySetNoResolve - {} <- {} @ {}\n", pTarget->module, dep.ToString(), (const void*) &dep);
 
-			if (dep.resolved)
-				PopulateTargetDependencySetNoResolve(dep.resolved, to);
-			else
+			if (dep.resolved.empty())
 				RE_THROW TargetDependencyException(pTarget, "unresolved dependency {}", dep.name);
+
+			for(auto& t : dep.resolved)
+				PopulateTargetDependencySetNoResolve(t, to);
 		}
 
 		to.push_back(pTarget);
@@ -377,9 +378,11 @@ namespace re
 		mDepResolvers[name.data()] = resolver;
 	}
 
-	Target* BuildEnv::ResolveTargetDependencyImpl(const Target& target, const TargetDependency& dep, bool use_external)
+	bool BuildEnv::ResolveTargetDependencyImpl(const Target& target, const TargetDependency& dep, std::vector<Target*>& out, bool use_external)
 	{
-		if (dep.ns.empty() || dep.ns == "local")
+		out.clear();
+
+		if (dep.ns.empty())
 		{
 			auto result = GetTargetOrNull(dep.name);
 
@@ -409,16 +412,46 @@ namespace re
 								);
 						}
 						else
-							result = nullptr;
+							return false;
 					}
 				}
+
+				out.emplace_back(result);
+				return true;
 			}
 
-			return result;
+			return false;
 		}
 
 		if (use_external)
 		{
+			auto handle_single_target_filter_deps = [&out, &dep, &target](Target* result)
+			{
+				for (auto& filter : dep.filters)
+				{
+					std::vector<std::string> parts;
+					boost::algorithm::split(parts, filter, boost::is_any_of("."));
+
+					auto temp = result;
+
+					for (auto& part : parts)
+					{
+						if (!part.empty())
+							temp = temp->FindChild(part);
+
+						if (!temp)
+							RE_THROW TargetDependencyException(
+								&target,
+								"unresolved partial dependency filter '{}' for '{}' <- '{}' (failed at part '{}')",
+								filter, result->module, dep.ToString(), part
+							);
+					}
+
+					out.emplace_back(temp);
+				}
+			};
+
+			// Special case
 			if (dep.ns == "uses")
 			{
 				auto used = target.GetUsedDependency(dep.name);
@@ -428,49 +461,66 @@ namespace re
 
 				auto result = used->resolved;
 
-				if (!result)
+				if (result.empty())
 					RE_THROW TargetDependencyException(&target, "unresolved uses-dependency '{}' <- '{}'", dep.ToString(), used->ToString());
 
-				if (!dep.version.empty())
+				if (!dep.filters.empty())
 				{
-					// RE_THROW TargetDependencyException(&target, "uses-dependency '{}' <- '{}' - partial target deps are not yet implemented", dep.ToString(), used->ToString());
-				
-					
-
-					std::vector<std::string> parts;
-					boost::algorithm::split(parts, dep.version, boost::is_any_of("."));
-
-					for (auto& part : parts)
+					if (!used->filters.empty())
 					{
-						if (!part.empty())
-							result = result->FindChild(part);
+						auto it = result.begin();
 
-						if (!result)
-							RE_THROW TargetDependencyException(
-								&target,
-								"unresolved partial uses-dependency '{}' <- '{}' (failed at part '{}')",
-								dep.ToString(), used->ToString(), part
-							);
+						for (auto& filter : dep.filters)
+						{
+							if (std::find(used->filters.begin(), used->filters.end(), filter) == used->filters.end())
+								RE_THROW TargetDependencyException(&target, "invalid filter in uses-dependency '{}' <- '{}': '{}' is not part of original filters", dep.ToString(), used->ToString());
+						}
+
+						for (auto& filter : used->filters)
+						{
+							if (std::find(dep.filters.begin(), dep.filters.end(), filter) == dep.filters.end())
+								it = result.erase(it);
+							else
+								it++;
+						}
 					}
+					else
+					{
+						if (result.size() == 1)
+							handle_single_target_filter_deps(result.front());
+					}
+					// RE_THROW TargetDependencyException(&target, "error resolving uses-dependency '{}' <- '{}': filters are not yet implemented", dep.ToString(), used->ToString());
+				}
+				else
+				{
+					out = std::move(result);
 				}
 
-				return result;
+				return true;
 			}
 
 			if (auto resolver = mDepResolvers[dep.ns])
-				return resolver->ResolveTargetDependency(target, dep);
+			{
+				auto result = resolver->ResolveTargetDependency(target, dep);
+
+				if (dep.filters.empty())
+				{
+					out.emplace_back(result);
+				}
+				else
+				{
+					handle_single_target_filter_deps(result);
+				}
+
+				return true;
+			}
 			else
 				RE_THROW TargetLoadException(&target, "dependency '{}': unknown target namespace '{}'", dep.ToString(), dep.ns);
 		}
 		else
 		{
-			return nullptr;
+			return false;
 		}
-	}
-
-	Target* BuildEnv::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
-	{
-		return ResolveTargetDependencyImpl(target, dep, true);
 	}
 
 	void BuildEnv::PopulateTargetMap(Target* pTarget)
@@ -488,9 +538,9 @@ namespace re
 
 	void BuildEnv::AppendDepsAndSelf(Target* pTarget, std::vector<Target*>& to, bool throw_on_missing, bool use_external)
 	{
-		PopulateTargetDependencySet(pTarget, to, [this, &to, pTarget, throw_on_missing, use_external](const Target& target, const TargetDependency& dep) -> Target*
+		PopulateTargetDependencySet(pTarget, to, [this, &to, pTarget, throw_on_missing, use_external](const Target& target, const TargetDependency& dep, std::vector<Target*>& out)
 		{
-			return ResolveTargetDependencyImpl(target, dep, use_external);
+			return ResolveTargetDependencyImpl(target, dep, out, use_external);
 		}, throw_on_missing);
 	}
 

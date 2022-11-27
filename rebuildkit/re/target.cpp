@@ -3,6 +3,7 @@
 #include <ghc/filesystem.hpp>
 #include <magic_enum.hpp>
 
+#include <boost/algorithm/string.hpp>
 #include <regex>
 
 namespace re
@@ -109,7 +110,7 @@ namespace re
 
         auto dep_from_str = [this](const std::string& str)
         {
-            std::regex dep_regex{ "(.+?:)?([^@]+)(@.+)?" };
+            std::regex dep_regex{ R"(\s*(?:(.+?:)?)\s*(?:([^@]+))\s*(?:(@[^\s]*)?)(?:\s*)?(?:(?:\[)(.+)(?:\]))?)" };
             std::smatch match;
 
             if (!std::regex_match(str, match, dep_regex))
@@ -121,6 +122,14 @@ namespace re
             dep.ns = match[1].str();
             dep.name = match[2].str();
             dep.version = match[3].str();
+
+            if (match[4].matched)
+            {
+                auto raw = match[4].str();
+
+                boost::algorithm::erase_all(raw, " ");
+                boost::split(dep.filters, raw, boost::is_any_of(","));
+            }
 
             // Remove the trailing ':' character
             if (!dep.ns.empty())
@@ -342,17 +351,7 @@ namespace re
 
     std::string TargetDependency::ToString() const
     {
-        std::string result;
-
-        if (!ns.empty())
-            result += ns + ":";
-
-        result += name;
-
-        if (!version.empty())
-            result += "@" + version;
-
-        return result;
+        return raw;
     }
 
     TargetException::TargetException(std::string_view type, const Target *target, const std::string &str)
