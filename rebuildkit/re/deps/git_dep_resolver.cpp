@@ -40,7 +40,7 @@ namespace re
 			return cached.get();
 
 		auto cache = target.GetCfgEntryOrThrow<std::string>("re-cache-dir", "failed to find cache directory", CfgEntryKind::Recursive);
-		auto git_cached = target.path / cache / cached_dir;
+		auto git_cached = target.root_path / cache / cached_dir;
 
 		fs::create_directories(git_cached);
 
@@ -81,6 +81,8 @@ namespace re
 		}
 
 		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(git_cached));
+
+		result->root_path = target.root_path;
 
 		result->config["arch"] = re_arch;
 		result->config["platform"] = re_platform;

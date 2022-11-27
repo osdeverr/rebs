@@ -95,6 +95,9 @@ namespace re
         {
             module = name;
         }
+
+        if (parent)
+            root_path = parent->root_path;
     }
 
     void Target::LoadDependencies(std::string_view key)
@@ -103,6 +106,37 @@ namespace re
 
         // Use the relevant config instance.
         auto deps = resolved_config ? resolved_config[used_key.data()] : config[used_key.data()];
+
+        auto dep_from_str = [this](const std::string& str)
+        {
+            std::regex dep_regex{ "(.+?:)?([^@]+)(@.+)?" };
+            std::smatch match;
+
+            if (!std::regex_match(str, match, dep_regex))
+                RE_THROW TargetDependencyException(this, "dependency {} does not meet the format requirements", str);
+
+            TargetDependency dep;
+
+            dep.raw = str;
+            dep.ns = match[1].str();
+            dep.name = match[2].str();
+            dep.version = match[3].str();
+
+            // Remove the trailing ':' character
+            if (!dep.ns.empty())
+                dep.ns.pop_back();
+
+            // Remove the leading '@' character
+            if (!dep.version.empty())
+                dep.version = dep.version.substr(1);
+
+            if (dep.name.empty())
+                RE_THROW TargetDependencyException(this, "dependency {} does not have a name specified", str);
+
+            dep.name = ResolveTargetParentRef(dep.name, this);
+
+            return dep;
+        };
 
         if (deps)
         {
@@ -119,32 +153,22 @@ namespace re
                 if (exists)
                     continue;
 
-                std::regex dep_regex{"(.+?:)?([^@]+)(@.+)?"};
-                std::smatch match;
+                dependencies.emplace_back(dep_from_str(str));
+            }
+        }
 
-                if (!std::regex_match(str, match, dep_regex))
-                    RE_THROW TargetDependencyException(this, "dependency {} does not meet the format requirements", str);
+        if (auto uses = resolved_config ? resolved_config["uses"] : config["uses"])
+        {
+            for (const auto& kv : uses)
+            {
+                auto key = kv.first.Scalar();
 
-                TargetDependency dep;
+                // fmt::print("{}\n", key);
 
-                dep.raw = str;
-                dep.ns = match[1].str();
-                dep.name = match[2].str();
-                dep.version = match[3].str();
+                auto& mapping = used_mapping[key];
 
-                // Remove the trailing ':' character
-                if (!dep.ns.empty())
-                    dep.ns.pop_back();
-
-                // Remove the leading '@' character
-                if (!dep.version.empty())
-                    dep.version = dep.version.substr(1);
-
-                if (dep.name.empty())
-                    RE_THROW TargetDependencyException(this, "dependency {} does not have a name specified", str);
-
-                dep.name = ResolveTargetParentRef(dep.name, this);
-                dependencies.emplace_back(std::move(dep));
+                if (!mapping)
+                    mapping = std::make_unique<TargetDependency>(dep_from_str(kv.second.Scalar()));
             }
         }
     }
@@ -279,6 +303,41 @@ namespace re
             // fmt::print("target lost. ");
             return std::nullopt;
         }
+    }
+
+    std::pair<const LocalVarScope&, VarContext&> Target::GetBuildVarScope() const
+    {
+        if (build_var_scope)
+            return std::make_pair(std::ref(*build_var_scope), std::ref(local_var_ctx));
+        else if (parent)
+            return parent->GetBuildVarScope();
+        else
+            RE_THROW TargetConfigException(this, "reached top of hierarchy without finding a valid build var scope");
+    }
+
+    TargetDependency* Target::GetUsedDependency(const std::string& name) const
+    {
+        auto it = used_mapping.find(name);
+
+        if (it != used_mapping.end())
+            return it->second.get();
+
+        if (auto dep = parent ? parent->GetUsedDependency(name) : nullptr)
+            return dep;
+
+        if (auto dep = dep_parent ? dep_parent->GetUsedDependency(name) : nullptr)
+            return dep;
+
+        return nullptr;
+    }
+
+    Target* Target::FindChild(std::string_view name) const
+    {
+        for (auto& child : children)
+            if (child->name == name)
+                return child.get();
+
+        return nullptr;
     }
 
     std::string TargetDependency::ToString() const

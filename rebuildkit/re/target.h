@@ -132,6 +132,8 @@ namespace re
         TargetType type;
 
         fs::path path;
+        fs::path root_path;
+
         std::string name;
 
         std::string module;
@@ -158,17 +160,16 @@ namespace re
         std::optional<LocalVarScope> target_var_scope;
         std::optional<LocalVarScope> build_var_scope;
 
+        std::unordered_map<std::string, std::unique_ptr<TargetDependency>> used_mapping;
+        const Target* dep_parent = nullptr;
+
         std::optional<std::string> GetVar(const std::string& key) const;
 
-        inline std::pair<const LocalVarScope&, VarContext&> GetBuildVarScope() const
-        {
-            if (build_var_scope)
-                return std::make_pair(std::ref(*build_var_scope), std::ref(local_var_ctx));
-            else if (parent)
-                return parent->GetBuildVarScope();
-            else
-                RE_THROW TargetConfigException(this, "reached top of hierarchy without finding a valid build var scope");
-        }
+        std::pair<const LocalVarScope&, VarContext&> GetBuildVarScope() const;
+
+        TargetDependency* GetUsedDependency(const std::string& name) const;
+
+        Target* FindChild(std::string_view name) const;
 
         /*
         // Contains the entire flattened dependency cache for this target in the order {children}..{dependencies recursively}..{itself}.

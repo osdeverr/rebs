@@ -24,6 +24,8 @@ namespace re
 
 		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(dep.path));
 
+		result->root_path = target.root_path;
+
 		result->config["arch"] = re_arch;
 		result->config["platform"] = re_platform;
 		result->config["configuration"] = re_config;
@@ -33,6 +35,8 @@ namespace re
 		result->build_var_scope.emplace(&result->local_var_ctx, "build", &scope);
 
 		result->module = cache_path;
+
+		result->dep_parent = &target;
 
 		result->LoadDependencies();
 		result->LoadMiscConfig();
