@@ -149,10 +149,12 @@ namespace re
 
 		result["deps"] = top_deps;
 
+		/*
 		YAML::Emitter emitter;
 		emitter << result;
 
 		RE_TRACE(" [DBG] Flat target config for '{}':\n\n{}\n\n", leaf.module, emitter.c_str());
+		*/
 
 		return result;
 	}
