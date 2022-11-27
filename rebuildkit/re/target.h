@@ -226,22 +226,7 @@ namespace re
         return fs::exists(path / Target::kTargetConfigFilename);
     }
 
-    inline static std::string ResolveTargetParentRef(std::string name, Target* parent = nullptr)
-    {
-        if (!name.empty() && name.front() == '.')
-        {
-            name.erase(0, 1);
-
-            if (parent)
-                return ModulePathCombine(ResolveTargetParentRef(parent->module, parent->parent), name);
-            else
-                return name;
-        }
-        else
-        {
-            return name;
-        }
-    }
+    std::string ResolveTargetParentRef(std::string name, Target* target);
 
     inline static std::string GetEscapedModulePath(const Target& target)
     {

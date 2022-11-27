@@ -31,7 +31,7 @@ int main(int argc, const char** argv)
         if (args.size() == 1)
         {
             return context.BuildTargetInDir(".");
-            // return context.BuildTargetInDir(L"D:/PlakSystemsSW/re-packages-test");
+            // return context.BuildTargetInDir(L"D:/PlakSystemsSW/PlakGraphics"); 
         }
         else
         {

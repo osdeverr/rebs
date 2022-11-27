@@ -443,7 +443,7 @@ namespace re
 		auto& env = mEnvCache.at(desc.state.at("re_cxx_env_for_" + path));
 		const auto& default_extensions = env["default-extensions"];
 
-		auto artifact_name = target.GetCfgEntry<std::string>("artifact-name").value_or(target.name);
+		auto artifact_name = target.GetCfgEntry<std::string>("artifact-name").value_or(target.module);
 
 		BuildTarget link_target;
 

@@ -139,11 +139,15 @@ namespace re
 		auto result = GetFlatResolvedTargetCfg(leaf.config, mappings);
 		auto p = leaf.parent;
 
+		auto top_deps = Clone(result["deps"]);
+
 		while (p)
 		{
 			result = MergeYamlNodes(GetFlatResolvedTargetCfg(p->config, mappings), result);
 			p = p->parent;
 		}
+
+		result["deps"] = top_deps;
 
 		YAML::Emitter emitter;
 		emitter << result;
