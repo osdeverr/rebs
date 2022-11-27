@@ -69,7 +69,7 @@ namespace re
         auto path = vcpkg_root / "packages" / (dep.name + fmt::format("_{}-{}", re_arch, re_platform));
 
         // We optimize the lookup by not invoking vcpkg at all if the package is already there.
-        if (!fs::exists(path))
+        if (!fs::exists(path / "BUILD_INFO"))
         {
             fmt::print(
                 fmt::emphasis::bold | fg(fmt::color::light_green),
