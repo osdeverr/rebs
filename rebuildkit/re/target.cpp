@@ -151,6 +151,7 @@ namespace re
 
     void Target::LoadConditionalDependencies()
     {
+        LoadDependencies("deps");
         LoadDependencies("cond-deps");
     }
 
