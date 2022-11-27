@@ -182,7 +182,7 @@ namespace re
                     dep.name = vcdep.as<std::string>();
                 }
 
-                dep.resolved = ResolveTargetDependency(target, dep);
+                dep.resolved = { ResolveTargetDependency(target, dep) };
 
                 package_target->dependencies.emplace_back(std::move(dep));
             }

@@ -49,7 +49,9 @@ namespace re
         std::string name;
         std::string version;
 
-        Target* resolved = nullptr;
+        std::vector<std::string> filters;
+
+        std::vector<Target*> resolved = {};
 
         std::string ToString() const;
     };
