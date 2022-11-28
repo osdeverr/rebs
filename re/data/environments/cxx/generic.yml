@@ -2,6 +2,8 @@
 # Generic C++ build environment
 #
 
+use-rspfiles: false
+
 #
 # Specifies the file extensions this build environment supports.
 #

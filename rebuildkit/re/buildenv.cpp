@@ -339,6 +339,51 @@ namespace re
 
 			RunProcessOrThrow("command", args, true, true, target.path.u8string());
 		}
+		else if (type == "install")
+		{
+			auto do_install = [&target, desc](const std::string& path)
+			{
+				auto to = fs::path{ target.build_var_scope->Resolve(path) };
+
+				auto artifact_dir = desc->out_dir / desc->GetArtifactDirectory(GetEscapedModulePath(target));
+
+				if (!to.is_absolute())
+					to = artifact_dir / to;
+
+				std::filesystem::copy(
+					artifact_dir,
+					to,
+					std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
+				);
+
+				fmt::print("[action.install] Installing {} - {} => {}\n", target.module, artifact_dir.u8string(), to.u8string());
+			};
+
+			auto to_v = data["to"];
+
+			if (to_v.IsSequence())
+				for (auto& v : to_v)
+					do_install(v.as<std::string>());
+			else
+				do_install(to_v.Scalar());
+		}
+		/*
+		else if (type == "install-to-deps")
+		{
+			auto to = fs::path{ data["to"].as<std::string>() };
+
+			auto artifact_dir = desc->out_dir / desc->GetArtifactDirectory(GetEscapedModulePath(target));
+
+			if (!to.is_absolute())
+				to = artifact_dir / to;
+
+			std::filesystem::copy(
+				artifact_dir,
+				desc->out_dir / desc->GetArtifactDirectory(GetEscapedModulePath(target)) / to,
+				std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
+			);
+		}
+		*/
 	}
 
 	void BuildEnv::RunPostBuildActions(Target* target, const NinjaBuildDesc& desc)
@@ -470,9 +515,9 @@ namespace re
 						dep.ToString()
 					);
 
-				auto result = used->resolved;
+				std::vector<Target*> result;
 
-				if (result.empty())
+				if (!ResolveTargetDependencyImpl(target, *used, result, use_external))
 					RE_THROW TargetDependencyException(
 						&target,
 						"unresolved uses-dependency '{}' <- '{}'",

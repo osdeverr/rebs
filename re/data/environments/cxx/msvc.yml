@@ -9,6 +9,8 @@
 inherits:
     - generic
 
+use-rspfiles: true
+
 vars:
     arch: ${target:arch | $re:arch | $env:VSCMD_ARG_TGT_ARCH}
 

@@ -139,7 +139,10 @@ namespace re
 		auto result = GetFlatResolvedTargetCfg(leaf.config, mappings);
 		auto p = leaf.parent;
 
+		// Deps and uses are automatically recursed by Target facilities:
+		// copying parent deps and uses into children would lead to a performance impact due to redundant regex parsing
 		auto top_deps = Clone(result["deps"]);
+		auto top_uses = Clone(result["uses"]);
 
 		while (p)
 		{
@@ -148,6 +151,7 @@ namespace re
 		}
 
 		result["deps"] = top_deps;
+		result["uses"] = top_uses;
 
 		/*
 		YAML::Emitter emitter;

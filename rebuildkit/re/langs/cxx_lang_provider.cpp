@@ -331,16 +331,27 @@ namespace re
 
 		// Create build rules
 
+		auto use_rspfiles = env["use-rspfiles"].as<bool>();
+
 		BuildRule rule_cxx;
 
 		rule_cxx.name = "cxx_compile_" + path;
 		rule_cxx.tool = "cxx_compiler_" + path;
+
 		rule_cxx.cmdline = fmt::format(
 			templates["compiler-cmdline"].as<std::string>(),
 			fmt::arg("flags", flags_base),
 			fmt::arg("input", "$in"),
 			fmt::arg("output", "$out")
 		);
+
+		if (use_rspfiles)
+		{
+			rule_cxx.vars["rspfile_content"] = rule_cxx.cmdline;
+			rule_cxx.vars["rspfile"] = "$out.rsp";
+			rule_cxx.cmdline = "@$out.rsp";
+		}
+
 		rule_cxx.description = "Building C++ source $in";
 
 		if (auto rule_vars = env["custom-rule-vars"])
@@ -375,12 +386,21 @@ namespace re
 			fmt::arg("input", "$in"),
 			fmt::arg("output", "$out")
 		);
+
+		if (use_rspfiles)
+		{
+			rule_link.vars["rspfile_content"] = rule_link.cmdline;
+			rule_link.vars["rspfile"] = "$out.rsp";
+			rule_link.cmdline = "@$out.rsp";
+		}
+
 		rule_link.description = "Linking target $out";
 
 		BuildRule rule_lib;
 
 		rule_lib.name = "cxx_archive_" + path;
 		rule_lib.tool = "cxx_archiver_" + path;
+
 		rule_lib.cmdline = fmt::format(
 			templates["archiver-cmdline"].as<std::string>(),
 			fmt::arg("flags", "$target_custom_flags " + extra_link_flags_str),
@@ -388,6 +408,14 @@ namespace re
 			fmt::arg("input", "$in"),
 			fmt::arg("output", "$out")
 		);
+
+		if (use_rspfiles)
+		{
+			rule_lib.vars["rspfile_content"] = rule_lib.cmdline;
+			rule_lib.vars["rspfile"] = "$out.rsp";
+			rule_lib.cmdline = "@$out.rsp";
+		}
+
 		rule_lib.description = "Archiving target $out";
 
 		desc.rules.emplace_back(std::move(rule_cxx));
