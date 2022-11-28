@@ -1,6 +1,7 @@
 #include "buildenv.h"
 
 #include <fmt/format.h>
+#include <fmt/color.h>
 
 #include <re/error.h>
 #include <re/process_util.h>
@@ -332,32 +333,41 @@ namespace re
 		{
 			auto command = data["command"].as<std::string>();
 
-			std::vector<std::string> args{ command };
+			std::vector<std::string> args{ target.build_var_scope->Resolve(command) };
 
 			for (auto& arg : data["args"])
-				args.push_back(arg.Scalar());
+				args.push_back(target.build_var_scope->Resolve(arg.Scalar()));
 
 			RunProcessOrThrow("command", args, true, true, target.path.u8string());
 		}
 		else if (type == "install")
 		{
-			auto do_install = [&target, desc](const std::string& path)
+			auto style = fmt::emphasis::bold | fg(fmt::color::pale_turquoise);
+
+			fs::path artifact_dir = desc->out_dir / desc->GetArtifactDirectory(GetEscapedModulePath(target));
+			fs::path from = desc->out_dir / desc->GetArtifactDirectory(GetEscapedModulePath(target));
+
+			if (data["from"])
+				from /= target.build_var_scope->Resolve(data["from"].as<std::string>());
+
+			auto do_install = [&artifact_dir, &from, &target, desc, style](const std::string& path)
 			{
 				auto to = fs::path{ target.build_var_scope->Resolve(path) };
-
-				auto artifact_dir = desc->out_dir / desc->GetArtifactDirectory(GetEscapedModulePath(target));
 
 				if (!to.is_absolute())
 					to = artifact_dir / to;
 
+				fmt::print(style, "     - {}\n", to.u8string());
+
 				std::filesystem::copy(
-					artifact_dir,
+					from,
 					to,
 					std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing
 				);
 
-				fmt::print("[action.install] Installing {} - {} => {}\n", target.module, artifact_dir.u8string(), to.u8string());
 			};
+
+			fmt::print(style, " * Installed {} to:\n", target.module);
 
 			auto to_v = data["to"];
 
@@ -366,6 +376,8 @@ namespace re
 					do_install(v.as<std::string>());
 			else
 				do_install(to_v.Scalar());
+
+			fmt::print("\n");
 		}
 		/*
 		else if (type == "install-to-deps")
@@ -633,10 +645,24 @@ namespace re
 				std::string run = default_run_type;
 				RE_TRACE("{} -> action {}\n", target->module, type);
 
-				if (auto run_val = data["at"])
-					run = run_val.as<std::string>();
+				bool should_run = (run_type == default_run_type);
 
-				if (run == run_type)
+				if (auto run_val = data["on"])
+				{
+					should_run = false;
+
+					if (run_val.IsScalar())
+						should_run = (run_type == run_val.as<std::string>());
+					else
+						for(auto& v : run_val)
+							if (run_type == v.as<std::string>())
+							{
+								should_run = true;
+								break;
+							}
+				}
+
+				if (should_run)
 					RunTargetAction(desc, *target, type, data);
 			}
 		}

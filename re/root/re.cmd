@@ -11,6 +11,7 @@ if "%1"=="b" goto default_build
 if "%1"=="cfg" goto default_build
 if "%1"=="config" goto default_build
 if "%1"=="c" goto default_build
+if "%1"=="do" goto default_build
 goto default_build
 
 echo Invalid Re command: %1
