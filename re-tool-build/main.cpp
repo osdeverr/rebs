@@ -33,6 +33,23 @@ int main(int argc, const char** argv)
             return context.BuildTargetInDir(".");
             // return context.BuildTargetInDir(L"D:/PlakSystemsSW/NetUnitCollection"); 
         }
+        else if (args[1] == "do")
+        {
+            auto desc = context.GenerateBuildDescForTargetInDir(args.size() > 3 ? args[2] : ".");
+
+            context.BuildTarget(desc);
+
+            auto action_type = args[args.size() > 3 ? 3 : 2];
+
+            auto style = fmt::emphasis::bold | fg(fmt::color::aquamarine);
+            fmt::print(style, " - Running custom actions for '{}'\n\n", action_type);
+
+            auto env = context.GetBuildEnv();
+            for (auto& dep : env->GetSingleTargetDepSet(desc.pRootTarget))
+                env->RunActionsCategorized(dep, &desc, action_type);
+
+            return 0;
+        }
         else
         {
             if (args.size() > 2 && args[2] != "-")

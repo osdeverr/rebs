@@ -459,6 +459,8 @@ namespace re
 		build_target.out = fmt::format("$builddir/{}/{}.{}", fmt::format("$re_target_object_directory_{}", path), local_path, extension);
 		build_target.rule = "cxx_compile_" + path;
 
+		// fmt::print(" [DBG] Target '{}' has object '{}'->'{}'\n", path, build_target.in, build_target.out);
+
 		desc.targets.emplace_back(std::move(build_target));
 
 		desc.state["re_cxx_target_has_objects_" + path] = "1";
@@ -467,6 +469,10 @@ namespace re
 	void CxxLangProvider::CreateTargetArtifact(NinjaBuildDesc& desc, const Target& target)
 	{
 		auto path = GetEscapedModulePath(target);
+
+		bool has_any_eligible_sources = (desc.state["re_cxx_target_has_objects_" + path] == "1");
+		if (!has_any_eligible_sources)
+			return;
 
 		auto& env = mEnvCache.at(desc.state.at("re_cxx_env_for_" + path));
 		const auto& default_extensions = env["default-extensions"];

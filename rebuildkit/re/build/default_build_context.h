@@ -32,6 +32,8 @@ namespace re
 			return BuildTarget(desc);
 		}
 
+		BuildEnv* GetBuildEnv() const { return mEnv.get(); }
+
 	private:
 		VarContext mVarContext;
 		LocalVarScope mVars;

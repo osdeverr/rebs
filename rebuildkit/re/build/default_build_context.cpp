@@ -12,6 +12,9 @@
 
 #include <re/debug.h>
 
+#include <fmt/format.h>
+#include <fmt/color.h>
+
 #include <fstream>
 
 namespace re
@@ -145,6 +148,10 @@ namespace re
 
 			desc.init_vars["re_target_artifact_directory_" + GetEscapedModulePath(*dep)] = artifact_dir;
 			desc.init_vars["re_target_object_directory_" + GetEscapedModulePath(*dep)] = object_dir;
+
+			dep->build_var_scope->SetVar("src-dir", dep->path.u8string());
+			dep->build_var_scope->SetVar("artifact-dir", (desc.out_dir / artifact_dir).u8string());
+			dep->build_var_scope->SetVar("object-dir", (desc.out_dir / object_dir).u8string());
 		}
 
 		return desc;
@@ -160,6 +167,10 @@ namespace re
 	{
 		re::PerfProfile _{ fmt::format(R"({}("{}"))", __FUNCTION__, desc.out_dir.u8string()) };
 
+		auto style = fmt::emphasis::bold | fg(fmt::color::aquamarine);
+
+		fmt::print(style, " - Generating build files\n");
+
 		re::GenerateNinjaBuildFile(desc, desc.out_dir);
 
 		auto path_to_ninja = mRePath / "ninja.exe";
@@ -170,14 +181,22 @@ namespace re
 		cmdline.push_back(L"-C");
 		cmdline.push_back(desc.out_dir.wstring());
 
+		fmt::print(style, " - Running pre-build actions\n");
+
 		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
 			mEnv->RunActionsCategorized(dep, &desc, "pre-build");
 
+		fmt::print(style, " - Building...\n\n");
+
 		int result = RunProcessOrThrowWindows("ninja", cmdline, true, true);
+
+		fmt::print(style, "\n - Running post-build actions\n\n");
 
 		// Running post-build actions
 		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
 			mEnv->RunActionsCategorized(dep, &desc, "post-build");
+
+		fmt::print(style, " - Build successful!\n");
 
 		return result;
 	}
