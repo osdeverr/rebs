@@ -40,11 +40,9 @@ config.release:
 
 cxx-compile-definitions-public: {}
         
-cxx-include-dirs:
-    - ${cxx-default-include-dirs}
+cxx-include-dirs: []
 
-cxx-lib-dirs:
-    - ${cxx-default-lib-dirs}
+cxx-lib-dirs: []
         
 cxx-build-flags:
     compiler:

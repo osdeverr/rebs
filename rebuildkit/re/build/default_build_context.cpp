@@ -32,6 +32,8 @@ namespace re
 		mVars.SetVar("cxx-default-lib-dirs", ".");
 
 		mVars.SetVar("host-arch", "x64");
+
+		mVars.SetVar("generate-build-meta", "false");
 	}
 
 	void DefaultBuildContext::LoadDefaultEnvironment(const fs::path& re_path)
