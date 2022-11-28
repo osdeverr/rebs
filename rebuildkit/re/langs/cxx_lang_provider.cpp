@@ -44,12 +44,10 @@ namespace re
 			return result;
 		}
 
-		inline void AppendIncludeDirs(const Target& target, const TargetConfig& cfg, const std::string& cxx_include_dir_tpl, std::vector<std::string>& out_flags, const LocalVarScope& vars)
+		inline void AppendIncludeDirs(const Target& target, const TargetConfig& cfg, std::unordered_set<std::string>& dirs, const LocalVarScope& vars)
 		{
-			out_flags.push_back(fmt::format(
-				cxx_include_dir_tpl,
-				fmt::arg("directory", target.path.u8string())
-			));
+			if (!cfg["no-auto-include-dirs"])
+				dirs.insert(target.path.u8string());
 
 			auto extra_includes = cfg["cxx-include-dirs"];
 
@@ -60,10 +58,7 @@ namespace re
 				if (!dir.is_absolute())
 					dir = target.path / dir;
 
-				out_flags.push_back(fmt::format(
-					cxx_include_dir_tpl,
-					fmt::arg("directory", dir.u8string())
-				));
+				dirs.insert(dir.u8string());
 			}
 		}
 
@@ -165,6 +160,20 @@ namespace re
 
 		target.resolved_config = GetResolvedTargetCfg(target, configuration);
 		target.LoadConditionalDependencies();
+
+		if (vars.ResolveLocal("generate-build-meta") == "true")
+		{
+			auto& meta = desc.meta[target.path.u8string()];
+			auto& cxx = meta["cxx"];
+
+			meta["module"] = target.module;
+			meta["links_with"] = "cxx";
+
+			cxx["toolchain"] = env_cached_name;
+
+			for (auto& [k, v] : configuration)
+				cxx[k] = v;
+		}
 	}
 
 	bool CxxLangProvider::InitBuildTargetRules(NinjaBuildDesc& desc, const Target& target)
@@ -184,6 +193,9 @@ namespace re
 
 		if (!config["enabled"].as<bool>())
 			return false;
+
+		auto should_build_meta = vars.ResolveLocal("generate-build-meta") == "true";
+		auto& meta = desc.meta[target.path.u8string()]["cxx"];
 
 		TargetConfig definitions = config["cxx-compile-definitions"];
 		TargetConfig definitions_pub = config["cxx-compile-definitions-public"];
@@ -206,6 +218,8 @@ namespace re
 
 		std::string cpp_std = config["cxx-standard"].Scalar();
 
+		meta["standard"] = "c++" + cpp_std;
+
 		extra_flags.push_back(fmt::format(
 			templates["cxx-standard"].as<std::string>(),
 			fmt::arg("version", cpp_std)
@@ -223,6 +237,8 @@ namespace re
 		std::vector<std::string> extra_link_flags;
 
 		auto cxx_lib_dir = templates["cxx-lib-dir"].as<std::string>();
+
+		std::unordered_set<std::string> include_dirs;
 		
 		for (auto& target : include_deps)
 		{
@@ -242,7 +258,7 @@ namespace re
 					definitions_pub[name] = value;
 			}
 
-			AppendIncludeDirs(*target, config, cxx_include_dir, extra_flags, vars);
+			AppendIncludeDirs(*target, config, include_dirs, vars);
 
 			// TODO: Make this only work with modules enabled???
 			extra_flags.push_back(fmt::format(
@@ -278,6 +294,12 @@ namespace re
 			}
 		}
 
+		for (auto& dir : include_dirs)
+			extra_flags.push_back(fmt::format(cxx_include_dir, fmt::arg("directory", dir)));
+
+		if (should_build_meta)
+			meta["include_dirs"] = include_dirs;
+
 		for (const std::pair<YAML::Node, YAML::Node>& kv : definitions_pub)
 		{
 			auto name = kv.first.as<std::string>();
@@ -294,17 +316,20 @@ namespace re
 
 		for (const auto& kv : definitions)
 		{
-			auto name = kv.first.as<std::string>();
+			auto name = vars.Resolve(kv.first.Scalar());
 
 			if (kv.second.IsScalar())
 			{
-				auto value = kv.second.as<std::string>();
+				auto value = vars.Resolve(kv.second.Scalar());
 
 				extra_flags.push_back(fmt::format(
 					cxx_compile_definition,
-					fmt::arg("name", vars.Resolve(name)),
-					fmt::arg("value", vars.Resolve(value))
+					fmt::arg("name", name),
+					fmt::arg("value", value)
 				));
+
+				if (should_build_meta)
+					meta["definitions"].push_back(name + "=" + value);
 			}
 			else
 			{
@@ -312,6 +337,9 @@ namespace re
 					cxx_compile_definition_no_value,
 					fmt::arg("name", vars.Resolve(name))
 				));
+
+				if (should_build_meta)
+					meta["definitions"].push_back(name);
 			}
 		}
 
@@ -327,7 +355,14 @@ namespace re
 
 		// Forward the C++ build tools definitions to the build system
 		for (const auto& kv : env["tools"])
-			desc.tools.push_back(BuildTool{ "cxx_" + kv.first.as<std::string>() + "_" + path, vars.Resolve(kv.second.as<std::string>())});
+		{
+			auto name = kv.first.Scalar();
+			auto tool_path = vars.Resolve(kv.second.Scalar());
+
+			desc.tools.push_back(BuildTool{ "cxx_" + name + "_" + path, tool_path });
+
+			meta["tools"][name] = tool_path;
+		}
 
 		// Create build rules
 

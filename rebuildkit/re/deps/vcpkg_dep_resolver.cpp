@@ -192,6 +192,8 @@ namespace re
 
         package_target->config["enabled"] = true;
 
+        package_target->config["no-auto-include-dirs"] = true;
+
         package_target->config["arch"] = re_arch;
         package_target->config["platform"] = re_platform;
         package_target->config["configuration"] = re_config;

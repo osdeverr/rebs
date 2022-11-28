@@ -3,6 +3,8 @@
 #include <vector>
 #include <unordered_map>
 
+#include <nlohmann/json.hpp>
+
 #include <fmt/format.h>
 
 #include <re/fs.h>
@@ -76,6 +78,8 @@ namespace re
 		std::vector<BuildTarget> targets;
 
 		Target* pRootTarget = nullptr;
+
+		nlohmann::json meta;
 
 		std::string GetObjectDirectory(const std::string& module) const
 		{

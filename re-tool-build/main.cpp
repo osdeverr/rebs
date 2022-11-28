@@ -50,6 +50,16 @@ int main(int argc, const char** argv)
 
             return 0;
         }
+        else if (args[1] == "meta")
+        {
+            context.SetVar("generate-build-meta", "true");
+
+            auto desc = context.GenerateBuildDescForTargetInDir(args.size() > 3 ? args[2] : ".");
+
+            fmt::print("{}", desc.meta.dump(4));
+
+            return 0;
+        }
         else
         {
             if (args.size() > 2 && args[2] != "-")
