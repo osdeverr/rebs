@@ -353,7 +353,7 @@ namespace re
 				std::filesystem::copy(
 					artifact_dir,
 					to,
-					std::filesystem::copy_options::recursive | std::filesystem::copy_options::skip_existing
+					std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing
 				);
 
 				fmt::print("[action.install] Installing {} - {} => {}\n", target.module, artifact_dir.u8string(), to.u8string());
