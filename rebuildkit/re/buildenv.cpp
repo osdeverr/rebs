@@ -359,6 +359,9 @@ namespace re
 
 				fmt::print(style, "     - {}\n", to.u8string());
 
+				if (!fs::exists(to))
+					fs::create_directories(to);
+
 				std::filesystem::copy(
 					from,
 					to,

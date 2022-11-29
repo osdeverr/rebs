@@ -46,7 +46,7 @@ namespace re
 
 		inline void AppendIncludeDirs(const Target& target, const TargetConfig& cfg, std::unordered_set<std::string>& dirs, const LocalVarScope& vars)
 		{
-			if (!cfg["no-auto-include-dirs"])
+			if (target.type != TargetType::Project && !cfg["no-auto-include-dirs"])
 				dirs.insert(target.path.u8string());
 
 			auto extra_includes = cfg["cxx-include-dirs"];
