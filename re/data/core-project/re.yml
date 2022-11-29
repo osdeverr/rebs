@@ -53,5 +53,3 @@ cxx-build-flags:
         - ${platform-default-flags-archiver}
 
 cxx-standard: latest
-
-re-cache-dir: .re-cache

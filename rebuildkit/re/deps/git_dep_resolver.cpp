@@ -39,7 +39,7 @@ namespace re
 		if (auto& cached = mTargetCache[cache_path])
 			return cached.get();
 
-		auto cache = target.GetCfgEntryOrThrow<std::string>("re-cache-dir", "failed to find cache directory", CfgEntryKind::Recursive);
+		auto cache = ".re-cache";
 		auto git_cached = target.root_path / cache / cached_dir;
 
 		fs::create_directories(git_cached);
@@ -48,6 +48,9 @@ namespace re
 
 		if (!fs::exists(git_cached / ".git"))
 		{
+			if (scope.ResolveLocal("auto-load-uncached-deps") != "true")
+				RE_THROW TargetUncachedDependencyException(&target, "Cannot resolve uncached dependency {} - autoloading is disabled", dep_str);
+
 			fmt::print(
 				fmt::emphasis::bold | fg(fmt::color::light_blue),
 				"[{}] Restoring package {}...\n",

@@ -71,6 +71,9 @@ namespace re
         // We optimize the lookup by not invoking vcpkg at all if the package is already there.
         if (!fs::exists(path / "BUILD_INFO"))
         {
+            if (scope.ResolveLocal("auto-load-uncached-deps") != "true")
+                RE_THROW TargetUncachedDependencyException(&target, "Cannot resolve uncached dependency {} - autoloading is disabled", dep_str);
+
             fmt::print(
                 fmt::emphasis::bold | fg(fmt::color::light_green),
                 "[{}] Restoring package {}...\n\n",

@@ -54,9 +54,13 @@ int main(int argc, const char** argv)
         {
             context.SetVar("generate-build-meta", "true");
 
-            auto desc = context.GenerateBuildDescForTargetInDir(args.size() > 3 ? args[2] : ".");
+            if (args.size() > 3 && args[3] == "cached-only")
+                context.SetVar("auto-load-uncached-deps", "false");
 
-            fmt::print("{}", desc.meta.dump(4));
+            auto desc = context.GenerateBuildDescForTargetInDir(args.size() > 2 ? args[2] : ".");
+            context.SaveTargetMeta(desc);
+
+            // fmt::print("{}", desc.meta.dump(4));
 
             return 0;
         }
@@ -141,11 +145,15 @@ int main(int argc, const char** argv)
         }
         */
     }
+    catch (const re::TargetUncachedDependencyException& e)
+    {
+        return 5;
+    }
     catch (const std::exception& e)
     {
         std::string message = "";
 
-
+        /*
         const boost::stacktrace::stacktrace* st = boost::get_error_info<re::TracedError>(e);
         if (st) {
             int i = 0;
@@ -162,6 +170,7 @@ int main(int argc, const char** argv)
             }
 
         }
+        */
 
         fmt::print(
             stderr,
@@ -179,5 +188,7 @@ int main(int argc, const char** argv)
             stderr,
             "\n\n"
         );
+        
+        return 1;
     }
 }

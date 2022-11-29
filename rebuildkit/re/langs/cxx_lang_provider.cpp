@@ -161,19 +161,16 @@ namespace re
 		target.resolved_config = GetResolvedTargetCfg(target, configuration);
 		target.LoadConditionalDependencies();
 
-		if (vars.ResolveLocal("generate-build-meta") == "true")
-		{
-			auto& meta = desc.meta[target.path.u8string()];
-			auto& cxx = meta["cxx"];
+		auto& meta = desc.meta["targets"][target.path.u8string()];
+		auto& cxx = meta["cxx"];
 
-			meta["module"] = target.module;
-			meta["links_with"] = "cxx";
+		meta["module"] = target.module;
+		meta["links_with"] = "cxx";
 
-			cxx["toolchain"] = env_cached_name;
+		cxx["toolchain"] = env_cached_name;
 
-			for (auto& [k, v] : configuration)
-				cxx[k] = v;
-		}
+		for (auto& [k, v] : configuration)
+			cxx[k] = v;
 	}
 
 	bool CxxLangProvider::InitBuildTargetRules(NinjaBuildDesc& desc, const Target& target)
@@ -194,8 +191,7 @@ namespace re
 		if (!config["enabled"].as<bool>())
 			return false;
 
-		auto should_build_meta = vars.ResolveLocal("generate-build-meta") == "true";
-		auto& meta = desc.meta[target.path.u8string()]["cxx"];
+		auto& meta = desc.meta["targets"][target.path.u8string()]["cxx"];
 
 		TargetConfig definitions = config["cxx-compile-definitions"];
 		TargetConfig definitions_pub = config["cxx-compile-definitions-public"];
@@ -297,8 +293,7 @@ namespace re
 		for (auto& dir : include_dirs)
 			extra_flags.push_back(fmt::format(cxx_include_dir, fmt::arg("directory", dir)));
 
-		if (should_build_meta)
-			meta["include_dirs"] = include_dirs;
+		meta["include_dirs"] = include_dirs;
 
 		for (const std::pair<YAML::Node, YAML::Node>& kv : definitions_pub)
 		{
@@ -328,8 +323,7 @@ namespace re
 					fmt::arg("value", value)
 				));
 
-				if (should_build_meta)
-					meta["definitions"].push_back(name + "=" + value);
+				meta["definitions"].push_back(name + "=" + value);
 			}
 			else
 			{
@@ -338,8 +332,7 @@ namespace re
 					fmt::arg("name", vars.Resolve(name))
 				));
 
-				if (should_build_meta)
-					meta["definitions"].push_back(name);
+				meta["definitions"].push_back(name);
 			}
 		}
 

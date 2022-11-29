@@ -15,13 +15,11 @@ namespace re
 		const auto style = fmt::emphasis::bold | fg(fmt::color::green_yellow);
 
 		fmt::print(
-			stderr,
 			style,
 			"\n *** {}\n", mName
 		);
 
 		fmt::print(
-			stderr,
 			style,
 			"       {} ", mFinished ? "finished in" : "running for"
 		);
@@ -34,7 +32,6 @@ namespace re
 		auto s = ms / 1000.f;
 
 		fmt::print(
-			stderr,
 			style, 
 			"{}s / {}ms / {}ns\n\n", s, ms, ns
 		);
