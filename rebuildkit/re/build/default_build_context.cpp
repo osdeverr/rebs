@@ -34,6 +34,7 @@ namespace re
 		mVars.SetVar("host-arch", "x64");
 
 		mVars.SetVar("generate-build-meta", "false");
+		mVars.SetVar("auto-load-uncached-deps", "true");
 	}
 
 	void DefaultBuildContext::LoadDefaultEnvironment(const fs::path& re_path)
@@ -156,6 +157,8 @@ namespace re
 			dep->build_var_scope->SetVar("object-dir", (desc.out_dir / object_dir).u8string());
 		}
 
+		desc.meta["root_target"] = target.module;
+
 		return desc;
 	}
 
@@ -163,6 +166,16 @@ namespace re
 	{
 		auto& target = LoadTarget(path);
 		return GenerateBuildDescForTarget(target);
+	}
+
+	void DefaultBuildContext::SaveTargetMeta(const NinjaBuildDesc& desc)
+	{
+		auto cache_path = desc.pRootTarget->path / ".re-cache" / "meta";
+
+		fs::create_directories(cache_path);
+
+		std::ofstream file{ cache_path / "full.json" };
+		file << desc.meta.dump();
 	}
 
 	int DefaultBuildContext::BuildTarget(const NinjaBuildDesc& desc)
@@ -174,6 +187,7 @@ namespace re
 		fmt::print(style, " - Generating build files\n");
 
 		re::GenerateNinjaBuildFile(desc, desc.out_dir);
+		SaveTargetMeta(desc);
 
 		auto path_to_ninja = mRePath / "ninja.exe";
 

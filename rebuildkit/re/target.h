@@ -115,6 +115,15 @@ namespace re
         {}
     };
 
+    class TargetUncachedDependencyException : public TargetException
+    {
+    public:
+        template<class F, class... Args>
+        TargetUncachedDependencyException(const Target* target, const F& format, Args&&... args)
+            : TargetException{ "TargetUncachedDependencyException", target, format, std::forward<Args>(args)... }
+        {}
+    };
+
 	class Target : public IVarNamespace
 	{
     public:

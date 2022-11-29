@@ -23,6 +23,8 @@ namespace re
 		NinjaBuildDesc GenerateBuildDescForTarget(Target& target);
 		NinjaBuildDesc GenerateBuildDescForTargetInDir(const fs::path& path);
 
+		void SaveTargetMeta(const NinjaBuildDesc& desc);
+
 		int BuildTarget(const NinjaBuildDesc& desc);
 		void InstallTarget(const NinjaBuildDesc& desc);
 
