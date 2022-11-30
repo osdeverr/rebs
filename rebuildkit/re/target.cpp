@@ -166,18 +166,21 @@ namespace re
             }
         }
 
-        if (auto uses = resolved_config ? resolved_config["uses"] : config["uses"])
+        if (resolved_config && build_var_scope)
         {
-            for (const auto& kv : uses)
+            if (auto uses = resolved_config["uses"])
             {
-                auto key = kv.first.Scalar();
+                for (const auto& kv : uses)
+                {
+                    auto key = kv.first.Scalar();
 
-                // fmt::print("{}\n", key);
+                    // fmt::print("{}\n", key);
 
-                auto& mapping = used_mapping[key];
+                    auto& mapping = used_mapping[key];
 
-                if (!mapping)
-                    mapping = std::make_unique<TargetDependency>(dep_from_str(kv.second.Scalar()));
+                    if (!mapping)
+                        mapping = std::make_unique<TargetDependency>(dep_from_str(build_var_scope->Resolve(kv.second.Scalar())));
+                }
             }
         }
     }

@@ -7,6 +7,7 @@
 #include <re/deps/git_dep_resolver.h>
 #include <re/deps/github_dep_resolver.h>
 #include <re/deps/arch_coerced_dep_resolver.h>
+#include <re/deps/fs_dep_resolver.h>
 
 #include <re/process_util.h>
 
@@ -53,6 +54,7 @@ namespace re
 		auto github_resolver = std::make_unique<GithubDepResolver>(git_resolver.get());
 
 		auto ac_resolver = std::make_unique<ArchCoercedDepResolver>(mEnv.get());
+		auto fs_resolver = std::make_unique<FsDepResolver>(mEnv.get());
 
 		mEnv->AddDepResolver("vcpkg", vcpkg_resolver.get());
 		mEnv->AddDepResolver("vcpkg-dep", vcpkg_resolver.get());
@@ -62,6 +64,7 @@ namespace re
 		mEnv->AddDepResolver("github-ssh", github_resolver.get());
 
 		mEnv->AddDepResolver("arch-coerced", ac_resolver.get());
+		mEnv->AddDepResolver("fs", fs_resolver.get());
 
 		mDepResolvers.emplace_back(std::move(vcpkg_resolver));
 		mDepResolvers.emplace_back(std::move(git_resolver));

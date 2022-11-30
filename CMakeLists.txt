@@ -24,9 +24,9 @@ add_subdirectory(3rdparty/reproc)
 add_subdirectory(rebuildkit)
 add_subdirectory(reutils)
 
-add_subdirectory(re-tool-build)
-add_subdirectory(re-tool-install)
-add_subdirectory(re-tool-new)
-add_subdirectory(re-tool-run)
+#add_subdirectory(re-tool-build)
+#add_subdirectory(re-tool-install)
+#add_subdirectory(re-tool-new)
+#add_subdirectory(re-tool-run)
 
 add_subdirectory(re)
