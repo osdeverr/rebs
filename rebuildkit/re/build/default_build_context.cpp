@@ -85,6 +85,33 @@ namespace re
 		return target;
 	}
 
+	YAML::Node DefaultBuildContext::LoadCachedParams(const fs::path& path)
+	{
+		std::ifstream file{ path / "re.user.yml" };
+
+		if (file.good())
+		{
+			auto yaml = YAML::Load(file);
+
+			for (const auto& kv : yaml)
+				mVars.SetVar(mVars.Resolve(kv.first.Scalar()), mVars.Resolve(kv.second.Scalar()));
+
+			return yaml;
+		}
+
+		return YAML::Node{ YAML::Null };
+	}
+
+	void DefaultBuildContext::SaveCachedParams(const fs::path& path, const YAML::Node& node)
+	{
+		std::ofstream file{ path / "re.user.yml" };
+
+		YAML::Emitter emitter;
+		emitter << node;
+
+		file << emitter.c_str();
+	}
+
 	NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTarget(Target& target)
 	{
 		re::PerfProfile _{ fmt::format(R"({}("{}"))", __FUNCTION__, target.module) };

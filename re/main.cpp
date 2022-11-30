@@ -30,7 +30,10 @@ int main(int argc, const char** argv)
 
         if (args.size() == 1)
         {
-            return context.BuildTargetInDir(".");
+            auto path = ".";
+            context.LoadCachedParams(path);
+
+            return context.BuildTargetInDir(path);
             // return context.BuildTargetInDir(L"D:/PlakSystemsSW/NetUnitCollection"); 
         }
         else if (args[1] == "new")
@@ -58,7 +61,10 @@ int main(int argc, const char** argv)
         }
         else if (args[1] == "do")
         {
-            auto desc = context.GenerateBuildDescForTargetInDir(args.size() > 3 ? args[2] : ".");
+            auto path = args.size() > 3 ? args[2] : ".";
+            context.LoadCachedParams(path);
+
+            auto desc = context.GenerateBuildDescForTargetInDir(path);
 
             context.BuildTarget(desc);
 
@@ -73,8 +79,28 @@ int main(int argc, const char** argv)
 
             return 0;
         }
+        else if (args[1] == "config" || args[1] == "conf" || args[1] == "cfg")
+        {
+            auto path = ".";
+            auto yaml = context.LoadCachedParams(path);
+
+            if (args.size() > 2 && args[2] != "-")
+                yaml["arch"] = args[2].data();
+
+            if (args.size() > 3 && args[3] != "-")
+                yaml["configuration"] = args[3].data();
+
+            context.SaveCachedParams(path, yaml);
+
+            // fmt::print("{}", desc.meta.dump(4));
+
+            return 0;
+        }
         else if (args[1] == "meta")
         {
+            auto path = args.size() > 2 ? args[2] : ".";
+            context.LoadCachedParams(path);
+
             context.SetVar("generate-build-meta", "true");
 
             if (args.size() > 3 && args[3] == "cached-only")
@@ -89,14 +115,16 @@ int main(int argc, const char** argv)
         }
         else
         {
+            auto path = args[1] == "b" ? "." : args[1];
+            context.LoadCachedParams(path);
+
             if (args.size() > 2 && args[2] != "-")
                 context.SetVar("arch", args[2].data());
 
             if (args.size() > 3 && args[3] != "-")
                 context.SetVar("configuration", args[3].data());
 
-            auto desc = context.GenerateBuildDescForTargetInDir(args[1] == "b" ? "." : args[1]);
-
+            auto desc = context.GenerateBuildDescForTargetInDir(path);
             context.BuildTarget(desc);
 
             return 0;
