@@ -11,7 +11,10 @@ namespace re
 		if (!boost::ends_with(path, ".git"))
 			path.append(".git");
 
-		if (dep.ns == "github-ssh")
+		auto temp = std::getenv("RE_GITHUB_FORCE_SSH");
+		auto force_ssh = temp && !strcmp(temp, "1");
+
+		if (dep.ns == "github-ssh" || force_ssh)
 			return mGit->ResolveGitDependency(target, dep, fmt::format("git@github.com:{}", path), dep.version);
 		else
 			return mGit->ResolveGitDependency(target, dep, fmt::format("https://github.com/{}", path), dep.version);
