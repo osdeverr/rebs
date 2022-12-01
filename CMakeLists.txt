@@ -9,6 +9,10 @@ if(WIN32)
 	set(CMAKE_INSTALL_PREFIX "D:/Programs/ReBS")
 endif()
 
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	add_compile_definitions(_LIBCPP_DISABLE_AVAILABILITY)
+endif()
+
 set(NINJA_BUILD_BINARY ON)
 set(BUILD_TESTING OFF)
 add_subdirectory(3rdparty/ninja)

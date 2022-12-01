@@ -33,6 +33,9 @@ namespace re
 #elif defined(__linux__)
 		mVars.SetVar("platform", "linux");
 		mVars.SetVar("platform-closest", "unix");
+#elif defined(__APPLE__)
+		mVars.SetVar("platform", "apple");
+		mVars.SetVar("platform-closest", "unix");
 #endif
  
 		mVars.SetVar("cxx-default-include-dirs", ".");
@@ -163,7 +166,7 @@ namespace re
 		constexpr auto kDefaultDirTriplet = "${arch}-${platform}-${configuration}";
 		out_dir /= vars.Resolve(target.GetCfgEntry<std::string>("out-dir-triplet", CfgEntryKind::Recursive).value_or(kDefaultDirTriplet));
 
-		std::filesystem::create_directories(out_dir);
+		fs::create_directories(out_dir);
 		std::ofstream create_temp{ out_dir / ".re-ignore-this" };
 
 		desc.out_dir = out_dir;
