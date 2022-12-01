@@ -26,9 +26,15 @@ namespace re
 		mVars.AddNamespace("env", &mSystemEnvVars);
 
 		mVars.SetVar("version", "1.0");
+
+#if defined(WIN32)
 		mVars.SetVar("platform", "windows");
 		mVars.SetVar("platform-closest", "unix");
-
+#elif defined(__linux__)
+		mVars.SetVar("platform", "linux");
+		mVars.SetVar("platform-closest", "unix");
+#endif
+ 
 		mVars.SetVar("cxx-default-include-dirs", ".");
 		mVars.SetVar("cxx-default-lib-dirs", ".");
 
@@ -38,18 +44,18 @@ namespace re
 		mVars.SetVar("auto-load-uncached-deps", "true");
 	}
 
-	void DefaultBuildContext::LoadDefaultEnvironment(const fs::path& re_path)
+	void DefaultBuildContext::LoadDefaultEnvironment(const fs::path& data_path, const fs::path& dynamic_data_path)
 	{
 		re::PerfProfile _{ __FUNCTION__ };
 
-		mRePath = re_path;
+		mDataPath = data_path;
 
 		mEnv = std::make_unique<BuildEnv>(mVars);
 
-		auto& cxx = mLangs.emplace_back(std::make_unique<CxxLangProvider>(mRePath / "data" / "environments" / "cxx", &mVars));
+		auto& cxx = mLangs.emplace_back(std::make_unique<CxxLangProvider>(mDataPath / "data" / "environments" / "cxx", &mVars));
 		mEnv->AddLangProvider("cpp", cxx.get());
 
-		auto vcpkg_resolver = std::make_unique<VcpkgDepResolver>(mRePath / "deps" / "vcpkg");
+		auto vcpkg_resolver = std::make_unique<VcpkgDepResolver>(dynamic_data_path / "deps" / "vcpkg");
 		auto git_resolver = std::make_unique<GitDepResolver>(mEnv.get());
 		auto github_resolver = std::make_unique<GithubDepResolver>(git_resolver.get());
 
@@ -71,7 +77,7 @@ namespace re
 		mDepResolvers.emplace_back(std::move(github_resolver));
 		mDepResolvers.emplace_back(std::move(ac_resolver));
 
-		mEnv->LoadCoreProjectTarget(mRePath / "data" / "core-project");
+		mEnv->LoadCoreProjectTarget(mDataPath / "data" / "core-project");
 	}
 
 	Target& DefaultBuildContext::LoadTarget(const fs::path& path)
@@ -219,14 +225,6 @@ namespace re
 		re::GenerateNinjaBuildFile(desc, desc.out_dir);
 		SaveTargetMeta(desc);
 
-		auto path_to_ninja = mRePath / "ninja.exe";
-
-		std::vector<std::wstring> cmdline;
-
-		cmdline.push_back(path_to_ninja.wstring());
-		cmdline.push_back(L"-C");
-		cmdline.push_back(desc.out_dir.wstring());
-
 		fmt::print(style, " - Running pre-build actions\n");
 
 		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
@@ -234,7 +232,27 @@ namespace re
 
 		fmt::print(style, " - Building...\n\n");
 
+#ifdef WIN32
+		auto path_to_ninja = mDataPath / "ninja.exe";
+
+		std::vector<std::wstring> cmdline;
+
+		cmdline.push_back(path_to_ninja.wstring());
+		cmdline.push_back(L"-C");
+		cmdline.push_back(desc.out_dir.wstring());
+
 		int result = RunProcessOrThrowWindows("ninja", cmdline, true, true);
+#else
+		auto path_to_ninja = mDataPath / "ninja";
+
+		std::vector<std::string> cmdline;
+
+		cmdline.push_back(path_to_ninja.u8string());
+		cmdline.push_back("-C");
+		cmdline.push_back(desc.out_dir.u8string());
+
+		int result = RunProcessOrThrow("ninja", cmdline, true, true);
+#endif
 
 		fmt::print(style, "\n - Running post-build actions\n\n");
 

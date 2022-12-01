@@ -10,7 +10,7 @@ namespace re
 		DefaultBuildContext();
 		DefaultBuildContext(const DefaultBuildContext&) = delete;
 
-		void LoadDefaultEnvironment(const fs::path& re_path);
+		void LoadDefaultEnvironment(const fs::path& data_path, const fs::path& dynamic_data_path);
 
 		inline LocalVarScope& GetVars() { return mVars; }
 
@@ -44,7 +44,7 @@ namespace re
 		LocalVarScope mVars;
 		EnvironmentVarNamespace mSystemEnvVars;
 
-		fs::path mRePath;
+		fs::path mDataPath;
 
 		std::unique_ptr<BuildEnv> mEnv;
 

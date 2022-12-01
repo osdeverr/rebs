@@ -155,7 +155,8 @@ namespace re
 		std::unordered_map<std::string, std::string> configuration = {
 			{ "arch", vars.ResolveLocal("arch") },
 			{ "platform", vars.ResolveLocal("platform") },
-			{ "config", vars.ResolveLocal("configuration") }
+			{ "config", vars.ResolveLocal("configuration") },
+			{ "cxxenv", env_cached_name }
 		};
 
 		target.resolved_config = GetResolvedTargetCfg(target, configuration);
@@ -362,7 +363,7 @@ namespace re
 		auto use_rspfiles = env["use-rspfiles"].as<bool>();
 
 		BuildRule rule_cxx;
-
+ 
 		rule_cxx.name = "cxx_compile_" + path;
 		rule_cxx.tool = "cxx_compiler_" + path;
 
@@ -385,7 +386,7 @@ namespace re
 		if (auto rule_vars = env["custom-rule-vars"])
 			for (const auto& var : rule_vars)
 				rule_cxx.vars[var.first.as<std::string>()] = vars.Resolve(var.second.as<std::string>());
-
+				 
 		std::string extra_link_flags_str = "";
 
 		for (auto& flag : extra_link_flags)
@@ -519,7 +520,9 @@ namespace re
 		switch (target.type)
 		{
 		case TargetType::Executable:
-			extension = default_extensions["executable"].as<std::string>();
+			if (!default_extensions["executable"].IsNull())
+				extension = default_extensions["executable"].as<std::string>();
+				
 			break;
 		case TargetType::StaticLibrary:
 			extension = default_extensions["static-library"].as<std::string>();

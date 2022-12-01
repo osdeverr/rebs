@@ -6,7 +6,7 @@
 
 namespace re
 {
-	void MergeYamlNode(YAML::Node& target, const YAML::Node& source, bool overridden = false)
+	void MergeYamlNode(YAML::Node target, const YAML::Node& source, bool overridden = false)
 	{
 		switch (source.Type())
 		{
@@ -37,7 +37,7 @@ namespace re
 			return;
 		}
 
-		for (auto const& j : source) {
+		for (const auto& j : source) {
 			auto key = j.first.Scalar();
 
 			constexpr auto kOverridePrefix = "override.";
@@ -117,7 +117,7 @@ namespace re
 
 							if (cloned.IsMap())
 							{
-								for (auto& inner_kv : cloned)
+								for (auto inner_kv : cloned)
 									inner_kv.second = GetFlatResolvedTargetCfg(inner_kv.second, mappings);
 							}
 

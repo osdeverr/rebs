@@ -15,15 +15,17 @@
 
 int main(int argc, const char** argv)
 {
+#ifdef WIN32
     SetConsoleOutputCP(65001);
     SetThreadUILanguage(LANG_ENGLISH);
+#endif
 
     try
     {
         std::vector<std::string_view> args(argv, argv + argc);
 
         re::DefaultBuildContext context;
-        context.LoadDefaultEnvironment(re::GetCurrentExecutablePath());
+        context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
         // context.LoadDefaultEnvironment(L"D:/Programs/ReBS/bin");
 
         context.SetVar("configuration", "release");

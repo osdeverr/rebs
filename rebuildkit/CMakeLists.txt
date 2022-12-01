@@ -16,6 +16,10 @@ target_link_libraries(${RE_TARGET} PUBLIC reproc++)
 target_link_libraries(${RE_TARGET} PUBLIC reproc++)
 target_link_libraries(${RE_TARGET} PUBLIC ${Boost_LIBRARIES})
 
+if(UNIX)
+    target_link_libraries(${RE_TARGET} PUBLIC dl)
+endif()
+
 set_target_properties(${RE_TARGET} PROPERTIES LINKER_LANGUAGE CXX)
 
 target_include_directories(${RE_TARGET} PUBLIC .)
