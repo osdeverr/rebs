@@ -3,7 +3,7 @@
 #include <string>
 #include <chrono>
 
-#define RE_TRACE(format, ...) // fmt::print(format, __VA_ARGS__)
+#define RE_TRACE(...) // fmt::print(__VA_ARGS__)
 
 namespace re
 {

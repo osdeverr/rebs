@@ -19,6 +19,7 @@ namespace re
 		if (pTarget->resolved_config && !pTarget->resolved_config["enabled"].as<bool>())
 		{
 			RE_TRACE(" PopulateTargetDependencySet: Skipping '{}' because it's not enabled\n", pTarget->module);
+			return;
 		}
 
 		for (auto &[name, dep] : pTarget->used_mapping)
@@ -67,6 +68,12 @@ namespace re
 	{
 		if (std::find(to.begin(), to.end(), pTarget) != to.end())
 			return;
+
+		if (pTarget->resolved_config && !pTarget->resolved_config["enabled"].as<bool>())
+		{
+			RE_TRACE(" PopulateTargetDependencySetNoResolve: Skipping '{}' because it's not enabled\n", pTarget->module);
+			return;
+		}
 
 		for (auto &child : pTarget->children)
 			PopulateTargetDependencySetNoResolve(child.get(), to);
