@@ -34,7 +34,7 @@ namespace re
 		mVars.SetVar("platform", "linux");
 		mVars.SetVar("platform-closest", "unix");
 #elif defined(__APPLE__)
-		mVars.SetVar("platform", "apple");
+		mVars.SetVar("platform", "osx");
 		mVars.SetVar("platform-closest", "unix");
 #endif
  

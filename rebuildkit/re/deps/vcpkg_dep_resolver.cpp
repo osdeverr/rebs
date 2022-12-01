@@ -32,6 +32,9 @@ namespace re
 
         if (!fs::exists(vcpkg_root))
         {
+            if (scope.ResolveLocal("auto-load-uncached-deps") != "true")
+                RE_THROW TargetUncachedDependencyException(&target, "Cannot auto-download vcpkg - autoloading is disabled", dep_str);
+
             fmt::print(
                 fmt::emphasis::bold | fg(fmt::color::light_sea_green),
                 "[{}] [vcpkg] Target dependency '{}' needs vcpkg. Installing...\n\n",
