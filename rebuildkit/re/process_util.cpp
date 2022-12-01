@@ -5,7 +5,9 @@
 
 #include <reproc++/reproc.hpp>
 
+#ifdef WIN32
 #include <Windows.h>
+#endif
 
 namespace re
 {
@@ -40,6 +42,7 @@ namespace re
         return exit_code;
     }
 
+#ifdef WIN32
     namespace
     {
         HANDLE gProcessUtilJob = NULL;
@@ -102,4 +105,5 @@ namespace re
             RE_THROW ProcessRunException("{} failed to start: CreateProcessW failed", program_name);
         }
     }
+#endif
 }

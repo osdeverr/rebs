@@ -52,4 +52,7 @@ cxx-build-flags:
     archiver:
         - ${platform-default-flags-archiver}
 
-cxx-standard: latest
+cxxenv.!gcc:
+    cxx-standard: latest
+cxxenv.gcc:
+    cxx-standard: 2a

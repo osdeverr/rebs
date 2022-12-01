@@ -375,7 +375,7 @@ namespace re
 			auto to_v = data["to"];
 
 			if (to_v.IsSequence())
-				for (auto& v : to_v)
+				for (const auto& v : to_v)
 					do_install(v.as<std::string>());
 			else
 				do_install(to_v.Scalar());
@@ -657,7 +657,7 @@ namespace re
 					if (run_val.IsScalar())
 						should_run = (run_type == run_val.as<std::string>());
 					else
-						for(auto& v : run_val)
+						for(const auto& v : run_val)
 							if (run_type == v.as<std::string>())
 							{
 								should_run = true;
