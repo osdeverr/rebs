@@ -280,7 +280,7 @@ namespace re
         out << YAML::Value << name.data();
         out << YAML::EndMap;
 
-        std::filesystem::create_directories(path);
+        fs::create_directories(path);
 
         std::ofstream file{path / kTargetConfigFilename};
         file << out.c_str();

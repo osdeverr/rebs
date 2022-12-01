@@ -18,7 +18,7 @@ langs:
 
 cxx-env:
     windows: msvc
-    apple: clang
+    apple: gcc #clang
     unix: gcc
 
 #

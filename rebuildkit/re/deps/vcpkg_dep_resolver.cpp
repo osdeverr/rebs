@@ -54,7 +54,11 @@ namespace re
                 true
             );
 
+#ifdef WIN32
             std::system((vcpkg_root / "bootstrap-vcpkg").string().c_str());
+#else
+            std::system((vcpkg_root / "bootstrap-vcpkg.sh").string().c_str());
+#endif
 
             /*
             RunProcessOrThrow(
