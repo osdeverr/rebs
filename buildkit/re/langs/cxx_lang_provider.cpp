@@ -368,7 +368,7 @@ namespace re
 		rule_cxx.tool = "cxx_compiler_" + path;
 
 		rule_cxx.cmdline = fmt::format(
-			templates["compiler-cmdline"].as<std::string>(),
+			vars.Resolve(templates["compiler-cmdline"].as<std::string>()),
 			fmt::arg("flags", flags_base),
 			fmt::arg("input", "$in"),
 			fmt::arg("output", "$out")
@@ -409,7 +409,7 @@ namespace re
 		rule_link.tool = "cxx_linker_" + path;
 
 		rule_link.cmdline = fmt::format(
-			templates["linker-cmdline"].as<std::string>(),
+			vars.Resolve(templates["linker-cmdline"].as<std::string>()),
 			fmt::arg("flags", "$target_custom_flags " + extra_link_flags_str),
 			fmt::arg("link_deps", deps_input),
 			fmt::arg("input", "$in"),
@@ -431,7 +431,7 @@ namespace re
 		rule_lib.tool = "cxx_archiver_" + path;
 
 		rule_lib.cmdline = fmt::format(
-			templates["archiver-cmdline"].as<std::string>(),
+			vars.Resolve(templates["archiver-cmdline"].as<std::string>()),
 			fmt::arg("flags", "$target_custom_flags " + extra_link_flags_str),
 			fmt::arg("link_deps", deps_input),
 			fmt::arg("input", "$in"),
@@ -506,7 +506,7 @@ namespace re
 		auto& env = mEnvCache.at(desc.state.at("re_cxx_env_for_" + path));
 		const auto& default_extensions = env["default-extensions"];
 
-		auto artifact_name = target.GetCfgEntry<std::string>("artifact-name").value_or(target.module);
+		auto artifact_name = target.build_var_scope->Resolve(target.GetCfgEntry<std::string>("artifact-name").value_or(target.module));
 
 		BuildTarget link_target;
 

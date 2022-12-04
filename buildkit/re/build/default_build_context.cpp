@@ -160,7 +160,8 @@ namespace re
 		if (auto entry = target.GetCfgEntry<std::string>("out-dir"))
 		{
 			out_dir = vars.Resolve(*entry);
-			if (!out_dir.is_absolute())
+
+			if (target.path <= fs::current_path() || out_dir.u8string().front() == '.')
 				out_dir = target.path / out_dir;
 		}
 
@@ -168,7 +169,9 @@ namespace re
 		out_dir /= vars.Resolve(target.GetCfgEntry<std::string>("out-dir-triplet", CfgEntryKind::Recursive).value_or(kDefaultDirTriplet));
 
 		fs::create_directories(out_dir);
-		std::ofstream create_temp{ out_dir / ".re-ignore-this" };
+		out_dir = fs::canonical(out_dir);
+
+		std::ofstream create_temp{out_dir / ".re-ignore-this"};
 
 		desc.out_dir = out_dir;
 
@@ -264,7 +267,7 @@ namespace re
 		{
 			status->Info("Entering directory `%s'", options.working_dir);
 
-			std::filesystem::current_path(options.working_dir);
+			fs::current_path(options.working_dir);
 		}
 
 		ninja::NinjaMain ninja("", config);

@@ -30,12 +30,41 @@ int main(int argc, const char** argv)
 
         context.SetVar("configuration", "release");
 
+        auto parse_cmdline_stuff = [&args, &context](re::Target &target)
+        {
+            for(auto it = args.begin(); it != args.end(); it++)
+            {
+                if (it->find("--var") == 0)
+                {
+                    auto key = *(++it);
+                    auto value = *(++it);
+
+                    // fmt::print("Setting var {} to value {}", key, value);
+
+                    context.SetVar(key.data(), value.data());
+                } 
+
+                if(it->find("--") == 0)
+                {
+                    auto key = it->substr(2);
+                    auto value = *(++it);
+
+                    // fmt::print("Setting key {} to value {}", key, value);
+
+                    target.config[key.data()] = value.data();
+                }
+            }
+        };
+
         if (args.size() == 1)
         {
             auto path = ".";
             context.LoadCachedParams(path);
 
-            return context.BuildTargetInDir(path);
+            auto &target = context.LoadTarget(path);
+            parse_cmdline_stuff(target);
+
+            return context.BuildTarget(context.GenerateBuildDescForTarget(target));
             // return context.BuildTargetInDir(L"D:/PlakSystemsSW/NetUnitCollection"); 
         }
         else if (args[1] == "new")
@@ -63,10 +92,13 @@ int main(int argc, const char** argv)
         }
         else if (args[1] == "do")
         {
-            auto path = args.size() > 3 ? args[2] : ".";
+            auto path = args.size() > 3 && args[2].front() != '.' ? args[2] : ".";
             context.LoadCachedParams(path);
 
-            auto desc = context.GenerateBuildDescForTargetInDir(path);
+            auto &target = context.LoadTarget(path);
+            parse_cmdline_stuff(target);
+
+            auto desc = context.GenerateBuildDescForTarget(target);
 
             context.BuildTarget(desc);
 
@@ -100,7 +132,7 @@ int main(int argc, const char** argv)
         }
         else if (args[1] == "meta")
         {
-            auto path = args.size() > 2 ? args[2] : ".";
+            auto path = args.size() > 2 && args[2].front() != '.' ? args[2] : ".";
             context.LoadCachedParams(path);
 
             context.SetVar("generate-build-meta", "true");
@@ -108,7 +140,10 @@ int main(int argc, const char** argv)
             if (args.size() > 3 && args[3] == "cached-only")
                 context.SetVar("auto-load-uncached-deps", "false");
 
-            auto desc = context.GenerateBuildDescForTargetInDir(args.size() > 2 ? args[2] : ".");
+            auto &target = context.LoadTarget(path);
+            parse_cmdline_stuff(target);
+
+            auto desc = context.GenerateBuildDescForTarget(target);
             context.SaveTargetMeta(desc);
 
             // fmt::print("{}", desc.meta.dump(4));
@@ -117,16 +152,13 @@ int main(int argc, const char** argv)
         }
         else
         {
-            auto path = args[1] == "b" ? "." : args[1];
+            auto path = args[1] == "b" || args[1].front() == '-' ? "." : args[1];
             context.LoadCachedParams(path);
 
-            if (args.size() > 2 && args[2] != "-")
-                context.SetVar("arch", args[2].data());
+            auto &target = context.LoadTarget(path);
+            parse_cmdline_stuff(target);
 
-            if (args.size() > 3 && args[3] != "-")
-                context.SetVar("configuration", args[3].data());
-
-            auto desc = context.GenerateBuildDescForTargetInDir(path);
+            auto desc = context.GenerateBuildDescForTarget(target);
             context.BuildTarget(desc);
 
             return 0;
