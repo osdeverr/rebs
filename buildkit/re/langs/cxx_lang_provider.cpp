@@ -47,7 +47,12 @@ namespace re
 		inline void AppendIncludeDirs(const Target& target, const TargetConfig& cfg, std::unordered_set<std::string>& dirs, const LocalVarScope& vars)
 		{
 			if (target.type != TargetType::Project && !cfg["no-auto-include-dirs"])
-				dirs.insert(target.path.u8string());
+			{
+				if (target.GetCfgEntry<bool>("cxx-header-projection", CfgEntryKind::Recursive).value_or(false))
+					dirs.insert((target.root_path / ".re-cache" / "header-projection" / target.module).u8string());
+				else
+					dirs.insert(target.path.u8string());
+			}
 
 			auto extra_includes = cfg["cxx-include-dirs"];
 
@@ -202,6 +207,53 @@ namespace re
 		}
 
 		vars.SetVar("build-artifact", filename);
+
+		if(target.GetCfgEntry<bool>("cxx-header-projection", CfgEntryKind::Recursive).value_or(false))
+		{
+			auto symlinks_cache = target.root_path / ".re-cache" / "header-projection" / target.module;
+			
+			if(fs::exists(symlinks_cache))
+				return;
+
+			auto full_module = target.module;
+
+			auto current = &target;
+
+			auto leaf_name = current->name;
+			auto leaf_path = current->path;
+
+			re::fs::path path = "";
+
+			while (current)
+			{
+				auto override_path = target.GetCfgEntry<std::string>("cxx-header-projection-path", CfgEntryKind::Recursive);
+
+				if (override_path)
+				{
+					path = *override_path / path;
+					break;
+				}
+				else
+					path = current->name / path;
+
+				current = current->parent;
+			}
+
+			path = symlinks_cache / path;
+
+			re::fs::create_directories(path.parent_path().parent_path());
+
+			// fmt::print(" * HEADER PROJECTION: Creating symlink {} => {}\n", leaf_path.u8string(), path.u8string());
+
+			// if (!::CreateSymbolicLinkW(to.wstring().c_str(), from.wstring().c_str(), SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
+			//     fmt::print("Error: {}\n", ::GetLastError());
+
+			std::error_code ec;
+			re::fs::create_directory_symlink(leaf_path, path, ec);
+
+			if (ec)
+				fmt::print("Error creating symlink: {} {}\n", ec.message(), ec.value());
+		}
 	}
 
 	bool CxxLangProvider::InitBuildTargetRules(NinjaBuildDesc& desc, const Target& target)
