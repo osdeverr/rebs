@@ -1,0 +1,11 @@
+type: static-library
+name: .resources
+
+exclude:
+  - data
+  - root
+
+actions:
+  - copy-to-deps:
+      from: data
+      to: data
