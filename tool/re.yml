@@ -1,0 +1,15 @@
+type: executable
+name: .tool
+
+artifact-name: re
+
+deps:
+  - .buildkit
+  - .resources
+
+actions:
+  - install:
+      on: deploy
+      to:
+        - ${re-deploy-path}
+

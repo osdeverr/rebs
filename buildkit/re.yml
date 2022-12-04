@@ -1,0 +1,20 @@
+type: static-library
+name: .buildkit
+
+cxx-compile-definitions-public:
+  FMT_HEADER_ONLY: 1
+  REPROCXX_SHARED: 1
+
+deps:
+  - vcpkg:fmt
+  - vcpkg:nlohmann-json
+  - vcpkg:boost-algorithm
+  - vcpkg:boost-exception
+  - vcpkg:boost-stacktrace
+  - vcpkg:boost-xpressive
+  - vcpkg:ghc-filesystem
+  - vcpkg:yaml-cpp
+  - vcpkg:ghc-filesystem
+  - vcpkg:magic-enum
+  - vcpkg:reproc
+  - github:osdeverr/re-ninja@v1.1 [.libtool]

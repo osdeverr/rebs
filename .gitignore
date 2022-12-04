@@ -1,7 +1,3 @@
-/.vs
-/build
-.DS_Store
-/out
-.vscode
-
-/examples/complex-project/k2
+out/
+.re-cache/
+.vscode/
