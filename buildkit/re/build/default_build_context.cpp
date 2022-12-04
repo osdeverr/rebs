@@ -129,6 +129,8 @@ namespace re
 		NinjaBuildDesc desc;
 		desc.pRootTarget = &target;
 
+		fs::remove_all(target.root_path / ".re-cache" / "header-projection");
+
 		for (auto dep : mEnv->GetSingleTargetLocalDepSet(&target))
 		{
 			dep->var_parent = &mVars;

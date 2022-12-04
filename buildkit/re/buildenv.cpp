@@ -113,7 +113,7 @@ namespace re
 	Target &BuildEnv::LoadTarget(const fs::path &path)
 	{
 		auto target = LoadFreeTarget(path);
-		target->root_path = path;
+		target->root_path = target->path;
 
 		target->LoadDependencies();
 		target->LoadMiscConfig();
@@ -291,7 +291,7 @@ namespace re
 				fs::copy(
 					from_path,
 					to_path,
-					fs::copy_options::recursive | fs::copy_options::skip_existing);
+					fs::copy_options::recursive | fs::copy_options::overwrite_existing);
 
 				RE_TRACE("            done\n");
 			}

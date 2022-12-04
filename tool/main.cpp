@@ -130,6 +130,61 @@ int main(int argc, const char** argv)
 
             return 0;
         }
+        else if (args[1] == "build-symlinks")
+        {
+            auto path = args.size() > 3 && args[2].front() != '.' ? args[2] : ".";
+            context.LoadCachedParams(path);
+
+            auto &target = context.LoadTarget(path);
+            parse_cmdline_stuff(target);
+
+            context.GenerateBuildDescForTarget(target);
+
+            auto sl_root = ".re-cache/symlinks";
+
+            if(re::fs::exists(sl_root))
+            re::fs::remove_all(sl_root);
+
+            auto style = fmt::emphasis::bold | fg(fmt::color::aquamarine);
+            fmt::print(style, " - [Test] Building symlink structure in {}\n\n", sl_root);
+
+            for (auto dep : context.GetBuildEnv()->GetSingleTargetDepSet(&target))
+            {
+                if (!dep->GetCfgEntry<bool>("cxx-header-projection", re::CfgEntryKind::Recursive).value_or(false))
+                    continue;
+
+                auto full_module = dep->module;
+
+                auto leaf_name = dep->name;
+                auto leaf_path = dep->path;
+
+                re::fs::path path = "";
+
+                while(dep = dep->parent)
+                    path = dep->name / path;                
+
+                path = re::fs::path{sl_root} / full_module / path;
+
+                re::fs::create_directories(path);
+
+                std::error_code ec;
+
+                auto& from = leaf_path;
+                auto to = path / leaf_name;
+
+                fmt::print(style, "  {} => {}\n", from.u8string(), to.u8string());
+
+                //if (!::CreateSymbolicLinkW(to.wstring().c_str(), from.wstring().c_str(), SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
+                //    fmt::print("Error: {}\n", ::GetLastError());
+
+                re::fs::create_directory_symlink(from, to, ec);
+
+                if (ec)
+                    fmt::print("Error: {} {}\n", ec.message(), ec.value());
+            }
+
+            return 0;
+        }
         else if (args[1] == "meta")
         {
             auto path = args.size() > 2 && args[2].front() != '.' ? args[2] : ".";

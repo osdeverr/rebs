@@ -56,3 +56,5 @@ cxxenv.!gcc:
     cxx-standard: latest
 cxxenv.gcc:
     cxx-standard: 2a
+
+cxx-header-projection: false
