@@ -354,7 +354,7 @@ namespace re
 			if (data["from"])
 				from /= target.build_var_scope->Resolve(data["from"].as<std::string>());
 
-			auto do_install = [&artifact_dir, &from, &target, desc, style](const std::string &path)
+			auto do_install = [&artifact_dir, &from, &target, desc, style](const std::string &path, bool create_dir)
 			{
 				auto to = fs::path{target.build_var_scope->Resolve(path)};
 
@@ -363,7 +363,7 @@ namespace re
 
 				fmt::print(style, "     - {}\n", to.u8string());
 
-				if (!fs::exists(to))
+				if (!fs::exists(to) && create_dir)
 					fs::create_directories(to);
 
 				fs::copy(
@@ -374,13 +374,22 @@ namespace re
 
 			fmt::print(style, " * Installed {} to:\n", target.module);
 
-			auto to_v = data["to"];
-
-			if (to_v.IsSequence())
-				for (const auto &v : to_v)
-					do_install(v.as<std::string>());
-			else
-				do_install(to_v.Scalar());
+			if (auto to_v = data["to"])
+			{
+				if (to_v.IsSequence())
+					for (const auto &v : to_v)
+						do_install(v.as<std::string>(), true);
+				else
+					do_install(to_v.Scalar(), true);
+			}
+			else if (auto to_v = data["to-file"])
+			{
+				if (to_v.IsSequence())
+					for (const auto &v : to_v)
+						do_install(v.as<std::string>(), false);
+				else
+					do_install(to_v.Scalar(), false);
+			}
 
 			fmt::print("\n");
 		}

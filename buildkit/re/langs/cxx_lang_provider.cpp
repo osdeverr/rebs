@@ -172,6 +172,36 @@ namespace re
 
 		for (auto& [k, v] : configuration)
 			cxx[k] = v;
+
+		std::string extension = "";
+		const auto &default_extensions = env["default-extensions"];
+
+		switch (target.type)
+		{
+		case TargetType::Executable:
+			if (!default_extensions["executable"].IsNull())
+				extension = default_extensions["executable"].as<std::string>();
+			break;
+		case TargetType::StaticLibrary:
+			extension = default_extensions["static-library"].as<std::string>();
+			break;
+		case TargetType::SharedLibrary:
+			extension = default_extensions["shared-library"].as<std::string>();
+			break;
+		}
+
+		std::string filename = vars.Resolve(target.GetCfgEntry<std::string>("artifact-name").value_or(target.module));
+
+		if (auto out_ext = target.GetCfgEntry<std::string>("out-ext"))
+			extension = *out_ext;
+
+		if (!extension.empty())
+		{
+			filename.append(".");
+			filename.append(extension);
+		}
+
+		vars.SetVar("build-artifact", filename);
 	}
 
 	bool CxxLangProvider::InitBuildTargetRules(NinjaBuildDesc& desc, const Target& target)
@@ -504,33 +534,20 @@ namespace re
 			return;
 
 		auto& env = mEnvCache.at(desc.state.at("re_cxx_env_for_" + path));
-		const auto& default_extensions = env["default-extensions"];
-
-		auto artifact_name = target.build_var_scope->Resolve(target.GetCfgEntry<std::string>("artifact-name").value_or(target.module));
 
 		BuildTarget link_target;
 
 		link_target.type = BuildTargetType::Artifact;
 		link_target.pSourceTarget = &target;
-		link_target.out = "$builddir/" + fmt::format("$re_target_artifact_directory_{}", path) + "/" + artifact_name;
+		link_target.out = "$builddir/" + fmt::format("$re_target_artifact_directory_{}", path) + "/" + target.build_var_scope->ResolveLocal("build-artifact");
 		link_target.rule = "cxx_link_" + path;
-
-		std::string extension = "";
 
 		switch (target.type)
 		{
-		case TargetType::Executable:
-			if (!default_extensions["executable"].IsNull())
-				extension = default_extensions["executable"].as<std::string>();
-				
-			break;
 		case TargetType::StaticLibrary:
-			extension = default_extensions["static-library"].as<std::string>();
 			link_target.rule = "cxx_archive_" + path;
 			break;
 		case TargetType::SharedLibrary:
-			extension = default_extensions["shared-library"].as<std::string>();
-
 			link_target.vars["target_custom_flags"].append(" ");
 			link_target.vars["target_custom_flags"].append(env["templates"]["link-as-shared-library"].as<std::string>());
 			break;
@@ -539,16 +556,7 @@ namespace re
 			break;
 		}
 
-		if (auto out_ext = target.GetCfgEntry<std::string>("out-ext"))
-			extension = *out_ext;
-
-		if (!extension.empty())
-		{
-			link_target.out.append(".");
-			link_target.out.append(extension);
-		}
-
-		for(auto& build_target : desc.targets)
+		for (auto &build_target : desc.targets)
 			if (build_target.pSourceTarget == &target && build_target.pSourceFile)
 			{
 				link_target.in.append(build_target.out);
