@@ -40,7 +40,7 @@ tools:
 #
 default-flags:
     compiler:  "/nologo /showIncludes /interface /experimental:module /EHsc /MD"
-    linker:    "/nologo /ignore:4006 ${platform-link-paths} /MACHINE:${arch}"
+    linker:    "/nologo /ignore:4006"
 
 #
 # Platform-specific C preprocessor macros. They will be defined in all source files using this environment.
@@ -56,8 +56,8 @@ templates:
     cxx-standard: "/std:c++{version}"
 
     compiler-cmdline: "{flags} /c {input} /Fo:{output}"
-    linker-cmdline: "{flags} {link_deps} {input} /OUT:{output}"
-    archiver-cmdline: "{flags} {link_deps} {input} /OUT:{output}"
+    linker-cmdline: "/MACHINE:${arch} ${platform-link-paths} {flags} {link_deps} {input} /OUT:{output}"
+    archiver-cmdline: "/MACHINE:${arch} ${platform-link-paths} {flags} {link_deps} {input} /OUT:{output}"
 
     cxx-module-output: "/ifcOutput {directory}"
     cxx-module-lookup-dir: "/ifcSearchDir {directory}"
