@@ -8,19 +8,21 @@ deps:
   - .resources
 
 actions:
-  - install:
-      on: deploy
-      to:
-        - ${re-deploy-path}
+  #- install:
+  #    on: deploy
+  #    to:
+  #      - ${re-deploy-path}
 
   - install:
       on: deploy
       to:
         - ${re-dev-deploy-path}
 
-  - install:
-      on: deploy
-      from: ${build-artifact}
-      to-file:
-        - ${re-dev-deploy-path}/re-dev.exe
+platform.windows:
+  actions:
+    - install:
+        on: deploy
+        from: ${build-artifact}
+        to-file:
+          - ${re-dev-deploy-path}/re-dev.exe
 
