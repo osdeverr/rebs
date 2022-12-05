@@ -29,14 +29,14 @@ namespace re
 
         // process.read(reproc::stream::out, );
 
-        if (end_ec)
-        {
-            RE_THROW ProcessRunException("{} failed to run: {} (ec={} exit_code={})", program_name, end_ec.message(), end_ec.value(), exit_code);
-        }
-
         if (throw_on_bad_exit && exit_code != 0)
         {
             RE_THROW ProcessRunException("{} failed: exit_code={}", program_name, exit_code);
+        }
+
+        if (end_ec)
+        {
+            RE_THROW ProcessRunException("{} failed to run: {} (ec={} exit_code={})", program_name, end_ec.message(), end_ec.value(), exit_code);
         }
 
         return exit_code;

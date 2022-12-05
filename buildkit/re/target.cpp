@@ -189,6 +189,12 @@ namespace re
     {
         LoadDependencies("deps");
         LoadDependencies("cond-deps");
+
+        // features.clear();
+
+        for (auto v : config["features"])
+            if (!features[v.Scalar()])
+                features[v.Scalar()] = nullptr;
     }
 
     void Target::LoadMiscConfig()
@@ -289,6 +295,9 @@ namespace re
     std::optional<std::string> Target::GetVar(const std::string& key) const
     {
         // fmt::print("target '{}'/'{}': ", module, key);
+
+        if(key == "path")
+            return path.u8string();
 
         if (config["vars"] && config["vars"][key].IsDefined())
         {

@@ -1,7 +1,10 @@
 #include "default_build_context.h"
 #include "ninja_gen.h"
 
-#include <re/langs/cxx_lang_provider.h>
+#include <re/langs/cxx/cxx_lang_provider.h>
+
+#include <re/langs/cxx/features/cxx_header_projection.h>
+#include <re/langs/cxx/features/cpp2_translation.h>
 
 #include <re/deps/vcpkg_dep_resolver.h>
 #include <re/deps/git_dep_resolver.h>
@@ -81,6 +84,19 @@ namespace re
 		mDepResolvers.emplace_back(std::move(github_resolver));
 		mDepResolvers.emplace_back(std::move(ac_resolver));
 
+		constexpr auto kHeaderProjRoot = ".re-cache/header-projection";
+
+		auto cxx_header_projection = std::make_unique<CxxHeaderProjection>();
+		auto cpp2_translation = std::make_unique<Cpp2Translation>();
+
+		mEnv->AddTargetFeature(cxx_header_projection.get());
+		mEnv->AddTargetFeature(cpp2_translation.get());
+		
+		mVars.SetVar("cxx-header-projection-root", kHeaderProjRoot);
+
+		mTargetFeatures.emplace_back(std::move(cxx_header_projection));
+		mTargetFeatures.emplace_back(std::move(cpp2_translation));
+
 		mEnv->LoadCoreProjectTarget(mDataPath / "data" / "core-project");
 	}
 
@@ -147,6 +163,11 @@ namespace re
 			mVars.AddNamespace("target." + target.module, &target);
 
 			mEnv->RunActionsCategorized(dep, nullptr, "pre-configure");
+			
+			for(auto& [key, object] : dep->features)
+			{
+				object->ProcessTargetPostInit(*dep);
+			}
 		}
 
 		deps = mEnv->GetSingleTargetDepSet(desc.pRootTarget);
@@ -237,7 +258,12 @@ namespace re
 		fmt::print(style, " - Running pre-build actions\n");
 
 		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+		{
+			for (auto &[key, object] : dep->features)
+				object->ProcessTargetPreBuild(*dep);
+
 			mEnv->RunActionsCategorized(dep, &desc, "pre-build");
+		}
 
 		fmt::print(style, " - Building...\n\n");
 

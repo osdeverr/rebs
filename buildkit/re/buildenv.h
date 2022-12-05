@@ -54,7 +54,10 @@ namespace re
 		void RunPostBuildActions(Target* target, const NinjaBuildDesc& desc);
 		void RunInstallActions(Target* target, const NinjaBuildDesc& desc);
 
-		void AddDepResolver(std::string_view name, IDepResolver* resolver);
+		void AddDepResolver(std::string_view name, IDepResolver *resolver);
+
+		void AddTargetFeature(std::string_view name, ITargetFeature *feature);
+		void AddTargetFeature(ITargetFeature *feature);
 
 	private:
 		std::unique_ptr<Target> mTheCoreProjectTarget;
@@ -62,8 +65,9 @@ namespace re
 		std::vector<std::unique_ptr<Target>> mRootTargets;
 		std::unordered_map<std::string, Target*> mTargetMap;
 
-		std::unordered_map<std::string, ILangProvider*> mLangProviders;
-		std::unordered_map<std::string, IDepResolver*> mDepResolvers;
+		std::unordered_map<std::string, ILangProvider *> mLangProviders;
+		std::unordered_map<std::string, IDepResolver *> mDepResolvers;
+		std::unordered_map<std::string, ITargetFeature *> mTargetFeatures;
 
 		LocalVarScope mVars;
 
