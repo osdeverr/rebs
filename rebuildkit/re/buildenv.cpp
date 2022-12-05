@@ -75,12 +75,12 @@ namespace re
 			return;
 		}
 
-		for (auto &child : pTarget->children)
-			PopulateTargetDependencySetNoResolve(child.get(), to);
+		// fmt::print(" PopulateTargetDependencySetNoResolve - {}\n", pTarget->module);
+		to.push_back(pTarget);
 
 		for (auto &dep : pTarget->dependencies)
 		{
-			RE_TRACE(" PopulateTargetDependencySetNoResolve - {} <- {} @ {}\n", pTarget->module, dep.ToString(), (const void *)&dep);
+			// fmt::print(" PopulateTargetDependencySetNoResolve - {} <- {} @ {}\n", pTarget->module, dep.ToString(), (const void *)&dep);
 
 			if (dep.resolved.empty())
 				RE_THROW TargetDependencyException(pTarget, "unresolved dependency '{}'", dep.ToString());
@@ -89,7 +89,11 @@ namespace re
 				PopulateTargetDependencySetNoResolve(t, to);
 		}
 
-		to.push_back(pTarget);
+		for (auto &child : pTarget->children)
+		{
+			// fmt::print(" vv child vv\n");
+			PopulateTargetDependencySetNoResolve(child.get(), to);
+		}
 	}
 
 	BuildEnv::BuildEnv(LocalVarScope &scope)
