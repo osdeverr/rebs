@@ -124,7 +124,9 @@ namespace re
         {}
     };
 
-	class Target : public IVarNamespace
+    struct ITargetFeature;
+
+    class Target : public IVarNamespace
 	{
     public:
         static constexpr auto kTargetConfigFilename = "re.yml";
@@ -174,6 +176,8 @@ namespace re
         std::unordered_map<std::string, std::unique_ptr<TargetDependency>> used_mapping;
         const Target* dep_parent = nullptr;
 
+        std::unordered_map<std::string, ITargetFeature*> features;
+
         std::optional<std::string> GetVar(const std::string& key) const;
 
         std::pair<const LocalVarScope&, VarContext&> GetBuildVarScope() const;
@@ -181,6 +185,23 @@ namespace re
         TargetDependency* GetUsedDependency(const std::string& name) const;
 
         Target* FindChild(std::string_view name) const;
+        
+        template<class T>
+        bool HasFeature() const
+        {
+            return features.find(T::kFeatureName) != features.end();
+        }
+
+        template<class T>
+        T* FindFeature() const
+        {
+            auto it = features.find(T::kFeatureName);
+
+            if (it != features.end())
+                return (T *)it->second;
+            else
+                return nullptr;
+        }
 
         /*
         // Contains the entire flattened dependency cache for this target in the order {children}..{dependencies recursively}..{itself}.

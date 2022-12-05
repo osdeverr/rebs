@@ -6,6 +6,7 @@
 #include <re/error.h>
 #include <re/process_util.h>
 #include <re/debug.h>
+#include <re/target_feature.h>
 
 #include <boost/algorithm/string.hpp>
 
@@ -133,7 +134,7 @@ namespace re
 
 	Target &BuildEnv::LoadCoreProjectTarget(const fs::path &path)
 	{
-		mTheCoreProjectTarget = std::make_unique<Target>(path);
+		mTheCoreProjectTarget = LoadFreeTarget(path);
 		return *mTheCoreProjectTarget;
 	}
 
@@ -204,8 +205,24 @@ namespace re
 		if (link_language && !link_provider)
 			RE_THROW TargetLoadException(target, "unknown link-with language {}", *link_language);
 
-		if (link_provider)
+		if (link_provider && desc.state["link_initialized_" + target->module] != "1")
+		{
 			link_provider->InitLinkTargetEnv(desc, *target);
+			desc.state["link_initialized_" + target->module] = "1";
+		}
+
+		for (auto &[name, object] : target->features)
+		{
+			if(!object)
+			{
+				auto it = mTargetFeatures.find(name);
+
+				if (it == mTargetFeatures.end())
+					RE_THROW TargetLoadException(target, "unknown target feature {}", name);
+				else
+					object = it->second;
+			}
+		}
 
 		return link_provider;
 	}
@@ -429,6 +446,16 @@ namespace re
 	void BuildEnv::AddDepResolver(std::string_view name, IDepResolver *resolver)
 	{
 		mDepResolvers[name.data()] = resolver;
+	}
+
+	void BuildEnv::AddTargetFeature(std::string_view name, ITargetFeature *feature)
+	{
+		mTargetFeatures[name.data()] = feature;
+	}
+
+	void BuildEnv::AddTargetFeature(ITargetFeature *feature)
+	{
+		mTargetFeatures[feature->GetName()] = feature;
 	}
 
 	bool BuildEnv::ResolveTargetDependencyImpl(const Target &target, const TargetDependency &dep, std::vector<Target *> &out, bool use_external)

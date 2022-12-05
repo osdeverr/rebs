@@ -1,5 +1,7 @@
 #pragma once
 #include <re/buildenv.h>
+#include <re/target_feature.h>
+
 #include "environment_var_namespace.h"
 
 namespace re
@@ -50,5 +52,6 @@ namespace re
 
 		std::vector<std::unique_ptr<ILangProvider>> mLangs;
 		std::vector<std::unique_ptr<IDepResolver>> mDepResolvers;
+		std::vector<std::unique_ptr<ITargetFeature>> mTargetFeatures;
 	};
 }
