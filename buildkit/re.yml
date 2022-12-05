@@ -17,4 +17,9 @@ deps:
   - vcpkg:ghc-filesystem
   - vcpkg:magic-enum
   - vcpkg:reproc
-  - github:osdeverr/re-ninja@v1.1 [.libtool]
+  - github:osdeverr/re-ninja@v1.4 [.libtool]
+
+platform.!windows:
+  cxx-global-link-deps:
+    - dl
+    - pthread

@@ -66,7 +66,7 @@ namespace re
 			}
 		}
 
-		inline void AppendLinkFlags(const Target& target, const TargetConfig& cfg, const std::string& cxx_lib_dir_tpl, std::vector<std::string>& out_flags, std::unordered_set<std::string>& out_deps, const LocalVarScope& vars)
+		inline void AppendLinkFlags(const Target& target, const TargetConfig& cfg, const std::string& cxx_lib_dir_tpl, std::vector<std::string>& out_flags, std::vector<std::string>& out_deps, const LocalVarScope& vars)
 		{
 			auto link_lib_dirs = cfg["cxx-lib-dirs"];
 
@@ -83,7 +83,7 @@ namespace re
 			auto extra_link_deps = cfg["cxx-link-deps"];
 
 			for (const auto& dep : extra_link_deps)
-				out_deps.insert(fmt::format("\"{}\"", vars.Resolve(dep.as<std::string>())));
+				out_deps.push_back(fmt::format("\"{}\"", vars.Resolve(dep.as<std::string>())));
 		}
 
 	}
@@ -267,13 +267,15 @@ namespace re
 		auto cxx_include_dir = templates["cxx-include-dir"].as<std::string>();
 		auto cxx_module_lookup_dir = templates["cxx-module-lookup-dir"].as<std::string>();
 
-		std::unordered_set<std::string> deps_list;
+		std::vector<std::string> deps_list;
 		std::vector<std::string> extra_link_flags;
 
 		auto cxx_lib_dir = templates["cxx-lib-dir"].as<std::string>();
 
 		std::unordered_set<std::string> include_dirs;
-		
+
+		std::vector<std::string> global_link_deps;
+
 		for (auto& target : include_deps)
 		{
 			auto& config = target->resolved_config;
@@ -307,10 +309,13 @@ namespace re
 
 			if (target->type == TargetType::StaticLibrary && has_any_eligible_sources)
 			{
-				deps_list.insert("$cxx_artifact_" + res_path);
+				deps_list.push_back("\"$cxx_artifact_" + res_path + "\"");
 			}
 
 			AppendLinkFlags(*target, config, cxx_lib_dir, extra_link_flags, deps_list, vars);
+
+			for (const auto &dep : config["cxx-global-link-deps"])
+				global_link_deps.push_back(fmt::format("-l{}", vars.Resolve(dep.as<std::string>())));
 
 			if (const auto& extra = config["cxx-build-flags"])
 			{
@@ -440,6 +445,14 @@ namespace re
 			deps_input.append(" ");
 		}
 
+		std::string global_deps_input = "";
+
+		for (auto &dep : global_link_deps)
+		{
+			global_deps_input.append(dep);
+			global_deps_input.append(" ");
+		}
+
 		BuildRule rule_link;
 
 		rule_link.name = "cxx_link_" + path;
@@ -449,6 +462,7 @@ namespace re
 			vars.Resolve(templates["linker-cmdline"].as<std::string>()),
 			fmt::arg("flags", "$target_custom_flags " + extra_link_flags_str),
 			fmt::arg("link_deps", deps_input),
+			fmt::arg("global_link_deps", global_deps_input),
 			fmt::arg("input", "$in"),
 			fmt::arg("output", "$out")
 		);
@@ -471,6 +485,7 @@ namespace re
 			vars.Resolve(templates["archiver-cmdline"].as<std::string>()),
 			fmt::arg("flags", "$target_custom_flags " + extra_link_flags_str),
 			fmt::arg("link_deps", deps_input),
+			fmt::arg("global_link_deps", global_deps_input),
 			fmt::arg("input", "$in"),
 			fmt::arg("output", "$out")
 		);
