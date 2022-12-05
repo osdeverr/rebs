@@ -133,26 +133,20 @@ namespace re
 
 	std::optional<std::string> LocalVarScope::GetVar(const std::string& key) const
 	{
+		if (auto value = GetVarNoRecurse(key))
+			return value;
+		else
+			return mParent ? mParent->GetVar(key) : std::nullopt;
+	}
+
+	std::optional<std::string> LocalVarScope::GetVarNoRecurse(const std::string &key) const
+	{
 		auto it = mVars.find(key);
 
-		// fmt::print("'{}'/'{}': ", mAlias, key);
-
 		if (it != mVars.end())
-		{
-			// fmt::print("found with val '{}' ", it->second);
 			return it->second;
-		}
 		else
-		{
-			/*
-			if (mParent)
-				fmt::print("forward to ");
-			else
-				fmt::print("all hope lost. ");
-			*/
-
-			return mParent ? mParent->GetVar(key) : std::nullopt;
-		}
+			return std::nullopt;
 	}
 
 	void LocalVarScope::Init()
