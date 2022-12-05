@@ -76,8 +76,7 @@ namespace re
 			return;
 		}
 
-		for (auto &child : pTarget->children)
-			PopulateTargetDependencySetNoResolve(child.get(), to);
+		to.push_back(pTarget);
 
 		for (auto &dep : pTarget->dependencies)
 		{
@@ -90,7 +89,8 @@ namespace re
 				PopulateTargetDependencySetNoResolve(t, to);
 		}
 
-		to.push_back(pTarget);
+		for (auto &child : pTarget->children)
+			PopulateTargetDependencySetNoResolve(child.get(), to);
 	}
 
 	BuildEnv::BuildEnv(LocalVarScope &scope)
