@@ -55,7 +55,9 @@ namespace re
 
 		void RemoveVar(const std::string& key);
 
-		std::optional<std::string> GetVar(const std::string& key) const;
+		std::optional<std::string> GetVar(const std::string &key) const;
+
+		std::optional<std::string> GetVarNoRecurse(const std::string &key) const;
 
 		inline std::string Resolve(const std::string& str) const
 		{

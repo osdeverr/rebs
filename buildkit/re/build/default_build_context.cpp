@@ -218,9 +218,22 @@ namespace re
 			desc.init_vars["re_target_artifact_directory_" + GetEscapedModulePath(*dep)] = artifact_dir;
 			desc.init_vars["re_target_object_directory_" + GetEscapedModulePath(*dep)] = object_dir;
 
-			dep->build_var_scope->SetVar("src-dir", dep->path.u8string());
-			dep->build_var_scope->SetVar("artifact-dir", (desc.out_dir / artifact_dir).u8string());
-			dep->build_var_scope->SetVar("object-dir", (desc.out_dir / object_dir).u8string());
+			auto &full_src_dir = dep->path;
+			auto full_artifact_dir = desc.out_dir / artifact_dir;
+			auto full_object_dir = desc.out_dir / object_dir;
+
+			dep->build_var_scope->SetVar("src-dir", full_src_dir.u8string());
+			dep->build_var_scope->SetVar("artifact-dir", full_artifact_dir.u8string());
+			dep->build_var_scope->SetVar("object-dir", full_object_dir.u8string());
+
+			auto &meta = desc.meta["targets"][full_src_dir.u8string()];
+
+			meta["src-dir"] = full_src_dir.u8string();
+			meta["artifact-dir"] = full_artifact_dir.u8string();
+			meta["object-dir"] = full_object_dir.u8string();
+
+			if (auto artifact = dep->build_var_scope->GetVarNoRecurse("build-artifact"))
+				meta["main-artifact"] = (full_artifact_dir / *artifact).u8string();
 		}
 
 		desc.meta["root_target"] = target.module;
