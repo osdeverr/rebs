@@ -12,18 +12,18 @@ namespace re
 
 	void PerfProfile::Print()
 	{
+		return;
+
 		const auto style = fmt::emphasis::bold | fg(fmt::color::green_yellow);
 
 		fmt::print(
 			style,
-			"\n *** {}\n", mName
+			"\n *** {}\n       {} {}\n\n", mName, mFinished ? "finished in" : "running for", ToString()
 		);
+	}
 
-		fmt::print(
-			style,
-			"       {} ", mFinished ? "finished in" : "running for"
-		);
-
+	std::string PerfProfile::ToString() const
+	{
 		auto point = mFinished ? mEndTime : std::chrono::high_resolution_clock::now();
 		auto delta = point - mBeginTime;
 
@@ -31,9 +31,8 @@ namespace re
 		auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
 		auto s = ms / 1000.f;
 
-		fmt::print(
-			style, 
-			"{}s / {}ms / {}ns\n\n", s, ms, ns
+		return fmt::format(
+			"{}s / {}ms / {}ns", s, ms, ns
 		);
 	}
 }

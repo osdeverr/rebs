@@ -26,6 +26,8 @@ namespace re
 
 		void Print();
 
+		std::string ToString() const;
+
 	private:
 		std::string mName;
 

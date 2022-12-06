@@ -93,8 +93,8 @@ namespace re
 			PopulateTargetDependencySetNoResolve(child.get(), to);
 	}
 
-	BuildEnv::BuildEnv(LocalVarScope &scope)
-		: mVars{&scope, "build"}
+	BuildEnv::BuildEnv(LocalVarScope &scope, IUserOutput* pOut)
+		: mVars{&scope, "build"}, mOut{pOut}
 	{
 		mVars.SetVar("platform", "${env:RE_PLATFORM | $re:platform-string}");
 		mVars.SetVar("platform-closest", "${build:platform}");
@@ -371,14 +371,14 @@ namespace re
 			if (data["from"])
 				from /= target.build_var_scope->Resolve(data["from"].as<std::string>());
 
-			auto do_install = [&artifact_dir, &from, &target, desc, style](const std::string &path, bool create_dir)
+			auto do_install = [this, &artifact_dir, &from, &target, desc, style](const std::string &path, bool create_dir)
 			{
 				auto to = fs::path{target.build_var_scope->Resolve(path)};
 
 				if (!to.is_absolute())
 					to = artifact_dir / to;
 
-				fmt::print(style, "     - {}\n", to.u8string());
+				mOut->Info(style, "     - {}\n", to.u8string());
 
 				if (!fs::exists(to) && create_dir)
 					fs::create_directories(to);
@@ -389,7 +389,7 @@ namespace re
 					fs::copy_options::recursive | fs::copy_options::overwrite_existing);
 			};
 
-			fmt::print(style, " * Installed {} to:\n", target.module);
+			mOut->Info(style, " * Installed {} to:\n", target.module);
 
 			if (auto to_v = data["to"])
 			{
@@ -408,7 +408,7 @@ namespace re
 					do_install(to_v.Scalar(), false);
 			}
 
-			fmt::print("\n");
+			mOut->Info(style, "\n");
 		}
 	}
 
@@ -431,7 +431,7 @@ namespace re
 		{
 			auto path_str = path->as<std::string>();
 
-			fmt::print("Installing {} - {} => {}\n", pTarget->module, from.u8string(), path_str);
+			mOut->Info({}, "Installing {} - {} => {}\n", pTarget->module, from.u8string(), path_str);
 
 			if (fs::exists(from))
 			{

@@ -51,7 +51,7 @@ namespace re
 			if (scope.ResolveLocal("auto-load-uncached-deps") != "true")
 				RE_THROW TargetUncachedDependencyException(&target, "Cannot resolve uncached dependency {} - autoloading is disabled", dep_str);
 
-			fmt::print(
+			mOut->Info(
 				fmt::emphasis::bold | fg(fmt::color::light_blue),
 				"[{}] Restoring package {}...\n",
 				target.module,
@@ -65,7 +65,7 @@ namespace re
 
 			auto end_time = std::chrono::high_resolution_clock::now();
 
-			fmt::print(
+			mOut->Info(
 				fmt::emphasis::bold | fg(fmt::color::light_blue),
 				"\n[{}] Restored package {} ({:.2f}s)\n",
 				target.module,
@@ -75,7 +75,7 @@ namespace re
 		}
 		else
 		{
-			fmt::print(
+			mOut->Info(
 				fmt::emphasis::bold | fg(fmt::color::light_blue),
 				"[{}] Package {} already available\n",
 				target.module,
