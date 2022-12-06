@@ -22,6 +22,8 @@
 
 #include <fstream>
 
+#include <magic_enum.hpp>
+
 namespace re
 {
 	DefaultBuildContext::DefaultBuildContext()
@@ -49,6 +51,11 @@ namespace re
 
 		mVars.SetVar("generate-build-meta", "false");
 		mVars.SetVar("auto-load-uncached-deps", "true");
+
+		mVars.SetVar("msg-level", "info");
+		mVars.SetVar("colors", "true");
+
+		UpdateOutputSettings();
 	}
 
 	void DefaultBuildContext::LoadDefaultEnvironment(const fs::path& data_path, const fs::path& dynamic_data_path)
@@ -57,13 +64,13 @@ namespace re
 
 		mDataPath = data_path;
 
-		mEnv = std::make_unique<BuildEnv>(mVars);
+		mEnv = std::make_unique<BuildEnv>(mVars, this);
 
 		auto& cxx = mLangs.emplace_back(std::make_unique<CxxLangProvider>(mDataPath / "data" / "environments" / "cxx", &mVars));
 		mEnv->AddLangProvider("cpp", cxx.get());
 
-		auto vcpkg_resolver = std::make_unique<VcpkgDepResolver>(dynamic_data_path / "deps" / "vcpkg");
-		auto git_resolver = std::make_unique<GitDepResolver>(mEnv.get());
+		auto vcpkg_resolver = std::make_unique<VcpkgDepResolver>(dynamic_data_path / "deps" / "vcpkg", this);
+		auto git_resolver = std::make_unique<GitDepResolver>(mEnv.get(), this);
 		auto github_resolver = std::make_unique<GithubDepResolver>(git_resolver.get());
 
 		auto ac_resolver = std::make_unique<ArchCoercedDepResolver>(mEnv.get());
@@ -259,16 +266,16 @@ namespace re
 
 	int DefaultBuildContext::BuildTarget(const NinjaBuildDesc& desc)
 	{
-		re::PerfProfile _{ fmt::format(R"({}("{}"))", __FUNCTION__, desc.out_dir.u8string()) };
+		re::PerfProfile perf{ fmt::format(R"({}("{}"))", __FUNCTION__, desc.out_dir.u8string()) };
 
 		auto style = fmt::emphasis::bold | fg(fmt::color::aquamarine);
 
-		fmt::print(style, " - Generating build files\n");
+		Info(style, " - Generating build files\n");
 
 		re::GenerateNinjaBuildFile(desc, desc.out_dir);
 		SaveTargetMeta(desc);
 
-		fmt::print(style, " - Running pre-build actions\n");
+		Info(style, " - Running pre-build actions\n");
 
 		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
 		{
@@ -278,7 +285,7 @@ namespace re
 			mEnv->RunActionsCategorized(dep, &desc, "pre-build");
 		}
 
-		fmt::print(style, " - Building...\n\n");
+		Info(style, " - Building...\n\n");
 
 		auto out_dir = desc.out_dir.u8string();
 
@@ -296,7 +303,54 @@ namespace re
 			config.parallelism = processors + 2;
 		}
 
-		::Status *status = new StatusPrinter(config);
+		class ReAwareStatusPrinter : public ::StatusPrinter
+		{
+		public:
+			ReAwareStatusPrinter(const ::BuildConfig& config, IUserOutput* pOut)
+			: ::StatusPrinter{config}, mOut{pOut}
+			{}
+
+  			virtual ~ReAwareStatusPrinter() { }
+
+  			virtual void Info(const char* msg, ...)
+			{
+  				va_list ap;
+  				va_start(ap, msg);
+  				mOut->Info({}, "ninja: {}\n", FormatString(msg, ap));
+  				va_end(ap);
+			}
+
+  			virtual void Warning(const char* msg, ...)
+			{
+  				va_list ap;
+  				va_start(ap, msg);
+  				mOut->Warn(fmt::fg(fmt::color::yellow), "warning: {}\n", FormatString(msg, ap));
+  				va_end(ap);
+			}
+
+  			virtual void Error(const char* msg, ...)
+			{
+  				va_list ap;
+  				va_start(ap, msg);
+  				mOut->Error(fmt::fg(fmt::color::pale_violet_red), "error: {}\n", FormatString(msg, ap));
+  				va_end(ap);
+			}
+
+		private:
+			IUserOutput* mOut;
+
+			std::string FormatString(const char* msg, va_list args)
+			{
+				std::string result;
+
+				result.resize(std::vsnprintf(nullptr, 0, msg, args));
+				std::vsnprintf(result.data(), result.size(), msg, args);
+
+				return result;
+			}
+		};
+
+		ReAwareStatusPrinter status{config, this};
 
 		// status->Info("Running Ninja!");
 
@@ -306,7 +360,7 @@ namespace re
 
 		if (options.working_dir)
 		{
-			status->Info("Entering directory `%s'", options.working_dir);
+			Info({}, "ninja: Entering directory `{}'\n", out_dir);
 
 			fs::current_path(options.working_dir);
 		}
@@ -358,7 +412,7 @@ namespace re
 
 		std::vector<const char*> targets = {};
 
-		int result = ninja.RunBuild(targets.size(), (char**) targets.data(), status);
+		int result = ninja.RunBuild(targets.size(), (char**) targets.data(), &status);
 
 		if (result)
 			RE_THROW TargetBuildException(desc.pRootTarget, "Ninja build failed: exit_code={}", result);
@@ -390,13 +444,15 @@ namespace re
 		#endif
 		*/
 
-		fmt::print(style, "\n - Running post-build actions\n\n");
+		Info(style, "\n - Running post-build actions\n\n");
 
 		// Running post-build actions
 		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
 			mEnv->RunActionsCategorized(dep, &desc, "post-build");
 
-		fmt::print(style, " - Build successful!\n");
+		perf.Finish();
+
+		Info(style, " - Build successful! ({})\n", perf.ToString());
 
 		return result;
 	}
@@ -404,5 +460,30 @@ namespace re
 	void DefaultBuildContext::InstallTarget(const NinjaBuildDesc& desc)
 	{
 		mEnv->RunInstallActions(desc.pRootTarget, desc);
+	}
+
+    void DefaultBuildContext::DoPrint(UserOutputLevel level, fmt::text_style style, std::string_view text)
+	{
+		auto is_problem = (level <= UserOutputLevel::Warn);
+
+		if (mOutLevel < level && !(mOutLevel == UserOutputLevel::Problems && is_problem))
+			return;
+
+		// auto level_str = magic_enum::enum_name(level);
+
+		auto stream = is_problem ? stderr : stdout;
+
+		if (mOutColors)
+			fmt::print(stream, style, "{}", text);
+		else
+			fmt::print(stream, "{}", text);
+	}
+
+	void DefaultBuildContext::UpdateOutputSettings()
+	{
+		auto no_case_pred = [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); };
+
+		mOutLevel = magic_enum::enum_cast<UserOutputLevel>(mVars.ResolveLocal("msg-level"), no_case_pred).value_or(UserOutputLevel::Info);
+		mOutColors = mVars.ResolveLocal("colors") == "true";
 	}
 }

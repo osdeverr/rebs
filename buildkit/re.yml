@@ -17,7 +17,13 @@ deps:
   - vcpkg:ghc-filesystem
   - vcpkg:magic-enum
   - vcpkg:reproc
-  - github:osdeverr/re-ninja@v1.4 [.libtool]
+  - github:osdeverr/re-ninja@v1.5 [.libtool]
+
+# Fixes building on Apple systems
+platform.osx:
+  cxx-compile-definitions-public:
+    BOOST_STACKTRACE_GNU_SOURCE_NOT_REQUIRED: 1
+    _LIBCPP_DISABLE_AVAILABILITY: 1
 
 platform.!windows:
   cxx-global-link-deps:

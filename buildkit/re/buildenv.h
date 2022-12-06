@@ -3,6 +3,7 @@
 #include "build_desc.h"
 #include "dep_resolver.h"
 #include "target_loader.h"
+#include "user_output.h"
 
 #include <re/vars.h>
 
@@ -23,7 +24,7 @@ namespace re
 	class BuildEnv : public ILangLocator, public ITargetLoader
 	{
 	public:
-		BuildEnv(LocalVarScope& scope);
+		BuildEnv(LocalVarScope& scope, IUserOutput* pOut);
 
 		Target& LoadCoreProjectTarget(const fs::path& path);
 
@@ -70,6 +71,7 @@ namespace re
 		std::unordered_map<std::string, ITargetFeature *> mTargetFeatures;
 
 		LocalVarScope mVars;
+		IUserOutput* mOut;
 
 		inline Target* GetTargetOrNull(const std::string& module)
 		{

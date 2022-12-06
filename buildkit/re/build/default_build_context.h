@@ -1,12 +1,13 @@
 #pragma once
 #include <re/buildenv.h>
 #include <re/target_feature.h>
+#include <re/user_output.h>
 
 #include "environment_var_namespace.h"
 
 namespace re
 {
-	class DefaultBuildContext
+	class DefaultBuildContext : public IUserOutput
 	{
 	public:
 		DefaultBuildContext();
@@ -41,6 +42,10 @@ namespace re
 
 		BuildEnv* GetBuildEnv() const { return mEnv.get(); }
 
+        virtual void DoPrint(UserOutputLevel level, fmt::text_style style, std::string_view text) override;
+
+		void UpdateOutputSettings();
+
 	private:
 		VarContext mVarContext;
 		LocalVarScope mVars;
@@ -53,5 +58,8 @@ namespace re
 		std::vector<std::unique_ptr<ILangProvider>> mLangs;
 		std::vector<std::unique_ptr<IDepResolver>> mDepResolvers;
 		std::vector<std::unique_ptr<ITargetFeature>> mTargetFeatures;
+
+		UserOutputLevel mOutLevel = UserOutputLevel::Info;
+		bool mOutColors = true;
 	};
 }

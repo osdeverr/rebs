@@ -20,49 +20,72 @@ int main(int argc, const char** argv)
     SetThreadUILanguage(LANG_ENGLISH);
 #endif
 
+    re::DefaultBuildContext context;
+
     try
     {
         std::vector<std::string_view> args(argv, argv + argc);
 
-        re::DefaultBuildContext context;
-        context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+        std::unordered_map<std::string, std::string> target_cfg_overrides;
+
+        for(auto it = args.begin(); it != args.end();)
+        {
+            constexpr char kDefaultPrefix[] = "--";
+            constexpr char kVarPrefix[] = "--var.";
+            constexpr char kTargetPrefix[] = "--target.";
+
+            if(it->find(kTargetPrefix) == 0)
+            {
+                auto key = it->substr(sizeof kTargetPrefix - 1);
+                auto& value = *(it + 1);
+
+                target_cfg_overrides[key.data()] = value.data();
+                it = args.erase(it, it + 2);
+            }
+            else if(it->find(kVarPrefix) == 0)
+            {
+                auto key = it->substr(sizeof kVarPrefix - 1);
+                auto& value = *(it + 1);
+
+                context.SetVar(key.data(), value.data());
+                it = args.erase(it, it + 2);
+            }
+            else if(it->find(kDefaultPrefix) == 0)
+            {
+                auto key = it->substr(sizeof kDefaultPrefix - 1);
+                auto& value = *(it + 1);
+                
+                // context.Info({}, "setting var {} to {} ({})\n", key, value, kDefaultPrefix);
+
+                context.SetVar(key.data(), value.data());
+
+                it = args.erase(it, it + 2);
+            }
+            else
+                it++;
+        }
+
+        auto apply_cfg_overrides = [&target_cfg_overrides](re::Target* pTarget)
+        {
+            for(auto& [k, v] : target_cfg_overrides)
+                pTarget->config[k] = v;
+        };
+
+        context.UpdateOutputSettings();
         // context.LoadDefaultEnvironment(L"D:/Programs/ReBS/bin");
 
         context.SetVar("configuration", "release");
-
-        auto parse_cmdline_stuff = [&args, &context](re::Target &target)
-        {
-            for(auto it = args.begin(); it != args.end(); it++)
-            {
-                if (it->find("--var") == 0)
-                {
-                    auto key = *(++it);
-                    auto value = *(++it);
-
-                    // fmt::print("Setting var {} to value {}", key, value);
-
-                    context.SetVar(key.data(), value.data());
-                } 
-
-                if(it->find("--") == 0)
-                {
-                    auto key = it->substr(2);
-                    auto value = *(++it);
-
-                    // fmt::print("Setting key {} to value {}", key, value);
-
-                    target.config[key.data()] = value.data();
-                }
-            }
-        };
 
         if (args.size() == 1)
         {
             auto path = ".";
             context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
+
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             auto &target = context.LoadTarget(path);
-            parse_cmdline_stuff(target);
+            apply_cfg_overrides(&target);
 
             return context.BuildTarget(context.GenerateBuildDescForTarget(target));
             // return context.BuildTargetInDir(L"D:/PlakSystemsSW/NetUnitCollection"); 
@@ -78,7 +101,7 @@ int main(int argc, const char** argv)
 
             if (args.size() > 4)
                 path = args[4];
-
+ 
             re::Target::CreateEmptyTarget(path, re::TargetTypeFromString(type.data()), name);
             fmt::print("\n");
             fmt::print("Created new {} target '{}' in directory '{}'.\n", type, name, path);
@@ -94,9 +117,12 @@ int main(int argc, const char** argv)
         {
             auto path = args.size() > 3 && args[2].front() != '.' ? args[2] : ".";
             context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
+
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             auto &target = context.LoadTarget(path);
-            parse_cmdline_stuff(target);
+            apply_cfg_overrides(&target);
 
             auto desc = context.GenerateBuildDescForTarget(target);
 
@@ -134,9 +160,12 @@ int main(int argc, const char** argv)
         {
             auto path = args.size() > 3 && args[2].front() != '.' ? args[2] : ".";
             context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
+
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             auto &target = context.LoadTarget(path);
-            parse_cmdline_stuff(target);
+            apply_cfg_overrides(&target);
 
             context.GenerateBuildDescForTarget(target);
 
@@ -189,6 +218,9 @@ int main(int argc, const char** argv)
         {
             auto path = args.size() > 2 && args[2].front() != '.' ? args[2] : ".";
             context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
+
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             context.SetVar("generate-build-meta", "true");
 
@@ -196,7 +228,7 @@ int main(int argc, const char** argv)
                 context.SetVar("auto-load-uncached-deps", "false");
 
             auto &target = context.LoadTarget(path);
-            parse_cmdline_stuff(target);
+            apply_cfg_overrides(&target);
 
             auto desc = context.GenerateBuildDescForTarget(target);
             context.SaveTargetMeta(desc);
@@ -209,9 +241,12 @@ int main(int argc, const char** argv)
         {
             auto path = args[1] == "b" || args[1].front() == '-' ? "." : args[1];
             context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
+
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             auto &target = context.LoadTarget(path);
-            parse_cmdline_stuff(target);
+            apply_cfg_overrides(&target);
 
             auto desc = context.GenerateBuildDescForTarget(target);
             context.BuildTarget(desc);
@@ -312,12 +347,9 @@ int main(int argc, const char** argv)
         }
         */
 
-        fmt::print(
-            stderr,
-            fmt::emphasis::bold | bg(fmt::color::black) | fg(fmt::color::light_coral),
-            "\n\n  Error: {}\n", e.what()
-        );
+        context.Error(fmt::emphasis::bold | bg(fmt::color::black) | fg(fmt::color::light_coral), "error: {}\n\n", e.what());
 
+/*
         fmt::print(
             stderr,
             bg(fmt::color{ 0x090909 }) | fg(fmt::color::light_coral),
@@ -328,6 +360,7 @@ int main(int argc, const char** argv)
             stderr,
             "\n\n"
         );
+        */
 
         return 1;
     }

@@ -35,7 +35,7 @@ namespace re
             if (scope.ResolveLocal("auto-load-uncached-deps") != "true")
                 RE_THROW TargetUncachedDependencyException(&target, "Cannot auto-download vcpkg - autoloading is disabled", dep_str);
 
-            fmt::print(
+            mOut->Info(
                 fmt::emphasis::bold | fg(fmt::color::light_sea_green),
                 "[{}] [vcpkg] Target dependency '{}' needs vcpkg. Installing...\n\n",
                 target.module,
@@ -108,7 +108,7 @@ namespace re
 
             auto end_time = std::chrono::high_resolution_clock::now();
 
-            fmt::print(
+            mOut->Info(
                 fmt::emphasis::bold | fg(fmt::color::light_green),
                 "\n[{}] Restored package {} ({:.2f}s)\n",
                 target.module,
@@ -121,7 +121,7 @@ namespace re
             // vcpkg-dep dependencies are created automatically within this method itself - no need to spam the console
             if (dep.ns != "vcpkg-dep")
             {
-                fmt::print(
+                mOut->Info(
                     fmt::emphasis::bold | fg(fmt::color::light_green),
                     "[{}] Package {} already available\n",
                     target.module,
