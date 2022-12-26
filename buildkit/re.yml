@@ -17,7 +17,7 @@ deps:
   - vcpkg:ghc-filesystem
   - vcpkg:magic-enum
   - vcpkg:reproc
-  - github:osdeverr/re-ninja@v1.5 [.libtool]
+  - github:osdeverr/re-ninja@v1.7 [.libtool]
 
 # Fixes building on Apple systems
 platform.osx:
