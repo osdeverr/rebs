@@ -144,6 +144,18 @@ int main(int argc, const char** argv)
             auto path = ".";
             auto yaml = context.LoadCachedParams(path);
 
+            if(args.size() == 2)
+            {
+                // Print the current config and quit.
+                
+		        YAML::Emitter emitter;
+		        emitter << yaml;
+
+                fmt::print("{}\n", emitter.c_str());
+
+                return 0;
+            }
+
             if (args.size() > 2 && args[2] != "-")
                 yaml["arch"] = args[2].data();
 
