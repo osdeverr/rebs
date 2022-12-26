@@ -130,16 +130,16 @@ namespace re
             }
         }
 
-        // Support custom configurations
-        if (fs::exists(path / re_config))
-            path /= re_config;
-
         YAML::Node config{ YAML::NodeType::Map };
 
         if (fs::exists(path / "include"))
         {
             config["cxx-include-dirs"].push_back((path / "include").u8string());
         }
+
+        // Support custom configurations
+        if (fs::exists(path / re_config))
+            path /= re_config;
 
         if (fs::exists(path / "lib"))
         {

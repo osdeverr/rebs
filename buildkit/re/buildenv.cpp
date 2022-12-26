@@ -685,11 +685,11 @@ namespace re
 
 	void BuildEnv::RunActionsCategorized(Target *target, const NinjaBuildDesc *desc, std::string_view run_type)
 	{
-		if (auto actions = target->GetCfgEntry<TargetConfig>("actions"))
+		if (auto actions = (target->resolved_config ? target->resolved_config : target->config)["actions"])
 		{
-			if (actions->IsMap())
+			if (actions.IsMap())
 			{
-				for (const auto &kv : *actions)
+				for (const auto &kv : actions)
 				{
 					auto type = kv.first.as<std::string>();
 					auto &data = kv.second;
@@ -699,7 +699,7 @@ namespace re
 			}
 			else
 			{
-				RunActionList(desc, target, *actions, run_type, "post-build");
+				RunActionList(desc, target, actions, run_type, "post-build");
 			}
 		}
 	}
