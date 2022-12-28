@@ -58,3 +58,21 @@ cxxenv.gcc:
     cxx-standard: 2a
 
 cxx-header-projection: false
+
+# Thanks K2Re8 for the right flags!
+# cxxenv.msvc:
+#     config.release:
+#         cxx-build-flags:
+#             compiler:
+#             - "/Oi /GL /Ot /O2 /GS- /MD"
+# 
+#     config.debug:
+#         cxx-build-flags:
+#             compiler:
+#                 - "/MTd /Zi"
+# 
+#     cxx-build-flags:
+#         compiler:
+#             - "/W3"
+#         linker:
+#             - "/DEBUG"

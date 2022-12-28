@@ -36,7 +36,7 @@ namespace re
 							if (supported)
 								break;
 
-							supported |= (supported_category == value);
+							supported |= (boost::algorithm::starts_with(value, supported_category));
 
 							if (supported_category.front() == '!')
 							{
