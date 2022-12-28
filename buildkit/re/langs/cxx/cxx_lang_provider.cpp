@@ -2,7 +2,9 @@
 
 #include <re/target.h>
 #include <re/buildenv.h>
+
 #include <re/target_cfg_utils.h>
+#include <re/yaml_merge.h>
 
 #include <fmt/format.h>
 
