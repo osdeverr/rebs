@@ -64,7 +64,7 @@ namespace re
         {
             auto name = entry.path().filename().u8string();
 
-            if(name != "re.yml" && boost::algorithm::ends_with(name, ".re.yml"))
+            if(boost::algorithm::ends_with(name, ".re.yml"))
             {
                 std::ifstream merge_f{ entry.path() };
                 auto merge_c = YAML::Load(merge_f);
