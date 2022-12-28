@@ -6,6 +6,8 @@
 #include <boost/algorithm/string.hpp>
 #include <regex>
 
+#include <re/yaml_merge.h>
+
 namespace re
 {
     inline static constexpr auto kCaseInsensitiveComparePred = [](char lhs, char rhs)
@@ -55,6 +57,21 @@ namespace re
 
         std::ifstream f{ config_path };
         config = YAML::Load(f);
+
+        // Load all config partitions
+
+        for (auto &entry : fs::directory_iterator{path})
+        {
+            auto name = entry.path().filename().u8string();
+
+            if(name != "re.yml" && boost::algorithm::ends_with(name, ".re.yml"))
+            {
+                std::ifstream merge_f{ entry.path() };
+                auto merge_c = YAML::Load(merge_f);
+
+                MergeYamlNode(config, merge_c);
+            }
+        }
 
         name = GetCfgEntry<std::string>("name").value_or(path.filename().u8string());
 
