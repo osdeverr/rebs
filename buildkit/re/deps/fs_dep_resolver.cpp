@@ -48,4 +48,14 @@ namespace re
 		mLoader->RegisterLocalTarget(result.get());
 		return result.get();
 	}
+
+	bool FsDepResolver::SaveDependencyToPath(const TargetDependency& dep, const fs::path& path)
+	{
+        fs::create_directories(path);
+
+		fs::path dep_path = dep.name;
+		fs::copy(dep_path, path, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+
+		return true;
+	}
 }

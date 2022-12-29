@@ -69,7 +69,10 @@ namespace re
 		auto& cxx = mLangs.emplace_back(std::make_unique<CxxLangProvider>(mDataPath / "data" / "environments" / "cxx", &mVars));
 		mEnv->AddLangProvider("cpp", cxx.get());
 
-		auto vcpkg_resolver = std::make_unique<VcpkgDepResolver>(dynamic_data_path / "deps" / "vcpkg", this);
+		auto vcpkg_deps_path = dynamic_data_path / "deps" / "vcpkg";
+		fs::create_directories(vcpkg_deps_path);
+
+		auto vcpkg_resolver = std::make_unique<VcpkgDepResolver>(vcpkg_deps_path, this);
 		auto git_resolver = std::make_unique<GitDepResolver>(mEnv.get(), this);
 		auto github_resolver = std::make_unique<GithubDepResolver>(git_resolver.get());
 
@@ -90,6 +93,12 @@ namespace re
 		mDepResolvers.emplace_back(std::move(git_resolver));
 		mDepResolvers.emplace_back(std::move(github_resolver));
 		mDepResolvers.emplace_back(std::move(ac_resolver));
+
+		auto global_deps_path = dynamic_data_path / "deps" / "installed";
+		fs::create_directories(global_deps_path);
+
+		mGlobalDepResolver = std::make_unique<GlobalDepResolver>(global_deps_path, mEnv.get(), this);
+		mEnv->AddDepResolver("global", mGlobalDepResolver.get());
 
 		constexpr auto kHeaderProjRoot = ".re-cache/header-projection";
 

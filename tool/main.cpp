@@ -249,6 +249,54 @@ int main(int argc, const char** argv)
 
             return 0;
         }
+        else if (args[1] == "pkg")
+        {
+            context.UpdateOutputSettings();
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
+            auto resolver = context.GetGlobalDepResolver();
+
+            if (args[2] == "install")
+            {
+                auto dep = re::ParseTargetDependency(args[3].data());
+
+                if(args.size() > 5 && args[4] == "as")
+                    resolver->InstallGlobalPackage(dep, re::ParseTargetDependency(args[5].data()));
+                else
+                    resolver->InstallGlobalPackage(dep, dep);
+            }
+            else if (args[2] == "select")
+            {
+                auto dep = re::ParseTargetDependency(args[3].data());
+                resolver->SelectGlobalPackageTag(dep, args[4].data());
+            }
+            else if (args[2] == "info" || args[2] == "list" || args[2] == "versions")
+            {
+                auto dep = re::ParseTargetDependency(args[3].data());
+
+                auto info = resolver->GetGlobalPackageInfo(dep);
+
+                context.Info(
+                    fg(fmt::color::cadet_blue) | fmt::emphasis::bold,
+                    "\n Installed versions for {}:\n",
+                    dep.ToString()
+                );
+
+                for (auto& [tag, selected] : info)
+                {
+                    context.Info(
+                        fg(selected ? fmt::color::azure : fmt::color::cadet_blue),
+                        "   {} {} {}\n",
+                        selected ? "*" : "-", tag, selected ? "(selected)" : ""
+                    );
+                }
+                
+                context.Info(
+                    {},
+                    "\n"
+                );
+            }
+        }
         else
         {
             auto path = args[1] == "b" || args[1].front() == '-' ? "." : args[1];
