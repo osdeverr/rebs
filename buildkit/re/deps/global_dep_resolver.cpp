@@ -81,7 +81,10 @@ namespace re
 
     void GlobalDepResolver::InstallGlobalPackage(const TargetDependency& dep, const TargetDependency& as)
     {
-        std::string tag = as.version.empty() ? "default" : as.version;
+        std::string tag = as.version.empty() ? dep.version : as.version;
+
+        if (tag.empty())
+            tag = "default";
 
         auto resolver = mLoader->GetDepResolver(dep.ns);
 
