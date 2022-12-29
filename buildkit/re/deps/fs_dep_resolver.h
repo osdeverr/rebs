@@ -15,6 +15,8 @@ namespace re
 
         Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep);
 
+        virtual bool SaveDependencyToPath(const TargetDependency& dep, const fs::path& path);
+
     private:
         ITargetLoader* mLoader;
         std::unordered_map<std::string, std::unique_ptr<Target>> mTargetCache;

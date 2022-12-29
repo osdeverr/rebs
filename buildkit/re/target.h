@@ -56,6 +56,8 @@ namespace re
         std::string ToString() const;
     };
 
+    TargetDependency ParseTargetDependency(const std::string& str, const Target* pTarget = nullptr);
+
     inline std::string ModulePathCombine(const std::string& a, const std::string& b)
     {
         if (a.empty())
@@ -259,7 +261,7 @@ namespace re
         return fs::exists(path / Target::kTargetConfigFilename);
     }
 
-    std::string ResolveTargetParentRef(std::string name, Target* target);
+    std::string ResolveTargetParentRef(std::string name, const Target* target);
 
     inline static std::string GetEscapedModulePath(const Target& target)
     {

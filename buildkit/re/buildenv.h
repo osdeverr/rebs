@@ -59,6 +59,8 @@ namespace re
 
 		void AddTargetFeature(std::string_view name, ITargetFeature *feature);
 		void AddTargetFeature(ITargetFeature *feature);
+		
+		IDepResolver* GetDepResolver(const std::string& name);
 
 	private:
 		std::unique_ptr<Target> mTheCoreProjectTarget;

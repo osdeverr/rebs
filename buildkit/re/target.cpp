@@ -125,45 +125,6 @@ namespace re
         // Use the relevant config instance.
         auto deps = resolved_config ? resolved_config[used_key.data()] : config[used_key.data()];
 
-        auto dep_from_str = [this](const std::string& str)
-        {
-            std::regex dep_regex{ R"(\s*(?:(.+?:)?)\s*(?:([^@\s]+))\s*(?:(@[^\s]*)?)(?:\s*)?(?:(?:\[)(.+)(?:\]))?)" };
-            std::smatch match;
-
-            if (!std::regex_match(str, match, dep_regex))
-                RE_THROW TargetDependencyException(this, "dependency {} does not meet the format requirements", str);
-
-            TargetDependency dep;
-
-            dep.raw = str;
-            dep.ns = match[1].str();
-            dep.name = match[2].str();
-            dep.version = match[3].str();
-
-            if (match[4].matched)
-            {
-                auto raw = match[4].str();
-
-                boost::algorithm::erase_all(raw, " ");
-                boost::split(dep.filters, raw, boost::is_any_of(","));
-            }
-
-            // Remove the trailing ':' character
-            if (!dep.ns.empty())
-                dep.ns.pop_back();
-
-            // Remove the leading '@' character
-            if (!dep.version.empty())
-                dep.version = dep.version.substr(1);
-
-            if (dep.name.empty())
-                RE_THROW TargetDependencyException(this, "dependency {} does not have a name specified", str);
-
-            dep.name = ResolveTargetParentRef(dep.name, this);
-
-            return dep;
-        };
-
         if (deps)
         {
             for (const auto &dep : deps)
@@ -179,7 +140,7 @@ namespace re
                 if (exists)
                     continue;
 
-                dependencies.emplace_back(dep_from_str(str));
+                dependencies.emplace_back(ParseTargetDependency(str, this));
             }
         }
 
@@ -196,7 +157,7 @@ namespace re
                     auto& mapping = used_mapping[key];
 
                     if (!mapping)
-                        mapping = std::make_unique<TargetDependency>(dep_from_str(build_var_scope->Resolve(kv.second.Scalar())));
+                        mapping = std::make_unique<TargetDependency>(ParseTargetDependency(build_var_scope->Resolve(kv.second.Scalar()), this));
                 }
             }
         }
@@ -377,6 +338,47 @@ namespace re
 
         return nullptr;
     }
+    
+    const std::regex kTargetDepRegex{ R"(\s*(?:(.+?:)?)\s*(?:([^@\s]+))\s*(?:(@[^\s]*)?)(?:\s*)?(?:(?:\[)(.+)(?:\]))?)" };
+
+    TargetDependency ParseTargetDependency(const std::string& str, const Target* pTarget)
+    {
+        std::smatch match;
+
+        if (!std::regex_match(str, match, kTargetDepRegex))
+            RE_THROW TargetDependencyException(pTarget, "dependency {} does not meet the format requirements", str);
+
+        TargetDependency dep;
+
+        dep.raw = str;
+        dep.ns = match[1].str();
+        dep.name = match[2].str();
+        dep.version = match[3].str();
+
+        if (match[4].matched)
+        {
+            auto raw = match[4].str();
+
+            boost::algorithm::erase_all(raw, " ");
+            boost::split(dep.filters, raw, boost::is_any_of(","));
+        }
+
+        // Remove the trailing ':' character
+        if (!dep.ns.empty())
+            dep.ns.pop_back();
+
+        // Remove the leading '@' character
+        if (!dep.version.empty())
+            dep.version = dep.version.substr(1);
+
+        if (dep.name.empty())
+            RE_THROW TargetDependencyException(pTarget, "dependency {} does not have a name specified", str);
+
+        if (pTarget)
+            dep.name = ResolveTargetParentRef(dep.name, pTarget);
+
+        return dep;
+    }
 
     std::string TargetDependency::ToString() const
     {
@@ -388,10 +390,10 @@ namespace re
     {
     }
 
-    std::string ResolveTargetParentRef(std::string name, Target* target)
+    std::string ResolveTargetParentRef(std::string name, const Target* target)
     {
         std::string prefix = "";
-        Target* parent = nullptr;
+        const Target* parent = nullptr;
 
         while (!name.empty() && name.front() == '.')
         {

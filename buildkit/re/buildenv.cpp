@@ -703,4 +703,9 @@ namespace re
 			}
 		}
 	}
+	
+	IDepResolver* BuildEnv::GetDepResolver(const std::string& name)
+	{
+		return mDepResolvers[name];
+	}
 }

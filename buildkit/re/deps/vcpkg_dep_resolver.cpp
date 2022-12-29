@@ -154,7 +154,7 @@ namespace re
         {
             YAML::Node entry{ YAML::NodeType::Map };
 
-            entry["copy-to-deps"]["from"] = "./bin";
+            entry["copy-to-deps"]["from"] = (path / "bin").u8string();
             entry["copy-to-deps"]["to"] = ".";
 
             config["actions"].push_back(entry);
@@ -239,4 +239,25 @@ namespace re
         auto& result = (mTargetCache[cache_path] = std::move(package_target));
         return result.get();
 	}
+    
+	bool VcpkgDepResolver::SaveDependencyToPath(const TargetDependency& dep, const fs::path& path)
+    {
+        YAML::Node config;
+        
+        config["type"] = "project";
+        config["name"] = dep.name;
+
+        config["deps"] = YAML::Node{YAML::NodeType::Sequence};
+        config["deps"].push_back(dep.ToString());
+
+        YAML::Emitter emitter;
+        emitter << config;
+
+        fs::create_directories(path);
+
+        std::ofstream of{path / "re.yml"};
+        of << emitter.c_str();
+
+        return true;
+    }
 }

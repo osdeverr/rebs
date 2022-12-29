@@ -15,6 +15,8 @@ namespace re
         {}
 
         Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep);
+        
+        virtual bool SaveDependencyToPath(const TargetDependency& dep, const fs::path& path);
 
     private:
         fs::path mVcpkgPath;

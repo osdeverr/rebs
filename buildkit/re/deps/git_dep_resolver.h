@@ -18,6 +18,8 @@ namespace re
         Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep);
         Target* ResolveGitDependency(const Target& target, const TargetDependency& dep, std::string_view url, std::string_view branch);
         void DownloadGitDependency(std::string_view url, std::string_view branch, const fs::path& to);
+        
+        virtual bool SaveDependencyToPath(const TargetDependency& dep, const fs::path& path);
 
     private:
         ITargetLoader* mLoader;

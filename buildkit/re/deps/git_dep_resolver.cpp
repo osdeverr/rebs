@@ -135,4 +135,11 @@ namespace re
 			true
 		);
 	}
+	
+	bool GitDepResolver::SaveDependencyToPath(const TargetDependency& dep, const fs::path& path)
+	{
+        fs::create_directories(path);
+		DownloadGitDependency(dep.name, dep.version, path);
+		return true;
+	}
 }
