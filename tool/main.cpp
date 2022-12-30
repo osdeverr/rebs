@@ -28,6 +28,7 @@ int main(int argc, const char** argv)
 
         std::unordered_map<std::string, std::string> target_cfg_overrides;
 
+        // TODO: Add error handling to variable parsing
         for(auto it = args.begin(); it != args.end();)
         {
             constexpr char kDefaultPrefix[] = "--";
@@ -92,6 +93,9 @@ int main(int argc, const char** argv)
         }
         else if (args[1] == "new")
         {
+            if (args.size() < 4)            
+                throw re::Exception("re new: invalid command line\n\tusage: re new <type> <name> [path | .]");
+
             auto& type = args[2];
             auto& name = args[3];
 
@@ -115,7 +119,10 @@ int main(int argc, const char** argv)
         }
         else if (args[1] == "do")
         {
-            auto path = args.size() > 3 && args[2].front() != '.' ? args[2] : ".";
+            if (args.size() < 3)            
+                throw re::Exception("re do: invalid command line\n\tusage: re do <action-category> [path | .]");
+
+            auto path = args.size() > 3 ? args[3] : ".";
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
 
@@ -128,7 +135,7 @@ int main(int argc, const char** argv)
 
             context.BuildTarget(desc);
 
-            auto action_type = args[args.size() > 3 ? 3 : 2];
+            auto action_type = args[2];
 
             auto style = fmt::emphasis::bold | fg(fmt::color::aquamarine);
             fmt::print(style, " - Running custom actions for '{}'\n\n", action_type);
@@ -168,64 +175,6 @@ int main(int argc, const char** argv)
 
             return 0;
         }
-        else if (args[1] == "build-symlinks")
-        {
-            auto path = args.size() > 3 && args[2].front() != '.' ? args[2] : ".";
-            context.LoadCachedParams(path);
-            context.UpdateOutputSettings();
-
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
-
-            auto &target = context.LoadTarget(path);
-            apply_cfg_overrides(&target);
-
-            context.GenerateBuildDescForTarget(target);
-
-            auto sl_root = ".re-cache/symlinks";
-
-            if(re::fs::exists(sl_root))
-            re::fs::remove_all(sl_root);
-
-            auto style = fmt::emphasis::bold | fg(fmt::color::aquamarine);
-            fmt::print(style, " - [Test] Building symlink structure in {}\n\n", sl_root);
-
-            for (auto dep : context.GetBuildEnv()->GetSingleTargetDepSet(&target))
-            {
-                if (!dep->GetCfgEntry<bool>("cxx-header-projection", re::CfgEntryKind::Recursive).value_or(false))
-                    continue;
-
-                auto full_module = dep->module;
-
-                auto leaf_name = dep->name;
-                auto leaf_path = dep->path;
-
-                re::fs::path path = "";
-
-                while(dep = dep->parent)
-                    path = dep->name / path;                
-
-                path = re::fs::path{sl_root} / full_module / path;
-
-                re::fs::create_directories(path);
-
-                std::error_code ec;
-
-                auto& from = leaf_path;
-                auto to = path / leaf_name;
-
-                fmt::print(style, "  {} => {}\n", from.u8string(), to.u8string());
-
-                //if (!::CreateSymbolicLinkW(to.wstring().c_str(), from.wstring().c_str(), SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE))
-                //    fmt::print("Error: {}\n", ::GetLastError());
-
-                re::fs::create_directory_symlink(from, to, ec);
-
-                if (ec)
-                    fmt::print("Error: {} {}\n", ec.message(), ec.value());
-            }
-
-            return 0;
-        }
         else if (args[1] == "meta")
         {
             auto path = args.size() > 2 && args[2].front() != '.' ? args[2] : ".";
@@ -251,27 +200,48 @@ int main(int argc, const char** argv)
         }
         else if (args[1] == "pkg")
         {
+            if (args.size() < 3)            
+                throw re::Exception("re pkg: invalid command line\n\tusage: re pkg <operation> [args]");
+
             context.UpdateOutputSettings();
             context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             auto resolver = context.GetGlobalDepResolver();
 
-            if (args[2] == "install")
+            auto operation = args[2];
+
+            if (operation == "install")
             {
+                if (args.size() < 4)            
+                    throw re::Exception("re pkg install: invalid command line\n\tusage: re pkg install <dependency> [as <alias>]");
+
                 auto dep = re::ParseTargetDependency(args[3].data());
 
-                if(args.size() > 5 && args[4] == "as")
+                if(args.size() > 4 && args[4] == "as")
+                {
+                    if (args.size() < 6)            
+                        throw re::Exception("re pkg install as: invalid command line\n\tusage: re pkg install <dependency> as <alias>");
+
                     resolver->InstallGlobalPackage(dep, re::ParseTargetDependency(args[5].data()));
+                }
                 else
+                {
                     resolver->InstallGlobalPackage(dep, dep);
+                }
             }
-            else if (args[2] == "select")
+            else if (operation == "select")
             {
+                if (args.size() < 5)            
+                    throw re::Exception("re pkg select: invalid command line\n\tusage: re pkg select <package> <version>");
+
                 auto dep = re::ParseTargetDependency(args[3].data());
                 resolver->SelectGlobalPackageTag(dep, args[4].data());
             }
-            else if (args[2] == "info" || args[2] == "list" || args[2] == "versions")
+            else if (operation == "info")
             {
+                if (args.size() < 4)            
+                    throw re::Exception("re pkg info: invalid command line\n\tusage: re pkg info <package>");
+
                 auto dep = re::ParseTargetDependency(args[3].data());
 
                 auto info = resolver->GetGlobalPackageInfo(dep);
@@ -296,6 +266,8 @@ int main(int argc, const char** argv)
                     "\n"
                 );
             }
+            else      
+                throw re::Exception("re pkg: invalid operation '{}'\n\tsupported operations: [install, select, info]", operation);
         }
         else
         {
@@ -407,7 +379,8 @@ int main(int argc, const char** argv)
         }
         */
 
-        context.Error(fmt::emphasis::bold | bg(fmt::color::black) | fg(fmt::color::light_coral), "error: {}\n\n", e.what());
+        const auto kErrorStyle = fmt::emphasis::bold | bg(fmt::color::black) | fg(fmt::color::light_coral);
+        context.Error(kErrorStyle, "error: {}\n\n", e.what());
 
 /*
         fmt::print(
