@@ -21,6 +21,7 @@ namespace re
         void SelectGlobalPackageTag(const TargetDependency& dep, const std::string& new_tag);
         std::vector<std::pair<std::string, bool>> GetGlobalPackageInfo(const TargetDependency& dep);
         std::unordered_map<std::string, std::string> GetGlobalPackageList();
+        void RemoveGlobalPackage(const TargetDependency& dep);
 
     private:
         fs::path mPackagesPath;
