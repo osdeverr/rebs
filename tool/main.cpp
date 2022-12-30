@@ -266,6 +266,43 @@ int main(int argc, const char** argv)
                     "\n"
                 );
             }
+            else if (operation == "list")
+            {                
+                context.Info(
+                    fg(fmt::color::cadet_blue) | fmt::emphasis::bold,
+                    "\n All installed packages:\n\n"
+                );
+
+                for (auto& [package, version] : resolver->GetGlobalPackageList())
+                {
+                    context.Info(
+                        {},
+                        "   "
+                    );
+                    
+                    context.Info(
+                        fg(fmt::color::yellow),
+                        "{}",
+                        package
+                    );
+                    
+                    context.Info(
+                        {},
+                        " - "
+                    );
+                    
+                    context.Info(
+                        fg(fmt::color::yellow),
+                        "{}\n",
+                        version
+                    );
+                }
+                
+                context.Info(
+                    fg(fmt::color::cadet_blue) | fmt::emphasis::bold,
+                    "\n Use 're pkg info <package>' to get more extensive info\n\n"
+                );
+            }
             else      
                 throw re::Exception("re pkg: invalid operation '{}'\n\tsupported operations: [install, select, info]", operation);
         }
@@ -380,7 +417,10 @@ int main(int argc, const char** argv)
         */
 
         const auto kErrorStyle = fmt::emphasis::bold | bg(fmt::color::black) | fg(fmt::color::light_coral);
-        context.Error(kErrorStyle, "error: {}\n\n", e.what());
+
+        context.Error({}, "\n");
+        context.Error(kErrorStyle, "error: {}\n(type: {})", e.what(), typeid(e).name());
+        context.Error({}, "\n\n");
 
 /*
         fmt::print(

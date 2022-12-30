@@ -174,8 +174,37 @@ namespace re
         return result;
     }
     
-    std::vector<std::pair<std::string, std::string>> GlobalDepResolver::GetGlobalPackageList()
+    std::unordered_map<std::string, std::string> GlobalDepResolver::GetGlobalPackageList()
     {
-        return {};
+        std::unordered_map<std::string, std::string> result;
+        PopulateGlobalPackageList({}, result);
+        return result;
+    }
+
+    void GlobalDepResolver::PopulateGlobalPackageList(const fs::path& subpath, std::unordered_map<std::string, std::string>& out)
+    {
+        for (auto& entry : fs::directory_iterator{mPackagesPath / subpath})
+        {
+            if (entry.is_directory())
+            {
+                auto default_tag_path = entry.path() / "default-tag.txt";
+                auto rel_path = subpath / entry.path().filename();
+
+                if(fs::exists(default_tag_path))
+                {
+                    std::string default_tag;
+
+                    // Fetch the default version from the config file
+                    std::ifstream file{default_tag_path};
+                    file >> default_tag;
+
+                    out[rel_path.generic_u8string()] = default_tag;
+                }
+                else
+                {
+                    PopulateGlobalPackageList(rel_path, out);
+                }
+            }
+        }
     }
 }

@@ -20,7 +20,7 @@ namespace re
         void InstallGlobalPackage(const TargetDependency& dep, const TargetDependency& as);
         void SelectGlobalPackageTag(const TargetDependency& dep, const std::string& new_tag);
         std::vector<std::pair<std::string, bool>> GetGlobalPackageInfo(const TargetDependency& dep);
-        std::vector<std::pair<std::string, std::string>> GetGlobalPackageList();
+        std::unordered_map<std::string, std::string> GetGlobalPackageList();
 
     private:
         fs::path mPackagesPath;
@@ -28,5 +28,7 @@ namespace re
         IUserOutput* mOut;
 
         std::unordered_map<std::string, std::unique_ptr<Target>> mTargetCache;
+        
+        void PopulateGlobalPackageList(const fs::path& subpath, std::unordered_map<std::string, std::string>& out);
     };
 }
