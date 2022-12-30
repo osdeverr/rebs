@@ -19,6 +19,7 @@ namespace re
             // Fetch the default version from the config file
             std::ifstream file{package_path / "default-tag.txt"};
             file >> tag;
+            file.close();
         }
 
         auto target_path = package_path / tag;
@@ -121,8 +122,10 @@ namespace re
 			dep.ToString(), result_dep
 		);
         
-        std::ofstream file{mPackagesPath / as.name / "default-tag.txt"};
-        file << tag;
+        {
+            std::ofstream file{mPackagesPath / as.name / "default-tag.txt"};
+            file << tag;
+        }
     }
     
     void GlobalDepResolver::SelectGlobalPackageTag(const TargetDependency& dep, const std::string& new_tag)
@@ -139,6 +142,7 @@ namespace re
             
         std::ofstream file{mPackagesPath / dep.name / "default-tag.txt"};
         file << new_tag;
+        file.close();
 
 		mOut->Info(
 			fmt::emphasis::bold | fg(fmt::color::yellow),
@@ -161,6 +165,7 @@ namespace re
         // Fetch the default version from the config file
         std::ifstream file{package_path / "default-tag.txt"};
         file >> default_tag;
+        file.close();
 
         for(auto& entry : fs::directory_iterator{package_path})
         {
@@ -205,6 +210,53 @@ namespace re
                     PopulateGlobalPackageList(rel_path, out);
                 }
             }
+        }
+    }
+
+    void GlobalDepResolver::RemoveGlobalPackage(const TargetDependency& dep)
+    {
+        std::string tag = dep.version;
+
+        auto package_path = mPackagesPath / dep.name;
+        
+        if (!fs::exists(package_path))
+            RE_THROW TargetDependencyException(nullptr, "Missing global package '{}'", dep.name);
+
+        std::string selected_tag;
+
+        {
+            // Fetch the default version from the config file
+            std::ifstream file{package_path / "default-tag.txt"};
+            file >> selected_tag;
+            file.close();
+        }
+
+        if (tag.empty() || tag == "all")
+        {
+            fs::remove_all(package_path);
+        }
+        else
+        {
+            auto target_path = package_path / tag;
+
+            if (!fs::exists(target_path))
+                RE_THROW TargetDependencyException(nullptr, "Missing version '{}' for global package '{}'", tag, dep.name);
+            
+            fs::remove_all(target_path);
+        }
+
+        mOut->Info(fg(fmt::color::sea_green), " ! Succesfully removed global dependency {}\n\n", dep.ToString());
+        
+        if (tag == selected_tag)
+        {
+            std::ofstream file{package_path / "default-tag.txt"};
+            file << "undefined";
+            mOut->Warn(fg(fmt::color::dark_orange), "\n"
+                                                    "WARNING: You have removed the currently selected version for this package.\n"
+                                                    "         The package's selected version is now undefined.\n"
+                                                    "         You will have to run `re select {} <version>` before using this package again.\n\n",
+                       dep.name);
+            file.close();
         }
     }
 }

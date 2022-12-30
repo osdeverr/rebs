@@ -75,4 +75,4 @@ cxxenv.msvc:
         compiler:
             - "/W3"
         linker:
-            - "/DEBUG /LTCG"
+            - "/LTCG"

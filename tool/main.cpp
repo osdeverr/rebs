@@ -10,6 +10,7 @@
 #include <fmt/ostream.h>
 
 #include <fstream>
+#include <iostream>
 
 #include <boost/algorithm/string.hpp>
 
@@ -303,6 +304,33 @@ int main(int argc, const char** argv)
                     "\n Use 're pkg info <package>' to get more extensive info\n\n"
                 );
             }
+            else if (operation == "remove")
+            {
+                if (args.size() < 4)            
+                    throw re::Exception("re pkg remove: invalid command line\n\tusage: re pkg remove <package>[@<version>]");
+                    
+                auto dep = re::ParseTargetDependency(args[3].data());
+
+                // Run this BEFORE the scary confirmation so that if something is wrong, it gets shown
+                resolver->GetGlobalPackageInfo(dep);
+
+                context.Warn(
+                    fg(fmt::color::orange_red) | fmt::emphasis::bold,
+                    "\nCONFIRMATION: You are about to PERMANENTLY REMOVE the package '{}' from this Re installation.\n"
+                    "              This action CANNOT BE UNDONE after you confirm. YOU HAVE BEEN WARNED.\n"
+                    "\n"
+                    "Do you wish to PERMANENTLY REMOVE '{}'? (Y/N): ",
+                    args[3], args[3]
+                );
+
+                if (std::cin.get() != 'y')
+                {
+                    context.Info({}, "\n");
+                    return 0;
+                }
+
+                resolver->RemoveGlobalPackage(dep);
+            }
             else      
                 throw re::Exception("re pkg: invalid operation '{}'\n\tsupported operations: [install, select, info]", operation);
         }
@@ -416,7 +444,7 @@ int main(int argc, const char** argv)
         }
         */
 
-        const auto kErrorStyle = fmt::emphasis::bold | bg(fmt::color::black) | fg(fmt::color::light_coral);
+        const auto kErrorStyle = fmt::emphasis::bold | bg(fmt::color::orange_red) | fg(fmt::color::white);
 
         context.Error({}, "\n");
         context.Error(kErrorStyle, "error: {}\n(type: {})", e.what(), typeid(e).name());
