@@ -318,21 +318,21 @@ namespace re
 
 			for (const auto &dep : config["cxx-global-link-deps"])
 				global_link_deps.push_back(fmt::format("-l{}", vars.Resolve(dep.as<std::string>())));
+		}
+		
+		if (const auto& extra = config["cxx-build-flags"])
+		{
+			if(extra["compiler"] && extra["compiler"].IsScalar())
+				extra_flags.push_back(vars.Resolve(extra["compiler"].Scalar()));
+			else
+				for (const auto& flag : extra["compiler"])
+					extra_flags.push_back(vars.Resolve(flag.Scalar()));
 
-			if (const auto& extra = config["cxx-build-flags"])
-			{
-				if(extra["compiler"] && extra["compiler"].IsScalar())
-					extra_flags.push_back(vars.Resolve(extra["compiler"].Scalar()));
-				else
-					for (const auto& flag : extra["compiler"])
-						extra_flags.push_back(vars.Resolve(flag.Scalar()));
-
-				if (extra["linker"] && extra["linker"].IsScalar())
-					extra_link_flags.push_back(vars.Resolve(extra["linker"].Scalar()));
-				else
-					for (const auto& flag : extra["linker"])
-						extra_link_flags.push_back(vars.Resolve(flag.Scalar()));
-			}
+			if (extra["linker"] && extra["linker"].IsScalar())
+				extra_link_flags.push_back(vars.Resolve(extra["linker"].Scalar()));
+			else
+				for (const auto& flag : extra["linker"])
+					extra_link_flags.push_back(vars.Resolve(flag.Scalar()));
 		}
 
 		for (auto& dir : include_dirs)
