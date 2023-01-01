@@ -154,6 +154,7 @@ namespace re
         std::string module;
 
         Target* parent = nullptr;
+        Target* root = nullptr;
 
         std::vector<TargetDependency> dependencies;
         std::vector<SourceFile> sources;
