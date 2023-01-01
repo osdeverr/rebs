@@ -1,0 +1,7 @@
+type: executable
+name: actions-showcase
+
+actions:
+  install: # Action type
+    on: install # Action category that triggers the action (can be an array)
+    to: ${install-path} # Resolves to the `install-path` variable specified somewhere.
