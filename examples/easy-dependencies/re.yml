@@ -1,0 +1,11 @@
+type: executable
+name: easy-dependencies
+
+#
+# The dependencies will automatically get downloaded before the target gets built.
+# vcpkg dependencies are installed globally, so you only have to download them once.
+# Re will automatically resolve all include and library paths related to your dependencies.
+#
+deps:
+  - vcpkg:fmt
+  - vcpkg:nlohmann-json
