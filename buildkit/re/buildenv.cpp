@@ -105,6 +105,7 @@ namespace re
 	std::unique_ptr<Target> BuildEnv::LoadFreeTarget(const fs::path &path)
 	{
 		auto target = std::make_unique<Target>(path, mTheCoreProjectTarget.get());
+		target->root = target.get();
 
 		// mTargetMap.clear();
 		// PopulateTargetMap(target.get());
@@ -617,7 +618,11 @@ namespace re
 				auto [scope, context] = target.GetBuildVarScope();
 
 				if (scope.ResolveLocal("inherit-caller-in-deps") == "true")
-					result->parent = const_cast<Target*>(&target); // EVIL HACK
+				{
+					// EVIL HACK
+					result->root = target.root;
+					result->parent = result->root;
+				}
 
 				if (!result->resolved_config)
 				{

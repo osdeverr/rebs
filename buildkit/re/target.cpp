@@ -54,6 +54,8 @@ namespace re
         path = fs::canonical(dir_path);
         parent = pParent;
 
+        root = parent ? parent->root : this;
+
         RE_TRACE(" ***** LOADING TARGET: path = {}\n", path.generic_u8string());
 
         config_path = path / kTargetConfigFilename;
@@ -92,7 +94,9 @@ namespace re
     Target::Target(const fs::path& virtual_path, std::string_view name, TargetType type, const TargetConfig &config, Target *pParent)
     {
         path = fs::canonical(virtual_path);
-        parent = pParent;
+
+        parent = pParent;        
+        root = parent ? parent->root : this;
 
         this->type = type;
         this->config = config;
@@ -168,6 +172,8 @@ namespace re
 
     void Target::LoadConditionalDependencies()
     {
+        RE_TRACE("Target::LoadConditionalDependencies - {}: My root is {}!\n", module, root->module);
+
         LoadDependencies("deps");
         LoadDependencies("cond-deps");
 
