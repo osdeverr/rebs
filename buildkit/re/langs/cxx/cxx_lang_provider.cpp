@@ -322,17 +322,39 @@ namespace re
 		
 		if (const auto& extra = config["cxx-build-flags"])
 		{
-			if(extra["compiler"] && extra["compiler"].IsScalar())
-				extra_flags.push_back(vars.Resolve(extra["compiler"].Scalar()));
-			else
-				for (const auto& flag : extra["compiler"])
-					extra_flags.push_back(vars.Resolve(flag.Scalar()));
+			constexpr auto kCompiler = "compiler";
+			constexpr auto kLinker = "linker";
+			constexpr auto kLinkerNoStatic = "linker.nostatic";
 
-			if (extra["linker"] && extra["linker"].IsScalar())
-				extra_link_flags.push_back(vars.Resolve(extra["linker"].Scalar()));
-			else
-				for (const auto& flag : extra["linker"])
-					extra_link_flags.push_back(vars.Resolve(flag.Scalar()));
+			if(auto flags = extra[kCompiler])
+			{
+				if(flags.IsScalar())
+					extra_flags.push_back(vars.Resolve(flags.Scalar()));
+				else
+					for (const auto& flag : flags)
+						extra_flags.push_back(vars.Resolve(flag.Scalar()));
+			}
+
+			if(auto flags = extra[kLinker])
+			{
+				if(flags.IsScalar())
+					extra_link_flags.push_back(vars.Resolve(flags.Scalar()));
+				else
+					for (const auto& flag : flags)
+						extra_link_flags.push_back(vars.Resolve(flag.Scalar()));
+			}
+
+			if(target.type != TargetType::StaticLibrary)
+			{				
+				if(auto flags = extra[kLinkerNoStatic])
+				{
+					if(flags.IsScalar())
+						extra_link_flags.push_back(vars.Resolve(flags.Scalar()));
+					else
+						for (const auto& flag : flags)
+							extra_link_flags.push_back(vars.Resolve(flag.Scalar()));
+				}
+			}
 		}
 
 		for (auto& dir : include_dirs)
