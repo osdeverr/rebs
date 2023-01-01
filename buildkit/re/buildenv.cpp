@@ -7,6 +7,7 @@
 #include <re/process_util.h>
 #include <re/debug.h>
 #include <re/target_feature.h>
+#include <re/target_cfg_utils.h>
 
 #include <boost/algorithm/string.hpp>
 
@@ -45,7 +46,7 @@ namespace re
 				RE_TRACE("     failed\n");
 
 				if (throw_on_missing)
-					RE_THROW TargetDependencyException(pTarget, "unresolved dependency {}", dep.name);
+					RE_THROW TargetDependencyException(pTarget, "unresolved dependency {}", dep.ToString());
 			}
 			else
 			{
@@ -508,6 +509,9 @@ namespace re
 			{
 				for (auto &filter : dep.filters)
 				{
+					if (filter.front() == '/')
+						continue;
+
 					std::vector<std::string> parts;
 					boost::algorithm::split(parts, filter, boost::is_any_of("."));
 
@@ -562,6 +566,9 @@ namespace re
 
 						for (auto &filter : dep.filters)
 						{
+							if (filter.front() == '/')
+								continue;
+
 							if (std::find(used->filters.begin(), used->filters.end(), filter) == used->filters.end())
 								RE_THROW TargetDependencyException(
 									&target,
@@ -607,7 +614,27 @@ namespace re
 			{
 				auto result = resolver->ResolveTargetDependency(target, dep);
 
-				if (dep.filters.empty())
+				auto [scope, context] = target.GetBuildVarScope();
+
+				if (scope.ResolveLocal("inherit-caller-in-deps") == "true")
+					result->parent = const_cast<Target*>(&target); // EVIL HACK
+
+				if (!result->resolved_config)
+				{
+					auto re_arch = scope.ResolveLocal("arch");
+					auto re_platform = scope.ResolveLocal("platform");
+					auto re_config = scope.ResolveLocal("configuration");
+
+					result->resolved_config = GetResolvedTargetCfg(*result, {
+						{ "arch", re_arch },
+						{ "platform", re_platform },
+						{ "config", re_config }
+					});
+
+					result->LoadConditionalDependencies();
+				}
+
+				if (dep.filters.empty() || dep.filters[0].front() == '/')
 				{
 					out.emplace_back(result);
 				}

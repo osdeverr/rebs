@@ -59,6 +59,8 @@ cxxenv.gcc:
 
 cxx-header-projection: false
 
+inherit-caller-in-deps: false
+
 # Thanks K2Re8 for the right flags!
 cxxenv.msvc:
     config.release:
