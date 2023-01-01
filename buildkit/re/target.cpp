@@ -276,6 +276,8 @@ namespace re
 
         if(key == "path")
             return path.u8string();
+        else if(key == "module")
+            return module;
 
         if (config["vars"] && config["vars"][key].IsDefined())
         {

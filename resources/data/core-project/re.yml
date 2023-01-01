@@ -73,6 +73,6 @@ cxxenv.msvc:
 
     cxx-build-flags:
         compiler:
-            - "/W3"
+            - "/W3 /Fdobj\\${module}\\ /FS"
         linker:
             - "/LTCG"
