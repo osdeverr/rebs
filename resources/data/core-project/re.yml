@@ -64,7 +64,9 @@ cxxenv.msvc:
     config.release:
         cxx-build-flags:
             compiler:
-            - "/Oi /GL /Ot /O2 /GS- /MD"
+                - "/Oi /GL /Ot /O2 /GS- /MD"
+            linker:
+                - "/LTCG"
 
     config.debug:
         cxx-build-flags:
@@ -73,6 +75,6 @@ cxxenv.msvc:
 
     cxx-build-flags:
         compiler:
-            - "/W3 /Fdobj\\${module}\\ /FS"
-        linker:
-            - "/LTCG"
+            - "/W3 /Fd$out.pdb"
+        linker.nostatic:
+            - "/DEBUG"

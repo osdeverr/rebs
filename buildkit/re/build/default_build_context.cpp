@@ -312,6 +312,9 @@ namespace re
 			config.parallelism = processors + 2;
 		}
 
+		if (auto parallelism = mVars.GetVar("parallelism"))
+			config.parallelism = std::stoi(*parallelism);
+
 		class ReAwareStatusPrinter : public ::StatusPrinter
 		{
 		public:
