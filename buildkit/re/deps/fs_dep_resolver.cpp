@@ -16,10 +16,21 @@ namespace re
 
 		auto cache_path = dep.name + triplet;
 
+		std::string cutout_filter = "";
+
+		fs::path path = dep.name;
+
+		if (dep.filters.size() >= 1 && dep.filters[0].front() == '/')
+		{
+			cutout_filter = dep.filters[0].substr(1);
+			cache_path += cutout_filter;
+			path /= cutout_filter;
+		}
+
 		if (auto& cached = mTargetCache[cache_path])
 			return cached.get();
 
-		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(dep.name));
+		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(path));
 
 		result->root_path = target.root_path;
 
@@ -36,14 +47,6 @@ namespace re
 		result->LoadDependencies();
 		result->LoadMiscConfig();
 		result->LoadSourceTree();
-
-		result->resolved_config = GetResolvedTargetCfg(*result, {
-			{ "arch", re_arch },
-			{ "platform", re_platform },
-			{ "config", re_config }
-		});
-
-		result->LoadConditionalDependencies();
 
 		mLoader->RegisterLocalTarget(result.get());
 		return result.get();

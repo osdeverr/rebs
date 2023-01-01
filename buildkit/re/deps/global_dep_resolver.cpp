@@ -36,9 +36,20 @@ namespace re
 		auto triplet = fmt::format("{}-{}-{}", re_arch, re_platform, re_config);
         
 		auto cache_path = dep.ToString() + "-" + triplet;
+        
+		std::string cutout_filter = "";
+
+		if (dep.filters.size() >= 1 && dep.filters[0].front() == '/')
+		{
+			cutout_filter = dep.filters[0].substr(1);
+			cache_path += cutout_filter;
+		}
 
 		if (auto& cached = mTargetCache[cache_path])
 			return cached.get();
+            
+        if(cutout_filter.size())
+		    target_path /= cutout_filter;
 
         // fmt::print("DEBUG: Loading global stuff '{}'\n", target_path.u8string());
         
@@ -59,14 +70,6 @@ namespace re
 		result->LoadDependencies();
 		result->LoadMiscConfig();
 		result->LoadSourceTree();
-
-		result->resolved_config = GetResolvedTargetCfg(*result, {
-			{ "arch", re_arch },
-			{ "platform", re_platform },
-			{ "config", re_config }
-		});
-
-		result->LoadConditionalDependencies();
 
 		mLoader->RegisterLocalTarget(result.get());
         

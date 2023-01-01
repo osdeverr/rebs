@@ -7,6 +7,7 @@
 #include <regex>
 
 #include <re/yaml_merge.h>
+#include <re/debug.h>
 
 namespace re
 {
@@ -52,6 +53,8 @@ namespace re
     {
         path = fs::canonical(dir_path);
         parent = pParent;
+
+        RE_TRACE(" ***** LOADING TARGET: path = {}\n", path.generic_u8string());
 
         config_path = path / kTargetConfigFilename;
 

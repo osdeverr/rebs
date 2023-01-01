@@ -42,14 +42,6 @@ namespace re
 		result->LoadMiscConfig();
 		result->LoadSourceTree();
 
-		result->resolved_config = GetResolvedTargetCfg(*result, {
-			{ "arch", re_arch },
-			{ "platform", re_platform },
-			{ "config", re_config }
-		});
-
-		result->LoadConditionalDependencies();
-
 		mLoader->RegisterLocalTarget(result.get());
 		return result.get();
 	}
