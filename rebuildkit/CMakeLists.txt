@@ -13,7 +13,7 @@ target_link_libraries(${RE_TARGET} PUBLIC re::utils)
 target_link_libraries(${RE_TARGET} PUBLIC magic_enum)
 target_link_libraries(${RE_TARGET} PRIVATE fmt::fmt)
 target_link_libraries(${RE_TARGET} PUBLIC reproc++)
-target_link_libraries(${RE_TARGET} PUBLIC reproc++)
+target_link_libraries(${RE_TARGET} PUBLIC nlohmann_json)
 target_link_libraries(${RE_TARGET} PUBLIC ${Boost_LIBRARIES})
 
 if(UNIX)
