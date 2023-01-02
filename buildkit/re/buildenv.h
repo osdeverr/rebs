@@ -62,6 +62,8 @@ namespace re
 		
 		IDepResolver* GetDepResolver(const std::string& name);
 
+		void DebugShowVisualBuildInfo(const Target* pTarget = nullptr, int depth = 0);
+
 	private:
 		std::unique_ptr<Target> mTheCoreProjectTarget;
 
