@@ -46,6 +46,7 @@ if (-not (Test-Path $src_dir)) {
     ThrowOnNativeFailure
 }
 
+$src_dir_full = Resolve-Path $src_dir
 Set-Location $src_dir
 
 mkdir out -ea 0
@@ -93,7 +94,7 @@ if ($arch) {
 }
 
 Write-Host -ForegroundColor Yellow " * Building the latest Re"
-..\re-bootstrap-source\out\re-boostrap-installed\bin\re.exe do deploy
+$src_dir_full\out\re-boostrap-installed\bin\re.exe do deploy
 ThrowOnNativeFailure
 
 Set-Location ..
