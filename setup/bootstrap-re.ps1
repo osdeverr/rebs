@@ -74,8 +74,8 @@ if(-not (Test-Path $main_src_dir)) {
 }
 else {
     Set-Location $main_src_dir
-    git pull
-    ThrowOnNativeFailure
+    # git pull
+    # ThrowOnNativeFailure
 }
 
 Write-Host -ForegroundColor Yellow " * Setting up build parameters"
