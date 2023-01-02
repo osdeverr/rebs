@@ -1,4 +1,4 @@
-name: Re Binaries
+name: build
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
     tags:
       - v*    
-    paths-ignore: 
+    paths-ignore:
       - README.md
       - examples/**
       - logo.png
