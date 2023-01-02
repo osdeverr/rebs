@@ -68,7 +68,7 @@ Set-Location ../..
 Write-Host -ForegroundColor Yellow " * Downloading latest Re files"
 
 if(-not (Test-Path $main_src_dir)) {
-    git clone $repo_url --recursive --branch $bootstrap_branch $src_dir
+    git clone $repo_url --recursive --branch $bootstrap_branch $main_src_dir
     Set-Location $main_src_dir
 }
 else {
