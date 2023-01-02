@@ -30,8 +30,8 @@ jobs:
       - name: Run the bootstrap script
         shell: pwsh
         run: ./re-latest-source/setup/bootstrap-re.ps1 -automated -arch x64 -main_src_dir ./re-latest-source
-        env:
-          RE_GITHUB_FORCE_SSH: 1
+        #env:
+        #  RE_GITHUB_FORCE_SSH: 1
 
       - name: Create artifacts
         uses: actions/upload-artifact@v3
