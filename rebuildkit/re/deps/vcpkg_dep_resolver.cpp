@@ -20,12 +20,12 @@ namespace re
 
         auto cache_path = fmt::format("{}-{}-{}-{}", dep.name, re_arch, re_platform, re_config);
 
-        if (auto path = scope.GetVar("vcpkg-root-path"))
+        if (auto& cached = mTargetCache[cache_path])
             return cached.get();
 
         auto vcpkg_root = mVcpkgPath;
 
-        if (auto path = target.GetCfgEntry<std::string>("vcpkg-root-path", CfgEntryKind::Recursive))
+        if (auto path = scope.GetVar("vcpkg-root-path"))
             vcpkg_root = fs::path{ *path };
 
         auto dep_str = dep.ToString();
