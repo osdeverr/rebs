@@ -334,6 +334,22 @@ int main(int argc, const char** argv)
             else      
                 throw re::Exception("re pkg: invalid operation '{}'\n\tsupported operations: [install, select, info]", operation);
         }
+        else if (args[1] == "summary")
+        {
+            auto path = ".";
+
+            context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
+
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
+            auto &target = context.LoadTarget(path);
+            apply_cfg_overrides(&target);
+
+            context.GenerateBuildDescForTarget(target);
+
+            context.GetBuildEnv()->DebugShowVisualBuildInfo();
+        }
         else
         {
             auto path = args[1] == "b" || args[1].front() == '-' ? "." : args[1];

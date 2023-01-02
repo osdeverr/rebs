@@ -740,4 +740,103 @@ namespace re
 	{
 		return mDepResolvers[name];
 	}
+
+	void BuildEnv::DebugShowVisualBuildInfo(const Target* pTarget, int depth)
+	{
+		const auto kStyleRoot = fg(fmt::color::red) | bg(fmt::color::yellow);
+		const auto kStyleTargetName = fg(fmt::color::sky_blue);
+		const auto kStyleTargetType = fg(fmt::color::dim_gray);
+		const auto kStyleChildPrefix = fg(fmt::color::green_yellow);
+		const auto kStyleCategoryTitle = fg(fmt::color::dark_gray);
+		const auto kStyleDepString = fg(fmt::color::rebecca_purple);
+		const auto kStyleDepRes = fg(fmt::color::yellow);
+
+		if (!pTarget)
+		{
+			mOut->Info({}, "\n");
+
+			for (auto& target : mRootTargets)
+			{
+				mOut->Info(kStyleChildPrefix, "* ");
+
+				for (auto i = 0; i < depth; i++)
+					mOut->Info({}, "  ");
+
+				DebugShowVisualBuildInfo(target.get(), depth);
+			}
+			
+			if(mVars.GetVar("target-map").value_or("false") == "true")
+			{
+				mOut->Info({}, "\n\n");
+	
+				mOut->Info(kStyleCategoryTitle, "Target Map:\n");
+	
+				for (auto& [_, target] : mTargetMap)
+				{
+					DebugShowVisualBuildInfo(target, depth);
+					mOut->Info({}, "\n");
+				}
+			}
+
+			mOut->Info({}, "\n");
+		}
+		else
+		{
+			mOut->Info(kStyleTargetName, "{}", pTarget->module);
+			mOut->Info(kStyleTargetType, " {}\n", TargetTypeToString(pTarget->type));
+
+			depth += 2;
+
+			if(pTarget->dependencies.size())
+			{
+				for (auto i = 0; i < depth; i++)
+					mOut->Info({}, "  ");
+
+				mOut->Info(kStyleCategoryTitle, "Depends on:\n", pTarget->module);
+
+				for (auto& dep : pTarget->dependencies)
+				{
+					for (auto i = 0; i < depth + 1; i++)
+						mOut->Info({}, "  ");
+
+					mOut->Info(kStyleDepString, "{} => ", dep.ToString());
+
+					mOut->Info(kStyleCategoryTitle, "{{ ");
+
+					for (auto& res : dep.resolved)
+					{
+						mOut->Info(kStyleDepRes, "{} ", res->module);
+					}
+
+					mOut->Info(kStyleCategoryTitle, "}}\n");
+					
+					/*
+					for (auto& res : dep.resolved)
+					{
+						for (auto i = 0; i < depth + 2; i++)
+							mOut->Info({}, "  ");
+
+						DebugShowVisualBuildInfo(res, depth + 2);
+					}
+					*/
+				}
+			}
+
+			if(pTarget->children.size())
+			{
+				for (auto i = 0; i < depth; i++)
+					mOut->Info({}, "  ");
+
+				mOut->Info(kStyleCategoryTitle, "Children:\n", pTarget->module);
+
+				for (auto& child : pTarget->children)
+				{
+					for (auto i = 0; i < depth + 1; i++)
+						mOut->Info({}, "  ");
+	
+					DebugShowVisualBuildInfo(child.get(), depth);
+				}
+			}
+		}
+	}
 }
