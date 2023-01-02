@@ -1,3 +1,8 @@
+param (
+    [switch]$automated = $false
+    [string]$arch = ""
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $PSDefaultParameterValues['*:ErrorAction']='Stop'
@@ -21,13 +26,15 @@ Write-Host -ForegroundColor Yellow "       The build requires those two to be pr
 Write-Host ""
 Write-Host -ForegroundColor Magenta " Press ENTER to continue bootstrapping Re or CTRL+C to quit... " -NoNewline
 
-Read-Host
+if (-not $automated) {
+    Read-Host
+}
 
 $src_dir = "re-bootstrap-source"
 $repo_url = "https://github.com/osdeverr/rebs.git"
 $bootstrap_branch = "bootstrap"
 $installed_prefix = "re-boostrap-installed"
-$main_src_dir = "re-main"
+$main_src_dir = Resolve-Path "."
 
 mkdir re-latest-build -ea 0
 $final_out_dir = Resolve-Path "./re-latest-build"
@@ -74,8 +81,12 @@ Write-Host -ForegroundColor Yellow " * Setting up build parameters"
 
 Write-Output "re-dev-deploy-path: $final_out_dir" > re.user.yml
 
-Write-Host -ForegroundColor Magenta " > Which architecture do you want to build Re for? (x86/x64/etc, leave empty for default): " -NoNewline
-$arch = Read-Host
+if (-not $automated) {
+    if (-not $arch) {
+        Write-Host -ForegroundColor Magenta " > Which architecture do you want to build Re for? (x86/x64/etc, leave empty for default): " -NoNewline
+        $arch = Read-Host
+    }
+}
 
 if ($arch) {
     Write-Output "arch: $arch" >> re.user.yml
