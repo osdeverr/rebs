@@ -2,10 +2,8 @@ name: windows
 
 on:
   push:
-    branches:
-      - main
     tags:
-      - v*    
+      - v*
     paths-ignore:
       - README.md
       - examples/**
