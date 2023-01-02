@@ -73,28 +73,36 @@ namespace re
 
 	TargetConfig GetResolvedTargetCfg(const Target& leaf, const std::unordered_map<std::string, std::string>& mappings)
 	{
-		auto result = GetFlatResolvedTargetCfg(leaf.config, mappings);
 		auto p = leaf.parent;
+
+		auto leaf_cfg = GetFlatResolvedTargetCfg(leaf.config, mappings);
 
 		// Deps and uses are automatically recursed by Target facilities:
 		// copying parent deps and uses into children would lead to a performance impact due to redundant regex parsing
-		auto top_deps = Clone(result["deps"]);
-		auto top_uses = Clone(result["uses"]);
+		auto top_deps = Clone(leaf_cfg["deps"]);
+		auto top_uses = Clone(leaf_cfg["uses"]);
+
+		std::vector<const Target*> genealogy = {&leaf};
 
 		while (p)
 		{
-			result = MergeYamlNodes(GetFlatResolvedTargetCfg(p->config, mappings), result);
+			genealogy.insert(genealogy.begin(), p);
 			p = p->parent;
 		}
+
+		TargetConfig result{YAML::NodeType::Map};
+		
+		for(auto& target : genealogy)
+			MergeYamlNode(result, GetFlatResolvedTargetCfg(target->config, mappings));
 
 		result["deps"] = top_deps;
 		result["uses"] = top_uses;
 
-		/*
+/*
 		YAML::Emitter emitter;
 		emitter << result;
 
-		RE_TRACE(" [DBG] Flat target config for '{}':\n\n{}\n\n", leaf.module, emitter.c_str());
+		fmt::print(" [DBG] Flat target config for '{}':\n\n{}\n\n", leaf.module, emitter.c_str());
 		*/
 
 		return result;
