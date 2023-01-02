@@ -1,0 +1,30 @@
+name: Build a full Re redistributable
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up VsDevCmd
+        uses: egor-tensin/vs-shell@v2
+        with:
+          arch: x64
+
+      - name: Run the bootstrap script
+        shell: pwsh
+        run: ./setup/bootstrap-re.ps1 -automated -arch x64
+
+      - name: Create artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.REPO_NAME }}.${{ env.BRANCH_NAME }}.${{ env.GIT_BUILD_ID }}.zip
+          path: ${{github.workspace}}/re-latest-build/
