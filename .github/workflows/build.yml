@@ -18,6 +18,7 @@ jobs:
         with:
           ref: bootstrap
           path: re-bootstrap-source
+          submodules: 'recursive'
 
       - name: Set up VsDevCmd
         uses: egor-tensin/vs-shell@v2
