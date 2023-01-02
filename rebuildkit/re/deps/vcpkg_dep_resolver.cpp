@@ -20,7 +20,7 @@ namespace re
 
         auto cache_path = fmt::format("{}-{}-{}-{}", dep.name, re_arch, re_platform, re_config);
 
-        if (auto& cached = mTargetCache[cache_path])
+        if (auto path = scope.GetVar("vcpkg-root-path"))
             return cached.get();
 
         auto vcpkg_root = mVcpkgPath;
