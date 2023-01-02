@@ -25,12 +25,12 @@ namespace re
 
         auto vcpkg_root = mVcpkgPath;
 
-        if (auto path = target.GetCfgEntry<std::string>("vcpkg-root-path", CfgEntryKind::Recursive))
+        if (auto path = scope.GetVar("vcpkg-root-path"))
             vcpkg_root = fs::path{ *path };
 
         auto dep_str = dep.ToString();
 
-        if (!fs::exists(vcpkg_root))
+        if (!fs::exists(vcpkg_root / ".git"))
         {
             if (scope.ResolveLocal("auto-load-uncached-deps") != "true")
                 RE_THROW TargetUncachedDependencyException(&target, "Cannot auto-download vcpkg - autoloading is disabled", dep_str);

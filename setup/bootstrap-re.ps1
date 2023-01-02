@@ -81,6 +81,7 @@ else {
 Write-Host -ForegroundColor Yellow " * Setting up build parameters"
 
 Write-Output "re-dev-deploy-path: $final_out_dir" > re.user.yml
+Write-Output "vcpkg-root-path: $src_dir_full/out/_deps/vcpkg-src" >> re.user.yml
 
 if (-not $automated) {
     if (-not $arch) {
