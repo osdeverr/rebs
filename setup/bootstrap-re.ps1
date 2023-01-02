@@ -94,7 +94,7 @@ if ($arch) {
 }
 
 Write-Host -ForegroundColor Yellow " * Building the latest Re"
-$src_dir_full\out\re-boostrap-installed\bin\re.exe do deploy
+Invoke-Item $src_dir_full\out\re-boostrap-installed\bin\re.exe do deploy
 ThrowOnNativeFailure
 
 Set-Location ..
