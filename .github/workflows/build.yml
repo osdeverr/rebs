@@ -13,6 +13,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          path: re-latest-source
 
       - uses: actions/checkout@v3
         with:
@@ -27,7 +29,7 @@ jobs:
 
       - name: Run the bootstrap script
         shell: pwsh
-        run: ./setup/bootstrap-re.ps1 -automated -arch x64 -main_src_dir .
+        run: ./re-latest-source/setup/bootstrap-re.ps1 -automated -arch x64 -main_src_dir ./re-latest-source
 
       - name: Create artifacts
         uses: actions/upload-artifact@v3
