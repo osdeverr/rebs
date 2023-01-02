@@ -1,6 +1,6 @@
 <img src="logo_readme.png" width="300">
 
-![build badge](/.github/workflows/build.yml/badge.svg)
+![build badge](https://github.com/osdeverr/rebs/actions/workflows/build.yml/badge.svg)
 
 # Re - a modern build system for the future
 
