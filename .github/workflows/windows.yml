@@ -45,8 +45,20 @@ jobs:
         #env:
         #  RE_GITHUB_FORCE_SSH: 1
 
-      - name: Create artifacts
+      - name: Create CI artifact
         uses: actions/upload-artifact@v3
         with:
-          name: re-windows-x64-${{ github.ref_name }}-${{ github.run_id }}
+          name: re-${{ github.ref_name }}-windows-x64-${{ github.run_id }}
           path: ${{github.workspace}}/re-latest-build/
+          
+      - name: Archive release files
+        uses: thedoctor0/zip-release@0.6.2
+        with:
+          type: zip
+          filename: 're-${{ github.ref_name }}-windows-x64.zip'
+          path: ${{github.workspace}}/re-latest-build/
+          
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: 're-${{ github.ref_name }}-windows-x64.zip'
