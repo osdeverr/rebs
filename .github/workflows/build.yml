@@ -26,7 +26,6 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            ./re-bootstrap-source/out/re-boostrap-installed/bin/deps
             ./re-bootstrap-source/out/_deps
           key: ${{ runner.os }}-vcpkg-v1
 
