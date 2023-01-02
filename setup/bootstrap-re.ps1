@@ -1,6 +1,7 @@
 param (
-    [switch]$automated = $false
-    [string]$arch = ""
+    [switch]$automated = $false,
+    [string]$arch = "",
+    [string]$main_src_dir = "./re-main"
 )
 
 Set-StrictMode -Version Latest
@@ -34,7 +35,6 @@ $src_dir = "re-bootstrap-source"
 $repo_url = "https://github.com/osdeverr/rebs.git"
 $bootstrap_branch = "bootstrap"
 $installed_prefix = "re-boostrap-installed"
-$main_src_dir = Resolve-Path "."
 
 mkdir re-latest-build -ea 0
 $final_out_dir = Resolve-Path "./re-latest-build"
