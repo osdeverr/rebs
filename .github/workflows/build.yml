@@ -1,4 +1,4 @@
-name: Build a full Re redistributable
+name: Re Binaries
 
 on:
   push:
@@ -12,11 +12,13 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout latest sources
+        uses: actions/checkout@v3
         with:
           path: re-latest-source
-
-      - uses: actions/checkout@v3
+      
+      - name: Checkout bootstrap sources
+        uses: actions/checkout@v3
         with:
           ref: bootstrap
           path: re-bootstrap-source
@@ -43,5 +45,5 @@ jobs:
       - name: Create artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: re-windows-latest.zip
+          name: re-windows-x64-${{ github.ref_name }}-run${{ github.run_id }}.zip
           path: ${{github.workspace}}/re-latest-build/
