@@ -5,7 +5,12 @@ on:
     branches:
       - main
     tags:
-      - v*
+      - v*    
+    paths-ignore: 
+      - README.md
+      - examples/**
+      - logo.png
+      - logo_readme.png
 
 jobs:
   build-windows:

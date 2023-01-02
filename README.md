@@ -1,5 +1,7 @@
 <img src="logo_readme.png" width="300">
 
+![build badge](/.github/workflows/build.yml/badge.svg)
+
 # Re - a modern build system for the future
 
 **Re** is a project aiming to create what C++ hasn't ever had - a lightweight, easy-to-use build system that lets you focus on writing code and not on writing build scripts. **Check out our [examples folder](/examples) to see it for yourself!**
