@@ -14,6 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - uses: actions/checkout@v3
+        with:
+          ref: bootstrap
+          path: re-bootstrap-source
+
       - name: Set up VsDevCmd
         uses: egor-tensin/vs-shell@v2
         with:
@@ -21,7 +26,7 @@ jobs:
 
       - name: Run the bootstrap script
         shell: pwsh
-        run: ./setup/bootstrap-re.ps1 -automated -arch x64
+        run: ./setup/bootstrap-re.ps1 -automated -arch x64 -main_src_dir .
 
       - name: Create artifacts
         uses: actions/upload-artifact@v3
