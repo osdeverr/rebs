@@ -161,7 +161,7 @@ namespace re
 		NinjaBuildDesc desc;
 		desc.pRootTarget = &target;
 
-		fs::remove_all(target.root_path / ".re-cache" / "header-projection");
+		fs::remove_all(target.root->path / ".re-cache" / "header-projection");
 
 		for (auto dep : mEnv->GetSingleTargetLocalDepSet(&target))
 		{
@@ -194,7 +194,7 @@ namespace re
 
 		auto root_arch = vars.ResolveLocal("arch");
 
-		auto out_dir = target.path / "out";
+		auto out_dir = target.root->path / "out";
 
 		if (auto entry = target.GetCfgEntry<std::string>("out-dir"))
 		{
@@ -252,7 +252,7 @@ namespace re
 				meta["main-artifact"] = (full_artifact_dir / *artifact).u8string();
 		}
 
-		desc.meta["root_target"] = target.module;
+		desc.meta["root_target"] = target.root->module;
 
 		return desc;
 	}
