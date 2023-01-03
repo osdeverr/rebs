@@ -39,7 +39,7 @@ tools:
 # Default tool invoke flags. Can be overridden in targets using the 'build-flags' map property.
 #
 default-flags:
-    compiler:  "/nologo /showIncludes /interface /experimental:module /EHsc /MD"
+    compiler:  "/nologo /showIncludes /interface /experimental:module /EHsc /MD /Fd$out.pdb"
     linker:    "/nologo /ignore:4006 ${platform-link-paths} /MACHINE:${arch}"
 
 #
