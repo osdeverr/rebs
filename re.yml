@@ -1,4 +1,9 @@
 type: project
 name: re
 
+platform.windows:
+  cxx-build-flags:
+      compiler:
+          - "/Zi"
+
 cxx-standard: 17
