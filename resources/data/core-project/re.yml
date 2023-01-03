@@ -70,6 +70,11 @@ cxxenv.msvc:
             linker:
                 - "/LTCG"
 
+    config.release.debinfo:
+        cxx-build-flags:
+            compiler:
+                - "/Zi"
+
     config.debug:
         cxx-build-flags:
             compiler:
