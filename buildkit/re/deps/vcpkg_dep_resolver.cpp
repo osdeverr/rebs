@@ -118,16 +118,12 @@ namespace re
         }
         else
         {
-            // vcpkg-dep dependencies are created automatically within this method itself - no need to spam the console
-            if (dep.ns != "vcpkg-dep")
-            {
-                mOut->Info(
-                    fmt::emphasis::bold | fg(fmt::color::light_green),
-                    "[{}] Package {} already available\n",
-                    target.module,
-                    dep_str
-                );
-            }
+            mOut->Info(
+                fmt::emphasis::bold | fg(dep.ns == "vcpkg-dep" ? fmt::color::dim_gray : fmt::color::light_green),
+                "[{}] Package {} already available\n",
+                target.module,
+                dep_str
+            );
         }
 
         YAML::Node config{ YAML::NodeType::Map };
@@ -145,7 +141,7 @@ namespace re
         {
             for (auto& file : fs::directory_iterator{ path / "lib" })
             {
-                if (file.is_regular_file())
+                if (file.is_regular_file() && file.path().extension() != ".pdb")
                     config["cxx-link-deps"].push_back(file.path().u8string());
             }
         }
@@ -164,38 +160,79 @@ namespace re
 
         YAML::Node vcpkg_json = YAML::LoadFile((vcpkg_root / "ports" / dep.name / "vcpkg.json").u8string());
 
-        if (auto deps = vcpkg_json["dependencies"])
+        auto append_deps_from = [this, &dep, &target, &package_target, &re_platform](auto& json)
         {
-            for (const auto& vcdep : deps)
+            if (auto deps = json["dependencies"])
             {
-                TargetDependency dep;
-
-                dep.ns = "vcpkg-dep";
-
-                if (vcdep.IsMap())
+                for (const auto& vcdep : deps)
                 {
-                    dep.name = vcdep["name"].as<std::string>();
+                    TargetDependency pkg_dep;
 
-                    if (auto ver = vcdep["version"])
-                        dep.version = ver.as<std::string>();
-                    else if (auto ver = vcdep["version>="])
-                        dep.version = ">=" + ver.as<std::string>();
-                    else if (auto ver = vcdep["version>"])
-                        dep.version = ">" + ver.as<std::string>();
-                    else if (auto ver = vcdep["version<="])
-                        dep.version = "<=" + ver.as<std::string>();
-                    else if (auto ver = vcdep["version<"])
-                        dep.version = "<" + ver.as<std::string>();
+                    pkg_dep.ns = "vcpkg-dep";
+
+                    if (vcdep.IsMap())
+                    {
+                        pkg_dep.name = vcdep["name"].as<std::string>();
+
+                        if (auto ver = vcdep["version"])
+                            pkg_dep.version = ver.as<std::string>();
+                        else if (auto ver = vcdep["version>="])
+                            pkg_dep.version = ">=" + ver.as<std::string>();
+                        else if (auto ver = vcdep["version>"])
+                            pkg_dep.version = ">" + ver.as<std::string>();
+                        else if (auto ver = vcdep["version<="])
+                            pkg_dep.version = "<=" + ver.as<std::string>();
+                        else if (auto ver = vcdep["version<"])
+                            pkg_dep.version = "<" + ver.as<std::string>();
+
+                        if (auto platform = vcdep["platform"])
+                        {
+                            auto eligible = true;
+                            auto str = platform.Scalar();
+
+                            if (str.front() == '!')
+                            {
+                                if (re_platform == str.substr(1))
+                                    eligible = false;
+                            }                   
+                            else if (re_platform != str)
+                            {
+                                eligible = false;
+                            }
+
+                            if (!eligible)
+                            {
+                                // fmt::print(" ! EVIL dep {} has wrong platform '{}'\n", pkg_dep.name, platform.Scalar());
+                                continue;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        pkg_dep.name = vcdep.as<std::string>();
+                    }
+
+                    pkg_dep.raw = fmt::format("{}:{}@{}", pkg_dep.ns, pkg_dep.name, pkg_dep.version);
+
+                    // Fixes rare stack overflow bugs
+                    if (pkg_dep.name == dep.name)
+                    {
+                        // fmt::print(" ! EVIL dep {} refers to ITSELF\n", pkg_dep.name);
+                        continue;
+                    }
+
+                    pkg_dep.resolved = { ResolveTargetDependency(target, pkg_dep) };
+
+                    package_target->dependencies.emplace_back(std::move(pkg_dep));
                 }
-                else
-                {
-                    dep.name = vcdep.as<std::string>();
-                }
-
-                dep.resolved = { ResolveTargetDependency(target, dep) };
-
-                package_target->dependencies.emplace_back(std::move(dep));
             }
+        };
+
+        append_deps_from(vcpkg_json);
+
+        for (auto feature : vcpkg_json["default-features"])
+        {
+            append_deps_from(vcpkg_json["features"][feature.Scalar()]);
         }
 
         package_target->root_path = target.root_path;
