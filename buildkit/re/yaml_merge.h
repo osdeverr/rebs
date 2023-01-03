@@ -3,7 +3,7 @@
 
 namespace re
 {
-	void MergeYamlNode(YAML::Node& target, const YAML::Node& source, bool overridden = false);
+	void MergeYamlNode(YAML::Node target, const YAML::Node& source, bool overridden = false);
 
 	void MergeYamlMap(YAML::Node& target, const YAML::Node& source, bool overridden = false);
 

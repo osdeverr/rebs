@@ -7,7 +7,7 @@
 
 namespace re
 {
-	void MergeYamlNode(YAML::Node& target, const YAML::Node& source, bool overridden)
+	void MergeYamlNode(YAML::Node target, const YAML::Node& source, bool overridden)
 	{
 		switch (source.Type())
 		{
