@@ -1,9 +1,10 @@
+#include <boost/process.hpp>
+#include <boost/process/async.hpp>
+
 #include "process_util.h"
 #include "target.h"
 
 #include <fmt/format.h>
-
-#include <reproc++/reproc.hpp>
 
 #ifdef WIN32
 #include <Windows.h>
@@ -11,23 +12,27 @@
 
 namespace re
 {
-    int RunProcessOrThrow(std::string_view program_name, const std::vector<std::string>& cmdline, bool output, bool throw_on_bad_exit, std::optional<std::string_view> working_directory)
+    int RunProcessOrThrow(std::string_view program_name, std::vector<std::string> cmdline, bool output, bool throw_on_bad_exit, std::optional<std::string_view> working_directory)
     {
-        reproc::options options;
-        options.redirect.parent = output;
-        options.working_directory = working_directory ? working_directory->data() : nullptr;
+        std::error_code start_ec;
 
-        reproc::process process;
+        auto path = boost::process::search_path(cmdline[0].data());
+        cmdline.erase(cmdline.begin());
 
-        auto start_ec = process.start(cmdline, options);
+        boost::process::child child{
+            path,
+            boost::process::args = cmdline,
+            start_ec,
+            boost::process::start_dir = working_directory ? working_directory->data() : "."
+        };
+
         if (start_ec)
-        {
             RE_THROW ProcessRunException("{} failed to start: {} (ec={})", program_name, start_ec.message(), start_ec.value());
-        }
+        
+        std::error_code end_ec;
+        child.wait(end_ec);
 
-        auto [exit_code, end_ec] = process.wait(reproc::infinite);
-
-        // process.read(reproc::stream::out, );
+        auto exit_code = child.exit_code();
 
         if (throw_on_bad_exit && exit_code != 0)
         {
@@ -48,7 +53,7 @@ namespace re
         HANDLE gProcessUtilJob = NULL;
     }
 
-    int RunProcessOrThrowWindows(std::string_view program_name, const std::vector<std::wstring>& cmdline, bool output, bool throw_on_bad_exit, std::optional<std::wstring_view> working_directory)
+    int RunProcessOrThrowWindows(std::string_view program_name, std::vector<std::wstring> cmdline, bool output, bool throw_on_bad_exit, std::optional<std::wstring_view> working_directory)
     {
         if (!gProcessUtilJob)
         {
