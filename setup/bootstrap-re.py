@@ -93,8 +93,13 @@ print(' * Building the latest Re')
 
 re_path = f'{bootstrap_src_dir_full}/out/{args.installed_prefix}/bin/re'
 
-#if os.name == 'nt':
-#    re_path += '.exe'
+def make_executable(path):
+    mode = os.stat(path).st_mode
+    mode |= (mode & 0o444) >> 2    # copy R bits to X
+    os.chmod(path, mode)
+
+if os.name != 'nt':
+    make_executable(f'{bootstrap_src_dir_full}/out/{args.installed_prefix}/bin/ninja')
 
 subprocess.run([
     re_path, 'do', 'deploy'
