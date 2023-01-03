@@ -78,9 +78,11 @@ int main(int argc, const char** argv)
 
         context.SetVar("configuration", "release");
 
+        constexpr auto kBuildPathVar = "path";
+
         if (args.size() == 1)
         {
-            auto path = ".";
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
 
@@ -123,7 +125,7 @@ int main(int argc, const char** argv)
             if (args.size() < 3)            
                 throw re::Exception("re do: invalid command line\n\tusage: re do <action-category> [path | .]");
 
-            auto path = args.size() > 3 ? args[3] : ".";
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
 
@@ -149,7 +151,7 @@ int main(int argc, const char** argv)
         }
         else if (args[1] == "config" || args[1] == "conf" || args[1] == "cfg")
         {
-            auto path = ".";
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
             auto yaml = context.LoadCachedParams(path);
 
             if(args.size() == 2)
@@ -336,7 +338,7 @@ int main(int argc, const char** argv)
         }
         else if (args[1] == "summary")
         {
-            auto path = ".";
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
@@ -352,17 +354,64 @@ int main(int argc, const char** argv)
         }
         else
         {
-            auto path = args[1] == "b" || args[1].front() == '-' ? "." : args[1];
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
+
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
 
             context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
-            auto &target = context.LoadTarget(path);
-            apply_cfg_overrides(&target);
+            auto root = &context.LoadTarget(path);
+            apply_cfg_overrides(root);
 
-            auto desc = context.GenerateBuildDescForTarget(target);
-            context.BuildTarget(desc);
+            std::size_t partial_paths_offset = 1;
+
+            if (args.size() > 1 && (args[1] == "build" || args[1] == "b"))
+                partial_paths_offset++;
+
+
+            if (args.size() > partial_paths_offset)
+            {
+                auto& filter = args[partial_paths_offset];
+
+                for (auto i = partial_paths_offset; i < args.size(); i++)
+                {                    
+			        std::vector<std::string> parts;
+			        boost::algorithm::split(parts, filter, boost::is_any_of("."));
+
+			        auto temp = root;
+
+			        for (auto &part : parts)
+			        {
+			        	if (!part.empty())
+			        		temp = temp->FindChild(part);
+
+			        	if (!temp)
+			        		throw re::TargetBuildException(
+			        			root,
+			        			"unresolved partial build filter '{}' for '{}'",
+			        			filter, root->module);
+			        }
+
+			        if (!temp)
+			        	throw re::TargetBuildException(
+			        		root,
+			        		"unresolved partial dependency filter '{}' for '{}'",
+			        		filter, root->module);
+
+                    context.Info(fg(fmt::color::blue_violet) | fmt::emphasis::bold, "\n ! Partial build - Processing target '{}'\n\n", temp->module);
+
+                    auto desc = context.GenerateBuildDescForTarget(*temp);
+                    context.BuildTarget(desc);
+
+                    // context.Info({}, "\n");
+                }
+            }
+            else
+            {
+                auto desc = context.GenerateBuildDescForTarget(*root);
+                context.BuildTarget(desc);
+            }
 
             return 0;
         }
