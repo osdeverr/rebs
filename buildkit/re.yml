@@ -12,12 +12,16 @@ deps:
   - vcpkg:boost-exception
   - vcpkg:boost-stacktrace
   - vcpkg:boost-xpressive
+  - vcpkg:boost-process
   - vcpkg:ghc-filesystem
   - vcpkg:yaml-cpp
   - vcpkg:ghc-filesystem
   - vcpkg:magic-enum
-  - vcpkg:reproc
   - github:osdeverr/re-ninja@v1.7 [.libtool]
+
+platform.windows:
+  cxx-link-deps:
+    - shell32.lib
 
 # Fixes building on Apple systems
 platform.osx:
