@@ -68,14 +68,14 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: re-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}-${{ github.run_id }}
-          path: ${{github.workspace}}/re-latest-build/
+          path: ./re-latest-build/
           
       - name: Archive release files
         uses: thedoctor0/zip-release@0.6.2
         with:
           type: zip
-          filename: 're-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}.zip'
-          path: ${{github.workspace}}/re-latest-build/
+          filename: '../re-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}.zip'
+          directory: ./re-latest-build/
           
       - name: Create release
         uses: softprops/action-gh-release@v1
