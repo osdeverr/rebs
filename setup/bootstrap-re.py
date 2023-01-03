@@ -105,6 +105,9 @@ subprocess.run([
     re_path, 'do', 'deploy'
 ], check=True)
 
+if os.name != 'nt':
+    make_executable(f'{final_out_dir}/re')
+
 print(' * Re has succesfully been built and installed to:')
 print(f'     {final_out_dir}')
 print()
