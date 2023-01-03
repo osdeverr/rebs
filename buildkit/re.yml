@@ -29,7 +29,7 @@ platform.osx:
     BOOST_STACKTRACE_GNU_SOURCE_NOT_REQUIRED: 1
     _LIBCPP_DISABLE_AVAILABILITY: 1
 
-platform.!windows:
+platform.linux|osx:
   cxx-global-link-deps:
     - dl
     - pthread
