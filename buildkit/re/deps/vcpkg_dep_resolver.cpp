@@ -160,7 +160,7 @@ namespace re
 
         YAML::Node vcpkg_json = YAML::LoadFile((vcpkg_root / "ports" / dep.name / "vcpkg.json").u8string());
 
-        auto append_deps_from = [this, &dep, &target, &package_target, &re_platform](auto& json)
+        auto append_deps_from = [this, &dep, &target, &package_target, &re_platform](auto json)
         {
             if (auto deps = json["dependencies"])
             {
