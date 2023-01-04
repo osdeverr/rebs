@@ -282,7 +282,9 @@ namespace re
 		Info(style, " - Generating build files\n");
 
 		re::GenerateNinjaBuildFile(desc, desc.out_dir);
-		SaveTargetMeta(desc);
+
+		if (mVars.GetVarNoRecurse("no-meta").value_or("false") != "true")
+			SaveTargetMeta(desc);
 
 		Info(style, " - Running pre-build actions\n");
 
