@@ -387,7 +387,7 @@ namespace re
 							{
 								if (def_kv.second.IsSequence())
 								{
-									for (auto& v : def_kv.second)
+									for (auto v : def_kv.second)
 										(YAML::Node)v = fmt::format(v.Scalar(), fmt::arg("value", kv.second.Scalar()));
 								}
 								else
