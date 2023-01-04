@@ -64,24 +64,28 @@ inherit-caller-in-deps: false
 # Thanks K2Re8 for the right flags!
 cxxenv.msvc:
     config.release:
-        cxx-build-flags:
-            compiler:
-                - "/Oi /GL /Ot /O2 /GS- /MD"
-            linker:
-                - "/LTCG"
+        cxx-build-options:
+            optimization: max-speed
+            optimization-favor: speed
+
+            msvc.optimization-generate-intrinsics: true
+            msvc.buffer-security-check: false
+
+            msvc.runtime-library: multithreaded-dll
+
+            msvc.whole-program-optimization: true
 
     config.release.debinfo:
-        cxx-build-flags:
-            compiler:
-                - "/Zi"
+        cxx-build-options:
+            build-debug-info: true
 
     config.debug:
-        cxx-build-flags:
-            compiler:
-                - "/MTd /Zi"
+        cxx-build-options:
+            build-debug-info: true
+            msvc.runtime-library: multithreaded-dll-debug
 
-    cxx-build-flags:
-        compiler:
-            - "/W3 /Fd$out.pdb"
-        linker.nostatic:
-            - "/DEBUG"
+    cxx-build-options:
+        warning-level: 3
+        build-link-debug-info: true
+        permissive: false
+        msvc.pdb-path: $out.pdb

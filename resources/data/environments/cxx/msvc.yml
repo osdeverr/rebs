@@ -86,6 +86,82 @@ default-extensions:
 custom-rule-vars:
     deps: msvc
 
+build-options:
+    optimization:
+        off:
+            compiler: [/Od]
+        min-size:
+            compiler: [/O1]
+        max-speed:
+            compiler: [/O2]
+        $value:
+            compiler: ["/O{value}"]
+
+    optimization-favor:
+        speed:
+            compiler: [/Ot]
+        size:
+            compiler: [/Os]
+
+    warning-level:
+        off:
+            compiler: [/W0]
+        max:
+            compiler: [/W4]
+        all:
+            compiler: [/Wall]
+        $value:
+            compiler: ["/W{value}"]
+
+    warnings-as-errors:
+        true:
+            compiler: [/WX]
+
+    build-debug-info:
+        true:
+            compiler: [/Zi]
+
+    build-link-debug-info:
+        true:
+            linker.nostatic: [/DEBUG]
+
+    msvc.whole-program-optimization:
+        true:
+            compiler: [/GL]
+            linker: [/LTCG]
+        false: {}
+
+    msvc.pdb-path:
+        off: {}
+        $value:
+            compiler: ["/Fd{value}"]
+
+    msvc.optimization-generate-intrinsics:
+        true:
+            compiler: [/Oi]
+
+    msvc.buffer-security-check:
+        true:
+            compiler: [/GS]
+        false:
+            compiler: [/GS-]
+
+    msvc.runtime-library:
+        multithreaded-dll:
+            compiler: [/MD]
+        multithreaded-dll-debug:
+            compiler: [/MDd]
+        multithreaded-static:
+            compiler: [/MT]
+        multithreaded-static-debug:
+            compiler: [/MTd]
+    
+    permissive:
+        true:
+            compiler: [/permissive]
+        false:
+            compiler: [/permissive-]
+
 option-rules:
     arch:
         target-vars:
