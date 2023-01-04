@@ -398,9 +398,9 @@ namespace re
 
 							MergeYamlNode(extra_build_flags, cloned);
 						}
-						else if (auto default = def["default"])
+						else if (auto default_option = def["default"])
 						{
-							MergeYamlNode(extra_build_flags, default);
+							MergeYamlNode(extra_build_flags, default_option);
 						}
 						else
 						{
