@@ -164,7 +164,7 @@ namespace re
         {
             if (auto deps = json["dependencies"])
             {
-                for (const auto& vcdep : deps)
+                for (auto vcdep : deps)
                 {
                     TargetDependency pkg_dep;
 
@@ -172,18 +172,18 @@ namespace re
 
                     if (vcdep.IsMap())
                     {
-                        pkg_dep.name = vcdep["name"].as<std::string>();
+                        pkg_dep.name = vcdep["name"].Scalar();
 
                         if (auto ver = vcdep["version"])
-                            pkg_dep.version = ver.as<std::string>();
+                            pkg_dep.version = ver.Scalar();
                         else if (auto ver = vcdep["version>="])
-                            pkg_dep.version = ">=" + ver.as<std::string>();
+                            pkg_dep.version = ">=" + ver.Scalar();
                         else if (auto ver = vcdep["version>"])
-                            pkg_dep.version = ">" + ver.as<std::string>();
+                            pkg_dep.version = ">" + ver.Scalar();
                         else if (auto ver = vcdep["version<="])
-                            pkg_dep.version = "<=" + ver.as<std::string>();
+                            pkg_dep.version = "<=" + ver.Scalar();
                         else if (auto ver = vcdep["version<"])
-                            pkg_dep.version = "<" + ver.as<std::string>();
+                            pkg_dep.version = "<" + ver.Scalar();
 
                         if (auto platform = vcdep["platform"])
                         {
@@ -209,7 +209,7 @@ namespace re
                     }
                     else
                     {
-                        pkg_dep.name = vcdep.as<std::string>();
+                        pkg_dep.name = vcdep.Scalar();
                     }
 
                     pkg_dep.raw = fmt::format("{}:{}@{}", pkg_dep.ns, pkg_dep.name, pkg_dep.version);
