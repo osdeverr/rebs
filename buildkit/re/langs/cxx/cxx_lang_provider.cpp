@@ -319,8 +319,8 @@ namespace re
 			for (const auto &dep : config["cxx-global-link-deps"])
 				global_link_deps.push_back(fmt::format("-l{}", vars.Resolve(dep.as<std::string>())));
 		}
-		
-		if (const auto& extra = config["cxx-build-flags"])
+
+		auto parse_build_flags = [&extra_flags, &extra_link_flags, &vars, &target](auto extra)
 		{
 			constexpr auto kCompiler = "compiler";
 			constexpr auto kLinker = "linker";
@@ -355,7 +355,71 @@ namespace re
 							extra_link_flags.push_back(vars.Resolve(flag.Scalar()));
 				}
 			}
+		};
+
+		YAML::Node extra_build_flags{YAML::NodeType::Map};
+		
+		if (const auto& extra = config["cxx-build-flags"])
+			MergeYamlNode(extra_build_flags, extra);
+
+		if (const auto& opts = config["cxx-build-options"])
+		{
+			for (auto kv : opts)
+			{
+				if (kv.second.IsNull())
+					continue;
+
+				if (auto def = env["build-options"][kv.first.Scalar()])
+				{
+					if (def.IsMap())
+					{
+						if (auto value = def[kv.second.Scalar()])
+						{
+							MergeYamlNode(extra_build_flags, value);
+						}		
+						else if (auto value = def["$value"])
+						{
+							// HACK: Format the value argument
+
+							auto cloned = YAML::Clone(value);
+
+							for (auto def_kv : cloned)
+							{
+								if (def_kv.second.IsSequence())
+								{
+									for (auto& v : def_kv.second)
+										(YAML::Node)v = fmt::format(v.Scalar(), fmt::arg("value", kv.second.Scalar()));
+								}
+								else
+								{
+									def_kv.second = fmt::format(def_kv.second.Scalar(), fmt::arg("value", kv.second.Scalar()));
+								}
+							}
+
+							MergeYamlNode(extra_build_flags, cloned);
+						}
+						else if (auto default = def["default"])
+						{
+							MergeYamlNode(extra_build_flags, default);
+						}
+						else
+						{
+							RE_THROW TargetConfigException(&target, "Unknown build option value '{}' = {}", kv.first.Scalar(), kv.second.Scalar());
+						}
+					}
+				}
+				else
+				{
+					RE_THROW TargetConfigException(&target, "Unknown build option '{}'", kv.first.Scalar());
+				}
+			}
 		}
+
+		parse_build_flags(extra_build_flags);
+
+		//YAML::Emitter em;
+		//em << extra_build_flags;
+		//fmt::print("{}\n", em.c_str());
 
 		for (auto& dir : include_dirs)
 			extra_flags.push_back(fmt::format(cxx_include_dir, fmt::arg("directory", dir)));
