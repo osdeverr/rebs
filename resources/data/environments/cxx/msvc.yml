@@ -162,6 +162,16 @@ build-options:
         false:
             compiler: [/permissive-]
 
+    msvc.additional-security-checks:
+        true:
+            compiler: [/sdl]
+        false:
+            compiler: [/sdl-]
+
+    entry-point:
+        $value:
+            linker.nostatic: ["/ENTRY:\"{value}\""]
+
 option-rules:
     arch:
         target-vars:
