@@ -372,6 +372,8 @@ int main(int argc, const char** argv)
 
             if (args.size() > partial_paths_offset)
             {
+                context.SetVar("no-meta", "true");
+
                 auto& filter = args[partial_paths_offset];
 
                 for (auto i = partial_paths_offset; i < args.size(); i++)
