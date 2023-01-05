@@ -1,6 +1,6 @@
 {
-    "$schema": "https://json-schema.org/draft/2019-09/schema",
-    "$id": "https://raw.githubusercontent.com/osdeverr/rebs/main/meta/re-target.schema.json",
+    "$schema": "http://json-schema.org/draft-04/hyper-schema",
+    "id": "https://raw.githubusercontent.com/osdeverr/rebs/main/meta/re-target.schema.json",
     "title": "Re Config",
     "description": "A build target config file for ReBS",
 
@@ -68,6 +68,80 @@
               }
             },
             "additionalProperties": false
+          }
+        }
+      },
+      "cxx_build_options_generic": {
+        "type": "object",
+        "properties": {
+          "optimization": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "min-size",
+                  "max-speed"
+                ]
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Optimization Level",
+            "description": "Tells the compiler which optimization level/mode to use.\nValues: off|min-size|max-speed|[custom value]"
+          },
+          "optimization-favor": {
+            "type": "string",
+            "enum": [
+              "speed", "size"
+            ],
+            "title": "Optimization Favor",
+            "description": "Tells the compiler what to favor when optimizing code.\nValues: speed|size"
+          },
+          "warning-level": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "min",
+                  "max",
+                  "all"
+                ]
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Warning Level",
+            "description": "Tells the compiler which warning level to use.\nValues: off|min|max|all|[custom value]"
+          },
+          "warnings-as-errors": {
+            "type": "boolean",
+            "title": "Treat Warnings as Errors",
+            "description": "Treat all compiler warnings as errors.\nValues: true|false"
+          },
+          "build-debug-info": {
+            "type": "boolean",
+            "title": "Build Debug Info",
+            "description": "Build platform-specific debugging info for the target.\nValues: true|false"
+          },
+          "permissive": {
+            "type": "boolean",
+            "title": "Permissive Standard Conformance",
+            "description": "Allows non-standard behavior that could potentially fail to build on other platforms.\nValues: true|false"
+          },
+          "entry-point": {
+            "type": "string",
+            "title": "Target Entry Point",
+            "description": "Specifies this target's entry point as a C function name."
           }
         }
       },
@@ -143,6 +217,14 @@
             "title": "C++ Build Flags",
             "description": "The C++ build flags to use when building this target."
           },
+          "cxx-build-options": {
+            "type": "object",
+            "anyOf": [
+              { "$ref": "#/definitions/cxx_build_options_generic" }
+            ],
+            "title": "C++ Build Options",
+            "description": "The C++ build options to use when building this target."
+          },
           "cxx-link-deps": {
             "type": "array",
             "items": { "type": "string" },
@@ -205,10 +287,7 @@
             "title": "Inherit Caller Target in Dependencies",
             "description": "Enabling this option makes your topmost target the parent of all external dependency targets you add.\nThis lets dependencies inherit options such as compile flags from your root target file."
           }
-        },
-        "anyOf": [
-          { "$ref": "#/definitions/cxx_config_options" }
-        ]
+        }
       },
       "dynamic_section": {
         "type": "object",
@@ -217,6 +296,7 @@
             "type": "object",
             "allOf": [
               { "$ref": "#/definitions/extended_fields" },
+              { "$ref": "#/definitions/cxx_config_options" },
               { "$ref": "#/definitions/dynamic_section" }
             ],
             "title": "Dynamic Section: Platform",
@@ -226,6 +306,7 @@
             "type": "object",
             "allOf": [
               { "$ref": "#/definitions/extended_fields" },
+              { "$ref": "#/definitions/cxx_config_options" },
               { "$ref": "#/definitions/dynamic_section" }
             ],
             "title": "Dynamic Section: Build Arch",
@@ -235,6 +316,7 @@
             "type": "object",
             "allOf": [
               { "$ref": "#/definitions/extended_fields" },
+              { "$ref": "#/definitions/cxx_config_options" },
               { "$ref": "#/definitions/dynamic_section" }
             ],
             "title": "Dynamic Section: Build Configuration",
@@ -244,6 +326,7 @@
             "type": "object",
             "allOf": [
               { "$ref": "#/definitions/extended_fields" },
+              { "$ref": "#/definitions/cxx_config_options" },
               { "$ref": "#/definitions/dynamic_section" }
             ],
             "title": "Dynamic Section: C++ Environment",
@@ -256,6 +339,7 @@
     "allOf": [
       { "$ref": "#/definitions/base_config" },
       { "$ref": "#/definitions/extended_fields" },
+      { "$ref": "#/definitions/cxx_config_options" },
       { "$ref": "#/definitions/dynamic_section" }
     ],
     
