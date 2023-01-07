@@ -30,7 +30,7 @@ namespace re
 		if (auto& cached = mTargetCache[cache_path])
 			return cached.get();
 
-		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(path));
+		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(path, &target));
 
 		result->root_path = target.root_path;
 

@@ -61,10 +61,13 @@ namespace re
 		std::vector<std::unique_ptr<ILangProvider>> mLangs;
 		std::vector<std::unique_ptr<IDepResolver>> mDepResolvers;
 		std::vector<std::unique_ptr<ITargetFeature>> mTargetFeatures;
+		std::vector<std::unique_ptr<ITargetLoadMiddleware>> mTargetLoadMiddlewares;
 
 		UserOutputLevel mOutLevel = UserOutputLevel::Info;
 		bool mOutColors = true;
 
 		std::unique_ptr<GlobalDepResolver> mGlobalDepResolver;
+
+		int RunNinjaBuild(const fs::path& script, const Target* root);
 	};
 }

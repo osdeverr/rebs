@@ -102,13 +102,33 @@ namespace re
 		mVars.SetVar("arch", "${build:platform}");
 	}
 
-	std::unique_ptr<Target> BuildEnv::LoadFreeTarget(const fs::path &path)
+	std::unique_ptr<Target> BuildEnv::LoadFreeTarget(const fs::path &path, const Target* ancestor)
 	{
-		auto target = std::make_unique<Target>(path, mTheCoreProjectTarget.get());
-		target->root = target.get();
+		std::unique_ptr<Target> target = nullptr;
 
-		// mTargetMap.clear();
-		// PopulateTargetMap(target.get());
+		for (auto& middleware : mTargetLoadMiddlewares)
+		{
+			if (middleware->SupportsTargetLoadPath(path))
+			{
+				fmt::print("middleware->SupportsTargetLoadPath({})\n", path.generic_u8string());
+				target = middleware->LoadTargetWithMiddleware(path, ancestor);
+				break;
+			}
+			else
+				fmt::print("!middleware->SupportsTargetLoadPath({})\n", path.generic_u8string());
+		}
+
+		// Default behavior in absence of any suitable middleware is to simply construct the target as normal.
+		if (!target)
+		{
+			if (!fs::exists(path / "re.yml"))
+				RE_THROW TargetLoadException(nullptr, "The directory '{}' does not contain a valid Re target.", path.u8string());
+
+			target = std::make_unique<Target>(path, mTheCoreProjectTarget.get());
+		}
+
+		target->parent = mTheCoreProjectTarget.get();
+		target->root = target.get();
 
 		return target;
 	}
@@ -458,6 +478,11 @@ namespace re
 	void BuildEnv::AddTargetFeature(ITargetFeature *feature)
 	{
 		mTargetFeatures[feature->GetName()] = feature;
+	}
+
+	void BuildEnv::AddTargetLoadMiddleware(ITargetLoadMiddleware *middleware)
+	{
+		mTargetLoadMiddlewares.push_back(middleware);
 	}
 
 	bool BuildEnv::ResolveTargetDependencyImpl(const Target &target, const TargetDependency &dep, std::vector<Target *> &out, bool use_external)
@@ -836,6 +861,13 @@ namespace re
 	
 					DebugShowVisualBuildInfo(child.get(), depth);
 				}
+			}
+			
+			if(mVars.GetVar("target-configs").value_or("false") == "true")
+			{
+				YAML::Emitter emitter;
+				emitter << pTarget->resolved_config;
+				mOut->Info({}, "{}", emitter.c_str());
 			}
 		}
 	}

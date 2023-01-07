@@ -94,7 +94,7 @@ namespace re
 			);
 		}
 
-		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(git_cached));
+		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(git_cached, &target));
 
 		result->root_path = target.root_path;
 

@@ -6,6 +6,9 @@
 #include <re/langs/cxx/features/cxx_header_projection.h>
 #include <re/langs/cxx/features/cpp2_translation.h>
 
+#include <re/langs/cmake/cmake_target_load_middleware.h>
+#include <re/langs/cmake/cmake_lang_provider.h>
+
 #include <re/deps/vcpkg_dep_resolver.h>
 #include <re/deps/git_dep_resolver.h>
 #include <re/deps/github_dep_resolver.h>
@@ -113,15 +116,24 @@ namespace re
 		mTargetFeatures.emplace_back(std::move(cxx_header_projection));
 		mTargetFeatures.emplace_back(std::move(cpp2_translation));
 
+		auto& cmake = mLangs.emplace_back(std::make_unique<CMakeLangProvider>(&mVars));
+		mEnv->AddLangProvider("cmake", cmake.get());
+
+		auto cmake_middleware = std::make_unique<CMakeTargetLoadMiddleware>(
+			mDataPath / "data" / "cmake-adapter",
+			this
+		);
+
+		mEnv->AddTargetLoadMiddleware(cmake_middleware.get());
+
+		mTargetLoadMiddlewares.emplace_back(std::move(cmake_middleware));
+
 		mEnv->LoadCoreProjectTarget(mDataPath / "data" / "core-project");
 	}
 
 	Target& DefaultBuildContext::LoadTarget(const fs::path& path)
 	{
 		re::PerfProfile _{ fmt::format(R"({}("{}"))", __FUNCTION__, path.u8string())};
-
-		if (!DoesDirContainTarget(path))
-			RE_THROW TargetLoadException(nullptr, "The directory '{}' does not contain a valid Re target.", path.u8string());
 
 		auto& target = mEnv->LoadTarget(path);
 		return target;
@@ -298,7 +310,28 @@ namespace re
 
 		Info(style, " - Building...\n\n");
 
-		auto out_dir = desc.out_dir.u8string();
+		for (auto& subninja : desc.subninjas)
+			RunNinjaBuild(subninja, desc.pRootTarget);
+
+		auto result = RunNinjaBuild(desc.out_dir / "build.ninja", desc.pRootTarget);
+
+		Info(style, "\n - Running post-build actions\n\n");
+
+		// Running post-build actions
+		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+			mEnv->RunActionsCategorized(dep, &desc, "post-build");
+
+		perf.Finish();
+
+		Info(style, " - Build successful! ({})\n", perf.ToString());
+
+		return result;
+	}
+	
+	int DefaultBuildContext::RunNinjaBuild(const fs::path& script, const Target* root)
+	{
+		auto out_dir = script.parent_path().u8string();
+		auto script_name = script.filename().u8string();
 
 		::BuildConfig config;
 		ninja::Options options;
@@ -369,7 +402,7 @@ namespace re
 		// status->Info("Running Ninja!");
 
 		options.working_dir = out_dir.c_str();
-		options.input_file = "build.ninja";
+		options.input_file = script_name.c_str();
 		options.dupe_edges_should_err = true;
 
 		if (options.working_dir)
@@ -396,15 +429,15 @@ namespace re
 		std::string err;
 		if (!parser.Load(options.input_file, &err))
 		{
-			RE_THROW TargetBuildException(desc.pRootTarget, "Failed to load generated config: {}", err);
+			RE_THROW TargetBuildException(root, "Failed to load generated config: {}", err);
 			exit(1);
 		}
 
 		if (!ninja.EnsureBuildDirExists())
-			RE_THROW TargetBuildException(desc.pRootTarget, "ninja.EnsureBuildDirExists() failed");
+			RE_THROW TargetBuildException(root, "ninja.EnsureBuildDirExists() failed");
 
 		if (!ninja.OpenBuildLog() || !ninja.OpenDepsLog())
-			RE_THROW TargetBuildException(desc.pRootTarget, "ninja.OpenBuildLog() || ninja.OpenDepsLog() failed");
+			RE_THROW TargetBuildException(root, "ninja.OpenBuildLog() || ninja.OpenDepsLog() failed");
 
 		/*
 		// Attempt to rebuild the manifest before building anything else
@@ -429,44 +462,12 @@ namespace re
 		int result = ninja.RunBuild(targets.size(), (char**) targets.data(), &status);
 
 		if (result)
-			RE_THROW TargetBuildException(desc.pRootTarget, "Ninja build failed: exit_code={}", result);
+			RE_THROW TargetBuildException(root, "Ninja build failed: exit_code={}", result);
 
 		if (g_metrics)
 			ninja.DumpMetrics();
 
-		/*
-		#ifdef WIN32
-				auto path_to_ninja = mDataPath / "ninja.exe";
-
-				std::vector<std::wstring> cmdline;
-
-				cmdline.push_back(path_to_ninja.wstring());
-				cmdline.push_back(L"-C");
-				cmdline.push_back(desc.out_dir.wstring());
-
-				int result = RunProcessOrThrowWindows("ninja", cmdline, true, true);
-		#else
-				auto path_to_ninja = mDataPath / "ninja";
-
-				std::vector<std::string> cmdline;
-
-				cmdline.push_back(path_to_ninja.u8string());
-				cmdline.push_back("-C");
-				cmdline.push_back(desc.out_dir.u8string());
-
-				int result = RunProcessOrThrow("ninja", cmdline, true, true);
-		#endif
-		*/
-
-		Info(style, "\n - Running post-build actions\n\n");
-
-		// Running post-build actions
-		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
-			mEnv->RunActionsCategorized(dep, &desc, "post-build");
-
-		perf.Finish();
-
-		Info(style, " - Build successful! ({})\n", perf.ToString());
+		Info({}, "\n");
 
 		return result;
 	}

@@ -4,6 +4,7 @@
 #include "dep_resolver.h"
 #include "target_loader.h"
 #include "user_output.h"
+#include "target_load_middleware.h"
 
 #include <re/vars.h>
 
@@ -30,7 +31,7 @@ namespace re
 
 		Target* GetCoreTarget();
 
-		std::unique_ptr<Target> LoadFreeTarget(const fs::path& path);
+		std::unique_ptr<Target> LoadFreeTarget(const fs::path& path, const Target* ancestor = nullptr);
 		Target& LoadTarget(const fs::path& path);
 		void RegisterLocalTarget(Target* pTarget);
 
@@ -60,6 +61,8 @@ namespace re
 		void AddTargetFeature(std::string_view name, ITargetFeature *feature);
 		void AddTargetFeature(ITargetFeature *feature);
 		
+		void AddTargetLoadMiddleware(ITargetLoadMiddleware *middleware);
+		
 		IDepResolver* GetDepResolver(const std::string& name);
 
 		void DebugShowVisualBuildInfo(const Target* pTarget = nullptr, int depth = 0);
@@ -73,6 +76,8 @@ namespace re
 		std::unordered_map<std::string, ILangProvider *> mLangProviders;
 		std::unordered_map<std::string, IDepResolver *> mDepResolvers;
 		std::unordered_map<std::string, ITargetFeature *> mTargetFeatures;
+
+		std::vector<ITargetLoadMiddleware*> mTargetLoadMiddlewares;
 
 		LocalVarScope mVars;
 		IUserOutput* mOut;
