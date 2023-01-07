@@ -53,7 +53,7 @@ namespace re
 
         // fmt::print("DEBUG: Loading global stuff '{}'\n", target_path.u8string());
         
-		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(target_path));
+		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(target_path, &target));
 
 		result->root_path = target.root_path;
 

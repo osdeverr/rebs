@@ -264,10 +264,5 @@ namespace re
 
     std::string ResolveTargetParentRef(std::string name, const Target* target);
 
-    inline static std::string GetEscapedModulePath(const Target& target)
-    {
-        auto module_escaped = target.module;
-        std::replace(module_escaped.begin(), module_escaped.end(), '.', '_');
-        return module_escaped;
-    }
+    std::string GetEscapedModulePath(const Target& target);
 }

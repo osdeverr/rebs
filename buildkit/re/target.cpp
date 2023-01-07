@@ -215,6 +215,9 @@ namespace re
 
     void Target::LoadSourceTree(fs::path path)
     {
+        if (GetCfgEntry<bool>("disable-source-tree-load").value_or(false))
+            return;
+
         if (path.empty())
             path = this->path;
 
@@ -421,5 +424,15 @@ namespace re
             prefix = parent->module + ".";
 
         return prefix + name;
+    }
+
+    std::string GetEscapedModulePath(const Target& target)
+    {
+        auto module_escaped = target.module;
+        
+        std::replace(module_escaped.begin(), module_escaped.end(), '.', '_');
+        std::replace(module_escaped.begin(), module_escaped.end(), ':', '_');
+
+        return module_escaped;
     }
 }

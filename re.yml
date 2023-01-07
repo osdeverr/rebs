@@ -6,4 +6,11 @@ platform.windows:
       compiler:
           - "/Zi"
 
+  # This will fail to do anything in bootstrap builds but will SERIOUSLY improve link speeds in ordinary ones.
+  # TODO: Get rid of this in production!
+  cxx-build-options:
+    msvc.whole-program-optimization: false
+
+inherit-caller-in-deps: true
+
 cxx-standard: 17

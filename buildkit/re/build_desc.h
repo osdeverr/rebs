@@ -77,6 +77,8 @@ namespace re
 		std::vector<BuildRule> rules;
 		std::vector<BuildTarget> targets;
 
+		std::vector<std::string> subninjas;
+
 		Target* pRootTarget = nullptr;
 
 		nlohmann::json meta;
