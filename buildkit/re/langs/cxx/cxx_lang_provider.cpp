@@ -211,6 +211,18 @@ namespace re
 
 		// fmt::print("InitLinkEnv: Setting default root path: {} => {}", target.module, target.path.u8string());
 		target.resolved_config["cxx-root-include-path"] = target.path.u8string();
+		
+		// Forward the C++ build tools definitions to the build system
+		for (const auto& kv : env["tools"])
+		{
+			auto name = kv.first.Scalar();
+			auto tool_path = vars.Resolve(kv.second.Scalar());
+
+			desc.tools.push_back(BuildTool{ "cxx_" + name + "_" + path, tool_path });
+
+			meta["tools"][name] = tool_path;
+			vars.SetVar("cxx.tool." + name, tool_path);
+		}
 	}
 
 	bool CxxLangProvider::InitBuildTargetRules(NinjaBuildDesc& desc, const Target& target)
@@ -476,17 +488,6 @@ namespace re
 		}
 
 		/////////////////////////////////////////////////////////////////
-
-		// Forward the C++ build tools definitions to the build system
-		for (const auto& kv : env["tools"])
-		{
-			auto name = kv.first.Scalar();
-			auto tool_path = vars.Resolve(kv.second.Scalar());
-
-			desc.tools.push_back(BuildTool{ "cxx_" + name + "_" + path, tool_path });
-
-			meta["tools"][name] = tool_path;
-		}
 
 		// Create build rules
 

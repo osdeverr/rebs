@@ -10,6 +10,7 @@ Some of Re's notable features are:
 
 - **No code:** Re explicitly does NOT allow you to imperatively write build logic on your own. The entire build process is governed by simple, declarative YAML configs. This simplifies the project structure a lot, even if it sacrifices some use cases and in some cases forces you to restructure your project a bit.
 - **Trivial setup:** the simplest Re project is literally [just two lines of configuration](/examples/hello-world/re.yml).
+- **CMake support:** Re supports loading (most) CMake targets as its own, allowing you to depend on any CMake libraries as if they were using Re. *(You can run `re` inside of a CMake project directory too!)*
 - **Easy dependencies:** Re provides a unified interface for dependencies in the config file and supports Git, GitHub and [vcpkg](https://github.com/microsoft/vcpkg) dependencies out of the box. [See for yourself how easy it is!](/examples/easy-dependencies)
 - **Custom actions:** Re supports custom build actions that are run on pre-build/post-build stages or when you trigger them using a `re do <category>` command. [Check them out!](/examples/actions-showcase)
 - **Cross-platform support:** Re projects build the same way on **Windows**, **Linux** and **macOS**. If you haven't used any platform-specific features, your project will always get built just fine via invoking `re` on all three platforms.

@@ -41,7 +41,7 @@ namespace re
 		{
 			RE_TRACE(" PopulateTargetDependencySet: Attempting to resolve '{}' <- '{}'\n", pTarget->module, dep.ToString());
 
-			if (!dep_resolver(*pTarget, dep, dep.resolved))
+			if (dep.resolved.empty() && !dep_resolver(*pTarget, dep, dep.resolved))
 			{
 				RE_TRACE("     failed\n");
 
@@ -110,12 +110,12 @@ namespace re
 		{
 			if (middleware->SupportsTargetLoadPath(path))
 			{
-				fmt::print("middleware->SupportsTargetLoadPath({})\n", path.generic_u8string());
+				// fmt::print("middleware->SupportsTargetLoadPath({})\n", path.generic_u8string());
 				target = middleware->LoadTargetWithMiddleware(path, ancestor);
 				break;
 			}
-			else
-				fmt::print("!middleware->SupportsTargetLoadPath({})\n", path.generic_u8string());
+			//else
+			//	fmt::print("!middleware->SupportsTargetLoadPath({})\n", path.generic_u8string());
 		}
 
 		// Default behavior in absence of any suitable middleware is to simply construct the target as normal.

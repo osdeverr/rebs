@@ -28,16 +28,6 @@ link-with:
     custom: null
     default: cpp
 
-config.debug:
-    cxx-build-options:
-        debug:
-    cxx-compile-definitions:
-        DEBUG: 1
-        
-config.release:
-    cxx-compile-definitions:
-        NDEBUG: 1
-
 cxx-compile-definitions-public: {}
         
 cxx-include-dirs: []
@@ -60,6 +50,23 @@ cxxenv.gcc:
 cxx-header-projection: false
 
 inherit-caller-in-deps: false
+
+config.debug:
+    cmake-build-type: Debug
+
+    cxx-build-options:
+        debug:
+    cxx-compile-definitions:
+        DEBUG: 1
+        
+config.release:
+    cmake-build-type: Release
+
+    cxx-compile-definitions:
+        NDEBUG: 1
+    
+config.release.debinfo:
+    cmake-build-type: RelWithDebInfo
 
 # Thanks K2Re8 for the right flags!
 cxxenv.msvc:
