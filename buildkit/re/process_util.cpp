@@ -14,6 +14,16 @@ namespace re
 {
     int RunProcessOrThrow(std::string_view program_name, std::vector<std::string> cmdline, bool output, bool throw_on_bad_exit, std::optional<std::string_view> working_directory)
     {
+        /*
+        // TRACE: Remove later!
+        fmt::print(" # Running process [{}]:", program_name);
+
+        for(auto& arg : cmdline)
+            fmt::print(" {}", arg);
+
+        fmt::print("\n");
+        */
+
         std::error_code start_ec;
 
         auto path = boost::process::search_path(cmdline[0].data());

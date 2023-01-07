@@ -13,6 +13,10 @@ _add_custom_target(${_target} ${ARGN})
 set_property(GLOBAL APPEND PROPERTY GlobalTargetList ${_target})
 endmacro()
 
+if (RE_CUSTOM_LINK_OPTS)
+    add_link_options(${RE_CUSTOM_LINK_OPTS})
+endif()
+
 add_subdirectory(${RE_ORIGINAL_CMAKE_DIR} ${RE_BIN_OUT_DIR})
 
 get_property(_allTargets GLOBAL PROPERTY GlobalTargetList)
