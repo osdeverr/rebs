@@ -53,10 +53,15 @@ namespace re
 
         std::vector<Target*> resolved = {};
 
+        YAML::Node extra_config{YAML::NodeType::Undefined};
+        std::size_t extra_config_hash = 0;
+        std::size_t extra_config_data_hash = 0;
+
         std::string ToString() const;
     };
 
     TargetDependency ParseTargetDependency(const std::string& str, const Target* pTarget = nullptr);
+    TargetDependency ParseTargetDependencyNode(YAML::Node node, const Target* pTarget = nullptr);
 
     inline std::string ModulePathCombine(const std::string& a, const std::string& b)
     {

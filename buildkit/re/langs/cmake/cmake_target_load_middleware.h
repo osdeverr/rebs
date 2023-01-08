@@ -12,7 +12,12 @@ namespace re
         {}
 
         bool SupportsTargetLoadPath(const fs::path& path);
-        std::unique_ptr<Target> LoadTargetWithMiddleware(const fs::path& path, const Target* ancestor);
+
+        std::unique_ptr<Target> LoadTargetWithMiddleware(
+            const fs::path& path,
+            const Target* ancestor,
+            const TargetDependency* dep_source
+        );
 
     private:
         fs::path mAdapterPath;

@@ -31,7 +31,12 @@ namespace re
 
 		Target* GetCoreTarget();
 
-		std::unique_ptr<Target> LoadFreeTarget(const fs::path& path, const Target* ancestor = nullptr);
+		std::unique_ptr<Target> LoadFreeTarget(
+			const fs::path& path,
+			const Target* ancestor = nullptr,
+			const TargetDependency* dep_source = nullptr
+		);
+		
 		Target& LoadTarget(const fs::path& path);
 		void RegisterLocalTarget(Target* pTarget);
 
