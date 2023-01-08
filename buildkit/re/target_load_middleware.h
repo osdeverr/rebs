@@ -9,6 +9,11 @@ namespace re
         virtual ~ITargetLoadMiddleware() = default;
 
         virtual bool SupportsTargetLoadPath(const fs::path& path) = 0;
-        virtual std::unique_ptr<Target> LoadTargetWithMiddleware(const fs::path& path, const Target* ancestor) = 0;
+
+        virtual std::unique_ptr<Target> LoadTargetWithMiddleware(
+            const fs::path& path,
+            const Target* ancestor,
+            const TargetDependency* dep_source
+        ) = 0;
     };
 }

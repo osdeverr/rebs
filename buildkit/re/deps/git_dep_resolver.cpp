@@ -7,6 +7,7 @@
 #include <re/fs.h>
 
 #include <re/target_cfg_utils.h>
+#include <re/yaml_merge.h>
 
 #include <fstream>
 
@@ -33,6 +34,9 @@ namespace re
 		auto re_config = scope.ResolveLocal("configuration");
 
 		auto triplet = fmt::format("{}-{}-{}", re_arch, re_platform, re_config);
+
+		if (dep.extra_config_hash)
+			triplet += fmt::format("-ecfg-{}", dep.extra_config_hash);
 
 		auto cache_path = cached_dir + "-" + triplet;
 
@@ -94,13 +98,16 @@ namespace re
 			);
 		}
 
-		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(git_cached, &target));
+		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(git_cached, &target, &dep));
 
 		result->root_path = target.root_path;
 
 		result->config["arch"] = re_arch;
 		result->config["platform"] = re_platform;
 		result->config["configuration"] = re_config;
+
+		if (dep.extra_config)
+			MergeYamlNode(result->config, dep.extra_config);
 
 		result->var_parent = target.var_parent;
 		result->local_var_ctx = context;

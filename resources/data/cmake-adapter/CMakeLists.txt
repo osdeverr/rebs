@@ -26,12 +26,40 @@ set(RE_ADAPTED_META "")
 
 string(APPEND RE_ADAPTED_META "project-name: ${PROJECT_NAME}\n")
 
+string(APPEND RE_ADAPTED_META "last-build-ecfg-hash: ${RE_ECFG_HASH}\n")
+
 string(APPEND RE_ADAPTED_META "targets:\n")
 
 foreach(target ${_allTargets})
-    string(APPEND RE_ADAPTED_META "  ${target}:\n")
-
     get_target_property(TGT_TYPE ${target} TYPE)
+
+    message(STATUS "cmake-adapter: Processing target ${target}")
+
+    get_target_property(TGT_ORIGINAL ${target} ALIASED_TARGET)
+
+    if (NOT TGT_ORIGINAL)
+        set(TGT_ORIGINAL ${target})
+    endif()
+
+    if (${TGT_TYPE} STREQUAL "STATIC_LIBRARY" OR ${TGT_TYPE} STREQUAL "SHARED_LIBRARY" OR ${TGT_TYPE} STREQUAL "EXECUTABLE")
+        if (RE_CUSTOM_COMPILE_DEFINITIONS_PRIVATE_ALL)
+            target_compile_definitions(${TGT_ORIGINAL} PRIVATE ${RE_CUSTOM_COMPILE_DEFINITIONS_PRIVATE_ALL})
+        endif()
+
+        if (RE_CUSTOM_COMPILE_DEFINITIONS_PUBLIC_ALL)
+            target_compile_definitions(${TGT_ORIGINAL} PUBLIC ${RE_CUSTOM_COMPILE_DEFINITIONS_PUBLIC_ALL})
+        endif()
+
+        if (RE_CUSTOM_COMPILE_DEFINITIONS_PRIVATE_${target})
+            target_compile_definitions(${TGT_ORIGINAL} PRIVATE "${RE_CUSTOM_COMPILE_DEFINITIONS_PRIVATE_${target}}")
+        endif()
+
+        if (RE_CUSTOM_COMPILE_DEFINITIONS_PUBLIC_${target})
+            target_compile_definitions(${TGT_ORIGINAL} PUBLIC "${RE_CUSTOM_COMPILE_DEFINITIONS_PUBLIC_${target}}")
+        endif()
+    endif()
+
+    string(APPEND RE_ADAPTED_META "  ${target}:\n")
     string(APPEND RE_ADAPTED_META "      cmake-type: ${TGT_TYPE}\n")   
 
     if (${TGT_TYPE} STREQUAL "STATIC_LIBRARY" OR ${TGT_TYPE} STREQUAL "SHARED_LIBRARY" OR ${TGT_TYPE} STREQUAL "EXECUTABLE")

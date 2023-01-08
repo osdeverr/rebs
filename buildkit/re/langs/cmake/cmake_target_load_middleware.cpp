@@ -1,6 +1,7 @@
 #include "cmake_target_load_middleware.h"
 
 #include <re/process_util.h>
+#include <re/target_cfg_utils.h>
 
 #include <fstream>
 
@@ -16,7 +17,11 @@ namespace re
         return fs::exists(path / "CMakeLists.txt") && !fs::exists(path / "re.yml");
     }
 
-    std::unique_ptr<Target> CMakeTargetLoadMiddleware::LoadTargetWithMiddleware(const fs::path& path, const Target* ancestor)
+    std::unique_ptr<Target> CMakeTargetLoadMiddleware::LoadTargetWithMiddleware(
+        const fs::path& path,
+        const Target* ancestor,
+        const TargetDependency* dep_source
+    )
     {
         auto canonical_path = fs::canonical(path);
 
@@ -38,7 +43,12 @@ namespace re
             config = scope.ResolveLocal("configuration");
             platform = scope.ResolveLocal("platform");
 
-            out_dir = ancestor->root->path / ".re-cache" / "cmake-gen" / fmt::format("{}-{}-{}-{}", path_hash, arch, config, platform);
+            std::string dir_name = fmt::format("{}-{}-{}-{}-{}", canonical_path.filename().generic_u8string(), arch, config, platform, path_hash);
+
+            if (dep_source && dep_source->extra_config_hash)
+                dir_name += fmt::format("-{}", dep_source->extra_config_hash);
+
+            out_dir = ancestor->root->path / ".re-cache" / "cmake-gen" / dir_name;
             
             if (auto compiler = scope.GetVar("cxx.tool.compiler"))
                 compiler_override = fs::path{*compiler}.generic_u8string();
@@ -67,8 +77,31 @@ namespace re
 
         auto meta_path = out_dir / "re-cmake-meta.yml";
 
-        if (!fs::exists(meta_path) || (ancestor && ancestor->build_var_scope->GetVar("cmake-reconfigure").value_or("false") == "true"))
+        bool should_rebuild = true;
+
+        if (ancestor && ancestor->build_var_scope->GetVar("cmake-reconfigure").value_or("false") == "true")
+            should_rebuild = true;
+
+        YAML::Node cmake_meta{YAML::NodeType::Undefined};
+        
+        if (fs::exists(meta_path))
         {
+            std::ifstream file{meta_path};
+            cmake_meta = YAML::Load(file);
+
+            should_rebuild = false;
+
+            if (!should_rebuild && dep_source && cmake_meta["last-build-ecfg-hash"].as<std::size_t>() != dep_source->extra_config_data_hash)
+                should_rebuild = true;
+        }
+
+        if (should_rebuild)
+        {
+            mOut->Info(
+                fg(fmt::color::dim_gray) | fmt::emphasis::bold,
+                "     Rebuilding CMake cache...\n\n"
+            );
+
             std::vector<std::string> cmdline = {
                 "cmake",
                 "-G", "Ninja"
@@ -78,6 +111,50 @@ namespace re
             cmdline.emplace_back("-DRE_BIN_OUT_DIR=" + bin_dir.generic_u8string());
             cmdline.emplace_back("-DRE_ADAPTED_META_FILE=" + meta_path.generic_u8string());
             cmdline.emplace_back("-DCMAKE_BUILD_TYPE=" + config);
+
+            if (dep_source && dep_source->extra_config)
+            {
+                auto parse_config_for_target = [&cmdline, &arch, &platform, &config](YAML::Node node, const std::vector<std::string>& targets)
+                {
+                    std::string defs_private, defs_public;
+
+                    for (auto kv : node["cxx-compile-definitions"])
+                        defs_private.append(fmt::format("{}={};", kv.first.Scalar(), kv.second.Scalar()));
+                        
+                    for (auto kv : node["cxx-compile-definitions-public"])
+                        defs_public.append(fmt::format("{}={};", kv.first.Scalar(), kv.second.Scalar()));
+
+                    for (auto& target : targets)
+                    {
+                        cmdline.emplace_back(fmt::format("-DRE_CUSTOM_COMPILE_DEFINITIONS_PRIVATE_{}={}", target, defs_private));
+                        cmdline.emplace_back(fmt::format("-DRE_CUSTOM_COMPILE_DEFINITIONS_PUBLIC_{}={}", target, defs_public));
+                    }
+                };
+                
+                auto resolved = GetFlatResolvedTargetCfg(
+                    dep_source->extra_config,
+                    {
+                        {"arch", arch},
+                        {"platform", platform},
+                        {"config", config}
+                    }
+                );
+
+                if (dep_source->filters.empty())
+                    parse_config_for_target(resolved, {"ALL"});
+                else
+                    parse_config_for_target(resolved, dep_source->filters);
+
+                for (auto kv : resolved)
+                {
+                    constexpr auto kCMakeTargetPrefix = "cmake-target.";
+
+                    if (kv.first.Scalar().find(kCMakeTargetPrefix) == 0)
+                        parse_config_for_target(kv.second, {kv.first.Scalar().substr(sizeof kCMakeTargetPrefix)});
+                }
+            }
+
+            cmdline.emplace_back(fmt::format("-DRE_ECFG_HASH={}", dep_source ? dep_source->extra_config_data_hash : 0));
 
             cmdline.emplace_back("-DCMAKE_C_COMPILER_WORKS=1");
             cmdline.emplace_back("-DCMAKE_CXX_COMPILER_WORKS=1");
@@ -108,7 +185,7 @@ namespace re
         }
 
         std::ifstream file{meta_path};
-        auto cmake_meta = YAML::Load(file);
+        cmake_meta = YAML::Load(file);
 
         TargetConfig target_config{YAML::NodeType::Map};
 

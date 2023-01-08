@@ -134,20 +134,20 @@ namespace re
 
         if (deps)
         {
-            for (const auto &dep : deps)
+            for (auto node : deps)
             {
-                auto str = dep.as<std::string>();
-
                 bool exists = false;
 
+                auto dep = ParseTargetDependencyNode(node, this);
+
                 for (auto& existing : dependencies)
-                    if (existing.raw == str)
+                    if (existing.raw == dep.raw && existing.extra_config_hash == dep.extra_config_hash)
                         exists = true;
 
                 if (exists)
                     continue;
 
-                dependencies.emplace_back(ParseTargetDependency(str, this));
+                dependencies.emplace_back(dep);
             }
         }
 
@@ -163,6 +163,7 @@ namespace re
 
                     auto& mapping = used_mapping[key];
 
+                    // TODO: Move to ParseTargetDependencyNode
                     if (!mapping)
                         mapping = std::make_unique<TargetDependency>(ParseTargetDependency(build_var_scope->Resolve(kv.second.Scalar()), this));
                 }
@@ -392,6 +393,44 @@ namespace re
             dep.name = ResolveTargetParentRef(dep.name, pTarget);
 
         return dep;
+    }
+    
+    TargetDependency ParseTargetDependencyNode(YAML::Node node, const Target* pTarget)
+    {
+        if (node.IsScalar())
+        {
+            return ParseTargetDependency(node.Scalar(), pTarget);
+        }
+        else if(node.IsMap())
+        {
+            // HACK: This YAML library sucks.
+            for (auto kv : node)
+            {
+                auto result = ParseTargetDependency(kv.first.Scalar(), pTarget);
+                
+                result.extra_config = YAML::Clone(kv.second);
+
+                YAML::Emitter emitter;
+                emitter << result.extra_config;
+                result.extra_config_data_hash = std::hash<std::string_view>{}(emitter.c_str());
+
+                if (pTarget)
+                {
+                    result.extra_config_hash = std::hash<std::string_view>{}(pTarget->module);
+                }
+                else
+                {
+                    result.extra_config_hash = result.extra_config_data_hash;
+                }
+
+                return result;
+            }
+        }
+        else
+        {
+            auto mark = node.Mark();
+            RE_THROW TargetDependencyException(pTarget, "dependency node at {}:{} must be string or map", mark.line, mark.column);
+        }
     }
 
     std::string TargetDependency::ToString() const

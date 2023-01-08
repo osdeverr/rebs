@@ -1,6 +1,7 @@
 #include "fs_dep_resolver.h"
 
 #include <re/target_cfg_utils.h>
+#include <re/yaml_merge.h>
 
 namespace re
 {
@@ -13,6 +14,9 @@ namespace re
 		auto re_config = scope.ResolveLocal("configuration");
 
 		auto triplet = fmt::format("-{}-{}-{}", re_arch, re_platform, re_config);
+
+		if (dep.extra_config_hash)
+			triplet += fmt::format("-ecfg-{}", dep.extra_config_hash);
 
 		auto cache_path = dep.name + triplet;
 
@@ -30,13 +34,16 @@ namespace re
 		if (auto& cached = mTargetCache[cache_path])
 			return cached.get();
 
-		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(path, &target));
+		auto& result = (mTargetCache[cache_path] = mLoader->LoadFreeTarget(path, &target, &dep));
 
 		result->root_path = target.root_path;
 
 		result->config["arch"] = re_arch;
 		result->config["platform"] = re_platform;
 		result->config["configuration"] = re_config;
+
+		if (dep.extra_config)
+			MergeYamlNode(result->config, dep.extra_config);
 
 		result->var_parent = target.var_parent;
 		result->local_var_ctx = context;

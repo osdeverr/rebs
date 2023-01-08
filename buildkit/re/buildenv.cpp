@@ -102,7 +102,7 @@ namespace re
 		mVars.SetVar("arch", "${build:platform}");
 	}
 
-	std::unique_ptr<Target> BuildEnv::LoadFreeTarget(const fs::path &path, const Target* ancestor)
+	std::unique_ptr<Target> BuildEnv::LoadFreeTarget(const fs::path &path, const Target* ancestor, const TargetDependency* dep_source)
 	{
 		std::unique_ptr<Target> target = nullptr;
 
@@ -111,7 +111,7 @@ namespace re
 			if (middleware->SupportsTargetLoadPath(path))
 			{
 				// fmt::print("middleware->SupportsTargetLoadPath({})\n", path.generic_u8string());
-				target = middleware->LoadTargetWithMiddleware(path, ancestor);
+				target = middleware->LoadTargetWithMiddleware(path, ancestor, dep_source);
 				break;
 			}
 			//else

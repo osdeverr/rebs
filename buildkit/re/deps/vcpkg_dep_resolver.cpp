@@ -5,6 +5,7 @@
 
 #include <re/process_util.h>
 #include <re/target_cfg_utils.h>
+#include <re/yaml_merge.h>
 
 #include <fstream>
 
@@ -19,6 +20,9 @@ namespace re
         auto re_config = scope.ResolveLocal("configuration");
 
         auto cache_path = fmt::format("{}-{}-{}-{}", dep.name, re_arch, re_platform, re_config);
+
+		if (dep.extra_config_hash)
+			cache_path += fmt::format("-ecfg-{}", dep.extra_config_hash);
 
         if (auto& cached = mTargetCache[cache_path])
             return cached.get();
@@ -156,7 +160,7 @@ namespace re
             config["actions"].push_back(entry);
         }
 
-        auto package_target = std::make_unique<Target>(path.u8string(), "vcpkg." + dep.name, TargetType::StaticLibrary, config);
+        auto package_target = std::make_unique<Target>(path.u8string(), "vcpkg." + cache_path, TargetType::StaticLibrary, config);
 
         YAML::Node vcpkg_json = YAML::LoadFile((vcpkg_root / "ports" / dep.name / "vcpkg.json").u8string());
 
@@ -244,6 +248,9 @@ namespace re
         package_target->config["arch"] = re_arch;
         package_target->config["platform"] = re_platform;
         package_target->config["configuration"] = re_config;
+
+		if (dep.extra_config)
+			MergeYamlNode(package_target->config, dep.extra_config);
 
         package_target->var_parent = target.var_parent;
         package_target->local_var_ctx = context;
