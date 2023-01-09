@@ -203,7 +203,7 @@ namespace re
         target_config["no-auto-include-dirs"] = true;
 
         auto target = std::make_unique<Target>(path, "_", TargetType::Project, target_config);
-        target->name = target->module = fmt::format(".cmake_target_stub_{}", path_hash);
+        target->name = target->module = fmt::format("cmake.{}.{}", path_hash, canonical_path.filename().generic_u8string());
 
         for (auto kv : cmake_meta["targets"])
         {
@@ -249,7 +249,7 @@ namespace re
 
                     if (auto target_dep = target->FindChild(dep_str.Scalar()))
                     {
-                        auto dependency = ParseTargetDependency("cmake-internal:" + dep_str.Scalar());
+                        auto dependency = ParseTargetDependency("cmake-ref:" + dep_str.Scalar());
                         dependency.resolved = {target_dep};
                         child->dependencies.emplace_back(dependency);
                     }
