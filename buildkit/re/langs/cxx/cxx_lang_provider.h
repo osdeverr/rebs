@@ -1,5 +1,6 @@
 #pragma once
 #include <re/lang_provider.h>
+#include <re/target.h>
 #include <re/vars.h>
 
 #include <yaml-cpp/yaml.h>

@@ -295,7 +295,10 @@ namespace re
 			auto& config = target->resolved_config;
 
 			if (!config)
+			{
+				// fmt::print(" Target '{}' does not have a resolved config.\n", target->module);
 				continue;
+			}
 
 			auto dependency_defines = config["cxx-compile-definitions-public"];
 
@@ -695,6 +698,9 @@ namespace re
 		alias_target.rule = "phony";
 
 		desc.vars["cxx_artifact_" + path] = link_target.out;
+
+		auto full_artifact_path = fs::path{"${artifact-dir}"} / "${build-artifact}";
+		desc.artifacts[&target] = full_artifact_path;
 
 		desc.targets.emplace_back(std::move(link_target));
 		desc.targets.emplace_back(std::move(alias_target));
