@@ -437,7 +437,7 @@ int main(int argc, const char** argv)
             std::vector<std::string> run_args(args.begin() + 2, args.end());
             run_args.insert(run_args.begin(), run_path->second.u8string());
 
-            auto working_dir = context.GetVar("working-dir").value_or(re::fs::canonical(run_path->second.parent_path()).u8string());
+            auto working_dir = context.GetVar("working-dir").value_or(run_path->second.parent_path().u8string());
 
             context.Info(style, " * Running target '{}' from '{}'\n\n", run_path->first->module, run_args[0]);
             re::RunProcessOrThrow(run_path->first->module, run_args, true, false, working_dir);
