@@ -2,6 +2,7 @@
 #include <re/build/default_build_context.h>
 
 #include <re/path_util.h>
+#include <re/process_util.h>
 
 #include <fmt/format.h>
 #include <fmt/os.h>
@@ -351,6 +352,94 @@ int main(int argc, const char** argv)
             context.GenerateBuildDescForTarget(target);
 
             context.GetBuildEnv()->DebugShowVisualBuildInfo();
+        }
+        else if (args[1] == "run")
+        {
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
+
+            context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
+
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
+            auto &target = context.LoadTarget(path);
+            apply_cfg_overrides(&target);
+
+            auto desc = context.GenerateBuildDescForTarget(target);
+
+            if (desc.artifacts.empty())
+            {
+                throw re::TargetException("TargetRunException", desc.pRootTarget, "Nothing to run");
+            }
+
+            auto run_path = desc.artifacts.end();
+
+            const auto style = fmt::emphasis::bold | fg(fmt::color::yellow);
+
+            if (auto var = context.GetVar("target"))
+            {
+                if (auto absolute = context.GetBuildEnv()->GetTargetOrNull(*var))
+                    run_path = desc.artifacts.find(absolute);
+                else if (auto relative = desc.pRootTarget->FindChild(*var))
+                    run_path = desc.artifacts.find(relative);
+            }
+            else if (auto var = context.GetVar("default-run-target"))
+            {
+                if (auto absolute = context.GetBuildEnv()->GetTargetOrNull(*var))
+                    run_path = desc.artifacts.find(absolute);
+                else if (auto relative = desc.pRootTarget->FindChild(*var))
+                    run_path = desc.artifacts.find(relative);
+            }
+            else
+            {
+                if (desc.artifacts.size() == 1)
+                {
+                    run_path = desc.artifacts.begin();
+                }
+                else
+                {
+                    // Show a dialog asking the user to choose.
+
+                    std::vector<const re::Target*> choices;
+                    std::size_t index;
+
+                    for (auto& [target, _] : desc.artifacts)
+                    {
+                        if (target->type != re::TargetType::Executable)
+                            continue;
+
+                        choices.push_back(target);
+                    }
+
+                    context.Info(style, "\n * This project has {} executable targets to run. Please choose one:\n\n", choices.size());
+
+                    std::size_t i = 0;
+
+                    for (auto& choice : choices)
+                    {
+                        context.Info(fg(fmt::color::dim_gray), "   [{}] ", i++);
+                        context.Info(fg(fmt::color::yellow), "{}\n", choice->module);
+                    }
+
+                    context.Info({}, "\n Choose: ", choices.size() - 1);
+
+                    std::cin >> index;
+
+                    run_path = desc.artifacts.find(choices.at(index));
+                }
+            }
+
+            if (run_path == desc.artifacts.end())
+                throw re::TargetException("TargetRunException", desc.pRootTarget, "Couldn't find an artifact to run");
+
+            context.BuildTarget(desc);
+
+            std::vector<std::string> run_args(args.begin() + 2, args.end());
+            run_args.insert(run_args.begin(), run_path->second.u8string());
+
+            context.Info(style, " * Running target '{}' from '{}'\n\n", run_path->first->module, run_args[0]);
+            re::RunProcessOrThrow(run_path->first->module, run_args, true, false);
+            context.Info({}, "\n");
         }
         else
         {

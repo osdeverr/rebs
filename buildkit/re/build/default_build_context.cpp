@@ -263,6 +263,12 @@ namespace re
 			if (auto artifact = dep->build_var_scope->GetVarNoRecurse("build-artifact"))
 				meta["main-artifact"] = (full_artifact_dir / *artifact).u8string();
 		}
+		
+		// Resolve all the paths
+		for (auto it = desc.artifacts.begin(); it != desc.artifacts.end(); it++)
+		{
+			it.value() = it->first->build_var_scope->Resolve(it->second.generic_u8string());
+		}
 
 		desc.meta["root_target"] = target.root->module;
 
@@ -288,6 +294,8 @@ namespace re
 	int DefaultBuildContext::BuildTarget(const NinjaBuildDesc& desc)
 	{
 		re::PerfProfile perf{ fmt::format(R"({}("{}"))", __FUNCTION__, desc.out_dir.u8string()) };
+
+		auto current_path_at_invoke = fs::current_path();
 
 		auto style = fmt::emphasis::bold | fg(fmt::color::aquamarine);
 
@@ -324,6 +332,20 @@ namespace re
 		perf.Finish();
 
 		Info(style, " - Build successful! ({})\n", perf.ToString());
+
+		Info(style, "\n - Built {} artifacts:\n", desc.artifacts.size());
+
+		for (auto& [target, artifact] : desc.artifacts)
+		{
+			auto style = fmt::emphasis::bold | fg(fmt::color::royal_blue);
+
+			Info(fg(fmt::color::dim_gray), "     {}:\n", target->module);
+
+			fs::path path = artifact.lexically_relative(current_path_at_invoke);
+			Info(fg(fmt::color::dim_gray), "       {}\n", path.generic_u8string());
+		}
+
+		Info(style, "\n");
 
 		return result;
 	}

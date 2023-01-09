@@ -252,6 +252,8 @@ namespace re
 		if (dep.extra_config)
 			MergeYamlNode(package_target->config, dep.extra_config);
 
+        package_target->resolved_config = package_target->config;
+
         package_target->var_parent = target.var_parent;
         package_target->local_var_ctx = context;
         package_target->build_var_scope.emplace(&package_target->local_var_ctx, "build", &scope);

@@ -2,20 +2,21 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <map>
 
 #include <nlohmann/json.hpp>
 
 #include <fmt/format.h>
 
+#include <re/target.h>
 #include <re/fs.h>
 #include <re/vars.h>
+
+#include <tsl/ordered_map.h>
 
 namespace re
 {
 	using BuildVars = std::unordered_map<std::string, std::string>;
-
-	class Target;
-	struct SourceFile;
 
 	struct BuildTool
 	{
@@ -82,6 +83,8 @@ namespace re
 		Target* pRootTarget = nullptr;
 
 		nlohmann::json meta;
+		
+		tsl::ordered_map<const Target*, fs::path> artifacts;
 
 		std::string GetObjectDirectory(const std::string& module) const
 		{

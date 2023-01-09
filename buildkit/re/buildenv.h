@@ -72,6 +72,16 @@ namespace re
 
 		void DebugShowVisualBuildInfo(const Target* pTarget = nullptr, int depth = 0);
 
+		inline Target* GetTargetOrNull(const std::string& module)
+		{
+			auto it = mTargetMap.find(module);
+
+			if (it != mTargetMap.end())
+				return it->second;
+			else
+				return nullptr;
+		}
+
 	private:
 		std::unique_ptr<Target> mTheCoreProjectTarget;
 
@@ -86,16 +96,6 @@ namespace re
 
 		LocalVarScope mVars;
 		IUserOutput* mOut;
-
-		inline Target* GetTargetOrNull(const std::string& module)
-		{
-			auto it = mTargetMap.find(module);
-
-			if (it != mTargetMap.end())
-				return it->second;
-			else
-				return nullptr;
-		}
 
 		void PopulateTargetMap(Target* pTarget);
 

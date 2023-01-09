@@ -43,6 +43,10 @@ namespace re
                 desc.subninjas.push_back(build_script.Scalar());
         }
 
+        if (auto cmake_meta = target.resolved_config["cmake-meta"]["targets"][target.name])
+            if (auto location = cmake_meta["location"])
+		        desc.artifacts[&target] = location.Scalar();
+
         return true;
     }
 

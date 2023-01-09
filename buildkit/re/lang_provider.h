@@ -1,11 +1,12 @@
 #pragma once
 #include <string_view>
-#include "build_desc.h"
 
 namespace re
 {
 	class Target;
 	struct SourceFile;
+
+	struct NinjaBuildDesc;
 
 	class ILangProvider
 	{

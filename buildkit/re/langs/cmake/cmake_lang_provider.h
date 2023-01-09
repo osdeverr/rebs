@@ -1,5 +1,6 @@
 #pragma once
 #include <re/lang_provider.h>
+#include <re/build_desc.h>
 
 namespace re
 {
