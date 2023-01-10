@@ -84,10 +84,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: 're-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}.zip'
-    
-    outputs:
-      src_dir: ${{ github.workspace }}/re-latest-build/
-      build_dir: ${{ github.workspace }}/re-latest-source/
 
   create-install-packages-linux:
     runs-on: ubuntu-20.04
@@ -100,7 +96,7 @@ jobs:
           mkdir -p .debpkg/usr/local/bin
           mkdir -p .debpkg/debian
 
-          cp -p -R ${{ needs.build.outputs.build_dir }}/* .debpkg/usr/local/lib/re/${{ github.ref_name }}/bin
+          cp -p -R ${{ github.workspace }}/re-latest-build/* .debpkg/usr/local/lib/re/${{ github.ref_name }}/bin
           echo "/usr/local/lib/re/${{ github.ref_name }}/bin/re /usr/local/bin/re-${{ github.ref_name }}" > .debpkg/debian/rebs.links
 
       - id: create-debian-package
