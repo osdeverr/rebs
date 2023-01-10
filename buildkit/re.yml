@@ -18,6 +18,12 @@ deps:
   - vcpkg:magic-enum
   - github:osdeverr/re-ninja@v1.7 [.libtool]
 
+actions:
+  - run:
+      on: pre-build
+      command: ${re-build-version-info-interpreter | python3}
+      args: ["build-version-info.py"]
+
 platform.windows:
   cxx-link-deps:
     - shell32.lib

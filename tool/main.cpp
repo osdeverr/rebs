@@ -1,8 +1,12 @@
+#include <boost/process.hpp>
+
 #include <re/build/ninja_gen.h>
 #include <re/build/default_build_context.h>
 
 #include <re/path_util.h>
 #include <re/process_util.h>
+
+#include <re/version.h>
 
 #include <fmt/format.h>
 #include <fmt/os.h>
@@ -470,6 +474,13 @@ int main(int argc, const char** argv)
             context.Info(style, " * Running target '{}' from '{}'\n\n", run_path->first->module, run_path->second.u8string());
             re::RunProcessOrThrow(run_path->first->module, run_path->second, run_args, true, false, working_dir);
             context.Info({}, "\n");
+        }
+        else if (args[1] == "version")
+        {
+            context.Info({}, "\n  Re version: ");
+            context.Info(fg(fmt::color::yellow), "{}\n", re::GetBuildVersionTag());
+            context.Info({}, "  Re build revision: ");
+            context.Info(fg(fmt::color::yellow), "{}\n\n", re::GetBuildRevision());
         }
         else
         {
