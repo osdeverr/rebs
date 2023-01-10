@@ -75,11 +75,10 @@ Create the above-described files in a separate directory and run `re`. Yes, that
 2. See Goal #1.
 
 ## Non-goals
-Some of 
+TODO
 
 ## TODO
 
 Unfortunately, Re is not yet a finished project. Some notable features are still missing, namely:
 
-1. Out-of-the-box debugging support for VS Code
-2. 
+TODO
