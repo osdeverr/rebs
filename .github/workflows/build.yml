@@ -3,7 +3,7 @@ name: build
 on:
   push:
     tags:
-      - v*
+      - "*.*.*"
     paths-ignore:
       - README.md
       - examples/**
@@ -84,3 +84,41 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: 're-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}.zip'
+    
+    outputs:
+      src_dir: ${{ github.workspace }}/re-latest-build/
+      build_dir: ${{ github.workspace }}/re-latest-source/
+
+  create-install-packages-linux:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Create Debian package definition
+        run: |
+          mkdir -p .debpkg/usr/local/lib/re/${{ github.ref_name }}/bin
+          mkdir -p .debpkg/usr/local/bin
+          mkdir -p .debpkg/debian
+
+          cp -p -R ${{ needs.build.outputs.build_dir }}/* .debpkg/usr/local/lib/re/${{ github.ref_name }}/bin
+          echo "/usr/local/lib/re/${{ github.ref_name }}/bin/re /usr/local/bin/re-${{ github.ref_name }}" > .debpkg/debian/rebs.links
+
+      - id: create-debian-package
+        name: Create Debian package
+        uses: jiro4989/build-deb-action@v2
+        with:
+          package: rebs
+          desc: A modern build system for the future
+          package_root: .debpkg
+          maintainer: osdeverr
+          version: ${{ github.ref_name }}
+          
+      - name: Create package as a CI artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: re-package-${{ github.ref_name }}-${{ runner.os }}-amd64-${{ github.run_id }}
+          path: ${{ steps.create-debian-package.outputs.file_name }}
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.create-debian-package.outputs.file_name }}
