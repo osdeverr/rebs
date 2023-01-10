@@ -140,7 +140,7 @@ namespace re
 		cmdline.emplace_back(to.u8string());
 
 		RunProcessOrThrow(
-			"git", cmdline,
+			"git", {}, cmdline,
 			false,
 			true
 		);

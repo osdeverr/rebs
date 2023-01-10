@@ -51,6 +51,7 @@ namespace re
             // Try cloning it to Git.
             RunProcessOrThrow(
                 "git",
+                {},
                 {
                     "git",
                     "clone",
@@ -96,6 +97,7 @@ namespace re
 
             RunProcessOrThrow(
                 "vcpkg",
+                {},
                 {
                     (vcpkg_root / "vcpkg").u8string(),
                     "install",

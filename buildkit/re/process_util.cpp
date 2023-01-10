@@ -12,7 +12,7 @@
 
 namespace re
 {
-    int RunProcessOrThrow(std::string_view program_name, std::vector<std::string> cmdline, bool output, bool throw_on_bad_exit, std::optional<std::string_view> working_directory)
+    int RunProcessOrThrow(std::string_view program_name, const fs::path& path, std::vector<std::string> cmdline, bool output, bool throw_on_bad_exit, std::optional<std::string_view> working_directory)
     {
         /*
         // TRACE: Remove later!
@@ -26,11 +26,16 @@ namespace re
 
         std::error_code start_ec;
 
-        auto path = boost::process::search_path(cmdline[0].data());
-        cmdline.erase(cmdline.begin());
+        boost::filesystem::path run_path = path.c_str();
+
+        if (run_path.empty())
+        {            
+            run_path = boost::process::search_path(cmdline[0].data());
+            cmdline.erase(cmdline.begin());
+        }
 
         boost::process::child child{
-            path,
+            run_path,
             boost::process::args = cmdline,
             start_ec,
             boost::process::start_dir = working_directory ? working_directory->data() : "."
