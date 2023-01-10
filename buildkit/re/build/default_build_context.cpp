@@ -431,7 +431,7 @@ namespace re
 		{
 			Info({}, "ninja: Entering directory `{}'\n", out_dir);
 
-			fs::current_path(options.working_dir);
+			fs::current_path(script.parent_path());
 		}
 
 		ninja::NinjaMain ninja("", config);

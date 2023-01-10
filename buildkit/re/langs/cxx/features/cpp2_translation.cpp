@@ -17,7 +17,7 @@ namespace re
             {
                 fs::create_directories(out_file.parent_path());
 
-                re::RunProcessOrThrow("cppfront", {
+                re::RunProcessOrThrow("cppfront", {}, {
                     command,
                     source.path.u8string(),
                     "-output",

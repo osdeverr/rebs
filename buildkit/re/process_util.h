@@ -4,12 +4,14 @@
 #include <string_view>
 #include <optional>
 
+#include "fs.h"
 #include "error.h"
 
 namespace re
 {
     int RunProcessOrThrow(
         std::string_view program_name,
+        const fs::path& path,
         std::vector<std::string> cmdline,
         bool output = false,
         bool throw_on_bad_exit = false,

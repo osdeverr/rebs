@@ -376,19 +376,48 @@ int main(int argc, const char** argv)
 
             const auto style = fmt::emphasis::bold | fg(fmt::color::yellow);
 
+            auto get_run_target = [&context, &desc](const std::string& str) -> const re::Target*
+            {
+                if (auto absolute = context.GetBuildEnv()->GetTargetOrNull(str))
+                {
+                    return absolute;
+                }
+                else
+                {
+			        std::vector<std::string> parts;
+			        boost::algorithm::split(parts, str, boost::is_any_of("."));
+
+			        auto temp = desc.pRootTarget;
+
+			        for (auto &part : parts)
+			        {
+			        	if (!part.empty())
+			        		temp = temp->FindChild(part);
+
+			        	if (!temp)
+			        		return nullptr;
+			        }
+
+                    return temp;
+                }
+            };
+
+            const re::Target* arg_run_target = nullptr;
+
             if (auto var = context.GetVar("target"))
             {
-                if (auto absolute = context.GetBuildEnv()->GetTargetOrNull(*var))
-                    run_path = desc.artifacts.find(absolute);
-                else if (auto relative = desc.pRootTarget->FindChild(*var))
-                    run_path = desc.artifacts.find(relative);
+                if (auto target = get_run_target(*var))
+                    run_path = desc.artifacts.find(target);
+            }
+            else if (args.size() > 2 /*&& args[2].front() == '.'*/ && (arg_run_target = get_run_target(args[2].data())))
+            {
+                run_path = desc.artifacts.find(arg_run_target);
+                args.erase(args.begin() + 2);
             }
             else if (auto var = context.GetVar("default-run-target"))
             {
-                if (auto absolute = context.GetBuildEnv()->GetTargetOrNull(*var))
-                    run_path = desc.artifacts.find(absolute);
-                else if (auto relative = desc.pRootTarget->FindChild(*var))
-                    run_path = desc.artifacts.find(relative);
+                if (auto target = get_run_target(*var))
+                    run_path = desc.artifacts.find(target);
             }
             else
             {
@@ -435,12 +464,11 @@ int main(int argc, const char** argv)
             context.BuildTarget(desc);
 
             std::vector<std::string> run_args(args.begin() + 2, args.end());
-            run_args.insert(run_args.begin(), run_path->second.u8string());
 
             auto working_dir = context.GetVar("working-dir").value_or(run_path->second.parent_path().u8string());
 
-            context.Info(style, " * Running target '{}' from '{}'\n\n", run_path->first->module, run_args[0]);
-            re::RunProcessOrThrow(run_path->first->module, run_args, true, false, working_dir);
+            context.Info(style, " * Running target '{}' from '{}'\n\n", run_path->first->module, run_path->second.u8string());
+            re::RunProcessOrThrow(run_path->first->module, run_path->second, run_args, true, false, working_dir);
             context.Info({}, "\n");
         }
         else

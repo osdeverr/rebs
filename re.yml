@@ -4,7 +4,7 @@ name: re
 platform.windows:
   cxx-build-flags:
       compiler:
-          - "/Zi"
+          - "/Zi /wd4251 /wd4275 /wd4996 /sdl-"
 
   # This will fail to do anything in bootstrap builds but will SERIOUSLY improve link speeds in ordinary ones.
   # TODO: Get rid of this in production!

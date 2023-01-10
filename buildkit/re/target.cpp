@@ -430,6 +430,7 @@ namespace re
         {
             auto mark = node.Mark();
             RE_THROW TargetDependencyException(pTarget, "dependency node at {}:{} must be string or map", mark.line, mark.column);
+            return {}; // Unreachable but the compiler complains
         }
     }
 

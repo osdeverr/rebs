@@ -181,7 +181,7 @@ namespace re
             cmdline.emplace_back(mAdapterPath.generic_u8string());
 
             // Run CMake with our adapter script
-            RunProcessOrThrow("cmake", cmdline, true, true);
+            RunProcessOrThrow("cmake", {}, cmdline, true, true);
         }
 
         std::ifstream file{meta_path};

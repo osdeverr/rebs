@@ -15,7 +15,6 @@ deps:
   - vcpkg:boost-process
   - vcpkg:ghc-filesystem
   - vcpkg:yaml-cpp
-  - vcpkg:ghc-filesystem
   - vcpkg:magic-enum
   - github:osdeverr/re-ninja@v1.7 [.libtool]
 

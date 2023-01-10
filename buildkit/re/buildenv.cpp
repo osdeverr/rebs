@@ -376,12 +376,12 @@ namespace re
 		{
 			auto command = data["command"].as<std::string>();
 
-			std::vector<std::string> args{target.build_var_scope->Resolve(command)};
+			std::vector<std::string> args;
 
 			for (auto &arg : data["args"])
 				args.push_back(target.build_var_scope->Resolve(arg.Scalar()));
 
-			RunProcessOrThrow("command", args, true, true, target.path.u8string());
+			RunProcessOrThrow("command", target.build_var_scope->Resolve(command), args, true, true, target.path.u8string());
 		}
 		else if (type == "install")
 		{
