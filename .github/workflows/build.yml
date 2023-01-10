@@ -91,6 +91,7 @@ jobs:
 
   create-install-packages-linux:
     runs-on: ubuntu-20.04
+    needs: [build]
 
     steps:
       - name: Create Debian package definition
