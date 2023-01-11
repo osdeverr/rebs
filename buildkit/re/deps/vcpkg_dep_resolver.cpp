@@ -95,11 +95,15 @@ namespace re
 
             auto start_time = std::chrono::high_resolution_clock::now();
 
+            std::string vcpkg_name = "vcpkg";
+
+            if (re_platform == "windows")
+                vcpkg_name += ".exe";
+
             RunProcessOrThrow(
                 "vcpkg",
-                {},
+                vcpkg_root / vcpkg_name,
                 {
-                    (vcpkg_root / "vcpkg").u8string(),
                     "install",
                     fmt::format("{}:{}-{}", dep.name, re_arch, re_platform)
                 },
