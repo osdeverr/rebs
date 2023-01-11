@@ -472,8 +472,7 @@ int main(int argc, const char** argv)
             auto working_dir = context.GetVar("working-dir").value_or(run_path->second.parent_path().u8string());
 
             context.Info(style, " * Running target '{}' from '{}'\n\n", run_path->first->module, run_path->second.u8string());
-            re::RunProcessOrThrow(run_path->first->module, run_path->second, run_args, true, false, working_dir);
-            context.Info({}, "\n");
+            return re::RunProcessOrThrow(run_path->first->module, run_path->second, run_args, true, false, working_dir);
         }
         else if (args[1] == "version")
         {
