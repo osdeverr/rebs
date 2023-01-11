@@ -431,6 +431,9 @@ int main(int argc, const char** argv)
                 }
                 else
                 {
+                    if (context.GetVar("no-run-choice").value_or("false") == "true")
+                        throw re::TargetException("TargetRunException", desc.pRootTarget, "Artifact not specified and can't be interactively selected");
+
                     // Show a dialog asking the user to choose.
 
                     std::vector<const re::Target*> choices;
