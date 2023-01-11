@@ -498,6 +498,33 @@ namespace re
 			// Arch coercion - this is SOMETIMES very useful
 			if (result)
 			{
+				if (dep.extra_config_hash)
+				{
+					auto ecfg_name = fmt::format("ecfg-local.{}.{}", dep.name, dep.extra_config_hash);
+					auto ecfg_existing = GetTargetOrNull(ecfg_name);
+
+					if (!ecfg_existing)
+					{
+						auto ecfg_target = LoadFreeTarget(result->path);
+
+						ecfg_target->root_path = ecfg_target->path;
+						ecfg_target->module = ecfg_name;
+						ecfg_target->parent = result->parent;
+
+						ecfg_target->LoadDependencies();
+						ecfg_target->LoadMiscConfig();
+						ecfg_target->LoadSourceTree();
+
+						// mTargetMap.clear();
+						PopulateTargetMap(ecfg_target.get());
+						ecfg_existing = ecfg_target.get();
+						
+						mRootTargets.push_back(std::move(ecfg_target));
+					}
+
+					result = ecfg_existing;
+				}
+
 				if (target.build_var_scope && result->build_var_scope)
 				{
 					auto target_arch = target.build_var_scope->ResolveLocal("arch");
