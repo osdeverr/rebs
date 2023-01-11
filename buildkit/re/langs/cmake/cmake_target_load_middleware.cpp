@@ -129,6 +129,9 @@ namespace re
                         cmdline.emplace_back(fmt::format("-DRE_CUSTOM_COMPILE_DEFINITIONS_PRIVATE_{}={}", target, defs_private));
                         cmdline.emplace_back(fmt::format("-DRE_CUSTOM_COMPILE_DEFINITIONS_PUBLIC_{}={}", target, defs_public));
                     }
+
+                    for (auto kv : node["cmake-extra-options"])
+                        cmdline.emplace_back(fmt::format("-D{}={}", kv.first.Scalar(), kv.second.Scalar()));
                 };
                 
                 auto resolved = GetFlatResolvedTargetCfg(
