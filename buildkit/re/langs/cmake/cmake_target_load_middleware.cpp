@@ -63,7 +63,7 @@ namespace re
         }
 
         // HACK: PLEASE add something better later
-        if (cxx_std_override == "latest")
+        if (cxx_std_override == "latest" || cxx_std_override == "2a")
             cxx_std_override = "20";
 
         auto bin_dir = out_dir / "build";
