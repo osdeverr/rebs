@@ -369,18 +369,9 @@ int main(int argc, const char** argv)
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
 
-            auto desc = context.GenerateBuildDescForTarget(target);
-
-            if (desc.artifacts.empty())
-            {
-                throw re::TargetException("TargetRunException", desc.pRootTarget, "Nothing to run");
-            }
-
-            auto run_path = desc.artifacts.end();
-
             const auto style = fmt::emphasis::bold | fg(fmt::color::yellow);
 
-            auto get_run_target = [&context, &desc](const std::string& str) -> const re::Target*
+            auto get_run_target = [&context, &target](const std::string& str) -> re::Target*
             {
                 if (auto absolute = context.GetBuildEnv()->GetTargetOrNull(str))
                 {
@@ -391,7 +382,7 @@ int main(int argc, const char** argv)
 			        std::vector<std::string> parts;
 			        boost::algorithm::split(parts, str, boost::is_any_of("."));
 
-			        auto temp = desc.pRootTarget;
+			        auto temp = &target;
 
 			        for (auto &part : parts)
 			        {
@@ -406,37 +397,41 @@ int main(int argc, const char** argv)
                 }
             };
 
-            const re::Target* arg_run_target = nullptr;
+            re::Target* run_target = nullptr;
 
             if (auto var = context.GetVar("target"))
             {
-                if (auto target = get_run_target(*var))
-                    run_path = desc.artifacts.find(target);
+                run_target = get_run_target(*var);
             }
-            else if (args.size() > 2 /*&& args[2].front() == '.'*/ && (arg_run_target = get_run_target(args[2].data())))
+            else if (args.size() > 2 /*&& args[2].front() == '.'*/ && (run_target = get_run_target(args[2].data())))
             {
-                run_path = desc.artifacts.find(arg_run_target);
                 args.erase(args.begin() + 2);
             }
             else if (auto var = context.GetVar("default-run-target"))
             {
-                if (auto target = get_run_target(*var))
-                    run_path = desc.artifacts.find(target);
+                run_target = get_run_target(*var);
             }
             else
             {
+                auto desc = context.GenerateBuildDescForTarget(target);
+
+                if (context.GetVar("no-run-choice").value_or("false") == "true")
+                    throw re::TargetException("TargetRunException", desc.pRootTarget, "Artifact not specified and can't be interactively selected");
+
                 if (desc.artifacts.size() == 1)
                 {
-                    run_path = desc.artifacts.begin();
+                    run_target = (re::Target*) desc.artifacts.begin()->first;
                 }
                 else
                 {
-                    if (context.GetVar("no-run-choice").value_or("false") == "true")
-                        throw re::TargetException("TargetRunException", desc.pRootTarget, "Artifact not specified and can't be interactively selected");
+                    if (desc.artifacts.empty())
+                    {
+                        throw re::TargetException("TargetRunException", desc.pRootTarget, "Nothing to run");
+                    }
 
                     // Show a dialog asking the user to choose.
 
-                    std::vector<const re::Target*> choices;
+                    std::vector<re::Target*> choices;
                     std::size_t index;
 
                     for (auto& [target, _] : desc.artifacts)
@@ -444,7 +439,7 @@ int main(int argc, const char** argv)
                         if (target->type != re::TargetType::Executable)
                             continue;
 
-                        choices.push_back(target);
+                        choices.push_back((re::Target*) target);
                     }
 
                     context.Info(style, "\n * This project has {} executable targets to run. Please choose one:\n\n", choices.size());
@@ -461,21 +456,36 @@ int main(int argc, const char** argv)
 
                     std::cin >> index;
 
-                    run_path = desc.artifacts.find(choices.at(index));
+                    run_target = choices.at(index);
                 }
             }
 
-            if (run_path == desc.artifacts.end())
-                throw re::TargetException("TargetRunException", desc.pRootTarget, "Couldn't find an artifact to run");
+            if (!run_target)
+                throw re::TargetException("TargetRunException", nullptr, "Couldn't find an artifact to run");
 
+            if (run_target->type != re::TargetType::Executable)
+                throw re::TargetException("TargetRunException", nullptr, "Only executable targets can be run");
+
+            auto desc = context.GenerateBuildDescForTarget(*run_target);
             context.BuildTarget(desc);
 
-            std::vector<std::string> run_args(args.begin() + 2, args.end());
+            auto it = desc.artifacts.find(run_target);
 
-            auto working_dir = context.GetVar("working-dir").value_or(run_path->second.parent_path().u8string());
+            if (it != desc.artifacts.end())
+            {
+                auto& exe_path = it->second;
 
-            context.Info(style, " * Running target '{}' from '{}'\n\n", run_path->first->module, run_path->second.u8string());
-            return re::RunProcessOrThrow(run_path->first->module, run_path->second, run_args, true, false, working_dir);
+                std::vector<std::string> run_args(args.begin() + 2, args.end());
+
+                auto working_dir = context.GetVar("working-dir").value_or(exe_path.parent_path().u8string());
+
+                context.Info(style, " * Running target '{}' from '{}'\n\n", run_target->module, exe_path.u8string());
+                return re::RunProcessOrThrow(run_target->module, exe_path, run_args, true, false, working_dir);
+            }
+            else
+            {
+                throw re::TargetException("TargetRunException", run_target, "This target does not provide any artifacts");
+            }
         }
         else if (args[1] == "version")
         {
@@ -504,7 +514,8 @@ int main(int argc, const char** argv)
 
             if (args.size() > partial_paths_offset)
             {
-                context.SetVar("no-meta", "true");
+                if (!context.GetVar("no-meta"))
+                    context.SetVar("no-meta", "true");
 
                 auto& filter = args[partial_paths_offset];
 
