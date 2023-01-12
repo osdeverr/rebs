@@ -3,3 +3,5 @@
 **/.vscode/
 
 **/re.user.yml
+
+buildkit/.re-last-version-info
