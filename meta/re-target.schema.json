@@ -24,9 +24,23 @@
         "required": ["type", "name"]
       },
       "dependency_entry": {
-        "type": "string",
-        "title": "Target Dependency",
-        "description": "Format: (namespace:)<name>(@tag) ([partial dep list...])"
+        "anyOf": [
+          {
+            "type": "string",
+            "title": "Target Dependency",
+            "description": "Format: (namespace:)<name>(@tag) ([partial dep list...])"
+          },
+          {
+            "type": "object",
+            "title": "Target Dependency (eCfg)",
+            "description": "Format: (namespace:)<name>(@tag) ([partial dep list...]): {custom config entires...}",
+            "allOf": [
+              { "$ref": "#/definitions/extended_fields" },
+              { "$ref": "#/definitions/cxx_config_options" },
+              { "$ref": "#/definitions/dynamic_section" }
+            ]
+          }
+        ]
       },
       "string_or_string_array": {
         "anyOf": [
