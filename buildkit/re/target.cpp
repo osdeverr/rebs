@@ -354,7 +354,7 @@ namespace re
         return nullptr;
     }
     
-    const std::regex kTargetDepRegex{ R"(\s*(?:(.+?:)?)\s*(?:([^@\s]+))\s*(?:(@[^\s]*)?)(?:\s*)?(?:(?:\[)(.+)(?:\]))?)" };
+    const std::regex kTargetDepRegex{ R"(\s?(?:([a-zA-Z0-9.-]*)(?::))?\s?([^\s]*)\s*(?:(@|==|<|<=|>|>=|~|\^)\s*([a-zA-Z0-9._-]*))\s*(?:(?:\[)(.+)(?:\]))?)" };
 
     TargetDependency ParseTargetDependency(const std::string& str, const Target* pTarget)
     {
@@ -368,23 +368,40 @@ namespace re
         dep.raw = str;
         dep.ns = match[1].str();
         dep.name = match[2].str();
-        dep.version = match[3].str();
 
-        if (match[4].matched)
+        auto kind_str = match[3].str();
+
+        if (kind_str == "@")
+            dep.version_kind = DependencyVersionKind::RawTag;
+        else if (kind_str == "==")
+            dep.version_kind = DependencyVersionKind::Equal;
+        else if (kind_str == ">")
+            dep.version_kind = DependencyVersionKind::Greater;
+        else if (kind_str == ">=")
+            dep.version_kind = DependencyVersionKind::GreaterEqual;
+        else if (kind_str == "<")
+            dep.version_kind = DependencyVersionKind::Less;
+        else if (kind_str == "<=")
+            dep.version_kind = DependencyVersionKind::LessEqual;
+        else if (kind_str == "~")
+            dep.version_kind = DependencyVersionKind::SameMinor;
+        else if (kind_str == "^")
+            dep.version_kind = DependencyVersionKind::SameMajor;
+        else
+            RE_THROW TargetDependencyException(pTarget, "invalid kind tag '{}' in dependency '{}'", kind_str, str);
+
+        dep.version = match[4].str();
+
+        if (dep.version_kind != DependencyVersionKind::RawTag)
+            dep.version_sv = semverpp::version{dep.version};
+
+        if (match[5].matched)
         {
-            auto raw = match[4].str();
+            auto raw = match[5].str();
 
             boost::algorithm::erase_all(raw, " ");
             boost::split(dep.filters, raw, boost::is_any_of(","));
         }
-
-        // Remove the trailing ':' character
-        if (!dep.ns.empty())
-            dep.ns.pop_back();
-
-        // Remove the leading '@' character
-        if (!dep.version.empty())
-            dep.version = dep.version.substr(1);
 
         if (dep.name.empty())
             RE_THROW TargetDependencyException(pTarget, "dependency {} does not have a name specified", str);

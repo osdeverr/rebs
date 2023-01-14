@@ -20,7 +20,9 @@ namespace re
 
 	Target* GitDepResolver::ResolveGitDependency(const Target& target, const TargetDependency& dep, std::string_view url, std::string_view branch)
 	{		
-		auto cached_dir = fmt::format("git.{}.{}@{}", dep.ns, dep.name, branch);
+		auto cached_dir = fmt::format("git.{}", dep.raw);
+
+		cached_dir.erase(std::remove(cached_dir.begin(), cached_dir.end(), ' '));
 
 		// Hack lol
 		for (auto& c : cached_dir)

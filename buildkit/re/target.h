@@ -23,6 +23,8 @@
 #include "lang_provider.h"
 #include "lang_locator.h"
 
+#include <semverpp/version.hpp>
+
 namespace re
 {
     /**
@@ -109,6 +111,56 @@ namespace re
     };
 
     /**
+     * @brief The kind of a dependency's version specification.
+     */
+    enum class DependencyVersionKind
+    {
+        /**
+         * @brief Do not perform any version comparisons and try resolving the raw specified tag.
+         */
+        RawTag,
+
+        /**
+         * @brief (SemVer) Look for a version exactly matching the specified one.
+         */
+        Equal,
+        
+        /**
+         * @brief (SemVer) Look for a version greater than the specified one.
+         */
+        Greater,
+        
+        /**
+         * @brief (SemVer) Look for a version greater than or equal to the specified one.
+         */
+        GreaterEqual,
+        
+        /**
+         * @brief (SemVer) Look for a version less than the specified one.
+         */
+        Less,
+        
+        /**
+         * @brief (SemVer) Look for a version less than or equal to the specified one.
+         */
+        LessEqual,
+
+        /**
+         * @brief (SemVer) Look for the newest version with the same major and minor values but any patch value.
+         * 
+         * Behavior is analogous to npm's '~1.0.0' specifier.
+         */
+        SameMinor,
+        
+        /**
+         * @brief (SemVer) Look for the newest version with the same major value but any patch and minor values.
+         * 
+         * Behavior is analogous to npm's '^1.0.0' specifier.
+         */
+        SameMajor,
+    };
+
+    /**
      * @brief A single dependency of a Target.
      * 
      * Dependencies are passed to IDepResolver implementations to do with as they please.
@@ -134,6 +186,16 @@ namespace re
          * @brief The dependency's version. This should ideally be a valid SemVer value.
          */
         std::string version;
+
+        /**
+         * @brief The dependency's version as a SemVer value.
+         */
+        semverpp::version version_sv;
+
+        /**
+         * @brief The dependency's version kind.
+         */
+        DependencyVersionKind version_kind;
 
         /**
          * @brief A list of "filters" for the dependency.
