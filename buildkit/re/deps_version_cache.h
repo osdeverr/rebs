@@ -22,13 +22,24 @@ namespace re
     class DepsVersionCache
     {
     public:
+        DepsVersionCache() = default;
+
         /**
          * @brief Construct a new DepsVersionCache object from an existing JSON data node.
          * 
          * @param data The existing JSON to use
          */
         DepsVersionCache(const nlohmann::json& data)
-        : mData{data}
+        : mData(data)
+        {}
+
+        /**
+         * @brief Construct a new DepsVersionCache object from an existing JSON data node (move).
+         * 
+         * @param data The existing JSON to move from
+         */
+        DepsVersionCache(nlohmann::json&& data)
+        : mData(std::move(data))
         {}
 
         DepsVersionCache(const DepsVersionCache&) = default;
@@ -37,15 +48,18 @@ namespace re
         /**
          * @brief Retrieves the latest dependency version that matches the requirements.
          * 
+         * @param target The target to which the dependency belongs to
          * @param dep The dependency to match against
-         * @param get_available_versions A function that returns the available versions for 
+         * @param name The dependency's name (in most cases should be set to dep.name)
+         * @param get_available_versions A function that returns the available versions for the specified dependency info
          * 
          * @return std::string The most recent version that matches the specified requirements
          */
         std::string GetLatestVersionMatchingRequirements(
             const Target& target,
             const TargetDependency& dep,
-            std::function<std::vector<std::string>(const TargetDependency&)> get_available_versions
+            std::string_view name,
+            std::function<std::vector<std::string>(const re::TargetDependency&, std::string_view)> get_available_versions
         );
 
         /**

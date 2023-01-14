@@ -2,12 +2,13 @@
 
 #include <re/target_cfg_utils.h>
 #include <re/yaml_merge.h>
+#include <re/deps_version_cache.h>
 
 #include <fstream>
 
 namespace re
 {    
-    Target* GlobalDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
+    Target* GlobalDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep, DepsVersionCache* cache)
     {
         std::string tag = dep.version;
 
@@ -23,6 +24,27 @@ namespace re
             file >> tag;
             file.close();
         }
+        
+		if (cache)
+		{
+			auto get_global_tags = [this] (const re::TargetDependency&, std::string_view path) -> std::vector<std::string>
+			{
+    			std::vector<std::string> result;
+
+                for(auto& entry : fs::directory_iterator{mPackagesPath / path})
+                {
+                    if (entry.is_directory() && fs::exists(entry.path() / "re.yml"))
+                    {
+                        auto name = entry.path().filename().u8string();
+                        result.push_back(name);
+                    }
+                }
+
+				return result;
+			};
+
+			tag = cache->GetLatestVersionMatchingRequirements(target, dep, dep.name, get_global_tags);
+		}
 
         auto target_path = package_path / tag;
             

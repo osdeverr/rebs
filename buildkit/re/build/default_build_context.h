@@ -67,6 +67,7 @@ namespace re
 		bool mOutColors = true;
 
 		std::unique_ptr<GlobalDepResolver> mGlobalDepResolver;
+		std::unique_ptr<DepsVersionCache> mDepsVersionCache;
 
 		int RunNinjaBuild(const fs::path& script, const Target* root);
 	};

@@ -15,7 +15,7 @@ namespace re
             : mPackagesPath{ fs::canonical(path) }, mLoader{ pLoader }, mOut{ pOut }
         {}
 
-        Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep);
+        Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep, DepsVersionCache* cache);
 
         void InstallGlobalPackage(const TargetDependency& dep, const TargetDependency& as);
         void SelectGlobalPackageTag(const TargetDependency& dep, const std::string& new_tag);

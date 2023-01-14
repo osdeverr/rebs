@@ -354,14 +354,14 @@ namespace re
         return nullptr;
     }
     
-    const std::regex kTargetDepRegex{ R"(\s?(?:([a-zA-Z0-9.-]*)(?::))?\s?([^\s]*)\s*(?:(@|==|<|<=|>|>=|~|\^)\s*([a-zA-Z0-9._-]*))\s*(?:(?:\[)(.+)(?:\]))?)" };
+    const std::regex kTargetDepRegex{ R"(\s?(?:([a-zA-Z0-9.-]*)(?::))?\s?([^\s@=<>~\^]*)\s*(?:(@|==|<|<=|>|>=|~|\^)\s*([a-zA-Z0-9._-]*))?\s*(?:(?:\[)(.+)(?:\]))?)" };
 
     TargetDependency ParseTargetDependency(const std::string& str, const Target* pTarget)
     {
         std::smatch match;
 
         if (!std::regex_match(str, match, kTargetDepRegex))
-            RE_THROW TargetDependencyException(pTarget, "dependency {} does not meet the format requirements", str);
+            RE_THROW TargetDependencyException(pTarget, "dependency '{}' does not meet the format requirements", str);
 
         TargetDependency dep;
 
@@ -371,7 +371,7 @@ namespace re
 
         auto kind_str = match[3].str();
 
-        if (kind_str == "@")
+        if (kind_str == "@" || kind_str == "")
             dep.version_kind = DependencyVersionKind::RawTag;
         else if (kind_str == "==")
             dep.version_kind = DependencyVersionKind::Equal;

@@ -494,6 +494,23 @@ int main(int argc, const char** argv)
             context.Info({}, "  Re build revision: ");
             context.Info(fg(fmt::color::yellow), "{}\n\n", re::GetBuildRevision());
         }
+        else if (args[1] == "upgrade")
+        {
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
+
+            context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
+
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
+            auto &target = context.LoadTarget(path);
+            auto lock_path = target.path / "re-deps-lock.json";
+
+            if (re::fs::exists(lock_path))
+                re::fs::remove(lock_path);
+
+            context.GenerateBuildDescForTarget(target);
+        }
         else if (args[1] == "test-lock")
         {
             auto path = context.GetVar(kBuildPathVar).value_or(".");
@@ -507,7 +524,7 @@ int main(int argc, const char** argv)
 
             re::DepsVersionCache cache;
 
-            auto get_available_versions = [](const re::TargetDependency& dep) -> std::vector<std::string>
+            auto get_available_versions = [](const re::TargetDependency&, std::string_view) -> std::vector<std::string>
             {
                 return {
                     "v1.2",
@@ -534,6 +551,7 @@ int main(int argc, const char** argv)
                 auto tag = cache.GetLatestVersionMatchingRequirements(
                     target,
                     re::ParseTargetDependency(dep, &target),
+                    "",
                     get_available_versions
                 );
 
@@ -679,11 +697,10 @@ int main(int argc, const char** argv)
     {
         return 5;
     }
-    catch (const std::exception& e)
+    catch (const std::bad_alloc& e)
     {
         std::string message = "";
 
-        /*
         const boost::stacktrace::stacktrace* st = boost::get_error_info<re::TracedError>(e);
         if (st) {
             int i = 0;
@@ -700,12 +717,11 @@ int main(int argc, const char** argv)
             }
 
         }
-        */
 
-        const auto kErrorStyle = fmt::emphasis::bold | bg(fmt::color::orange_red) | fg(fmt::color::white);
+        const auto kErrorStyle = fmt::emphasis::bold | fg(fmt::color::crimson); //bg(fmt::color::orange_red);
 
         context.Error({}, "\n");
-        context.Error(kErrorStyle, "error: {}\n(type: {})", e.what(), typeid(e).name());
+        context.Error(kErrorStyle, "error: {}\n(type: {})\n{}", e.what(), typeid(e).name(), message);
         context.Error({}, "\n\n");
 
 /*

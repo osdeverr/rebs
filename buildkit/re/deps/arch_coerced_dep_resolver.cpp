@@ -4,7 +4,7 @@
 
 namespace re
 {
-	Target* ArchCoercedDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
+	Target* ArchCoercedDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep, DepsVersionCache* cache)
 	{
 		RE_THROW TargetDependencyException(&target, "ArchCoercedDepResolver does not support resolving literal dependencies.");
 	}
