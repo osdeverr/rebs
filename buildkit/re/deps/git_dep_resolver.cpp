@@ -1,3 +1,5 @@
+#include <boost/process.hpp>
+
 #include "git_dep_resolver.h"
 
 #include <fmt/format.h>
@@ -9,18 +11,51 @@
 #include <re/target_cfg_utils.h>
 #include <re/yaml_merge.h>
 
+#include <re/deps_version_cache.h>
+
 #include <fstream>
 
 namespace re
 {
-	Target* GitDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
+	Target* GitDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep, DepsVersionCache* cache)
 	{
-		return ResolveGitDependency(target, dep, dep.name, dep.version);
+		return ResolveGitDependency(target, dep, dep.name, dep.version, cache);
 	}
 
-	Target* GitDepResolver::ResolveGitDependency(const Target& target, const TargetDependency& dep, std::string_view url, std::string_view branch)
-	{		
-		auto cached_dir = fmt::format("git.{}", dep.raw);
+	Target* GitDepResolver::ResolveGitDependency(const Target& target, const TargetDependency& dep, std::string_view url, std::string branch, DepsVersionCache* cache)
+	{
+		if (cache)
+		{
+			auto git_ls_remote = [] (const re::TargetDependency&, std::string_view url) -> std::vector<std::string>
+			{				
+    			boost::process::ipstream is; //reading pipe-stream
+    			boost::process::child c(boost::process::search_path("git"), "ls-remote", "--refs", "--tags", url.data(), boost::process::std_out > is);
+
+    			std::vector<std::string> result;
+
+    			while (c.running() && !is.eof())
+    			{
+					std::string hash;
+					auto& tag = result.emplace_back();
+
+					is >> hash;
+					is >> tag;
+
+					constexpr char kRefsTags[] = "refs/tags/";
+					auto pos = tag.find(kRefsTags);
+					if (pos != tag.npos)
+						tag.erase(pos, sizeof kRefsTags - 1);
+				}
+
+    			c.wait();
+
+				return result;
+			};
+
+			branch = cache->GetLatestVersionMatchingRequirements(target, dep, url, git_ls_remote);
+		}
+
+		auto cached_dir = fmt::format("git.{}.{}@{}", dep.ns, dep.name, branch);
 
 		cached_dir.erase(std::remove(cached_dir.begin(), cached_dir.end(), ' '));
 
@@ -53,8 +88,8 @@ namespace re
 		if (auto& cached = mTargetCache[cache_path])
 			return cached.get();
 
-		auto cache = ".re-cache";
-		auto git_cached = target.root_path / cache / cached_dir;
+		auto cache_name = ".re-cache";
+		auto git_cached = target.root_path / cache_name / cached_dir;
 		
         if(cutout_filter.size())
 		    git_cached /= cutout_filter;

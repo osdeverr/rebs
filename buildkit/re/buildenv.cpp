@@ -667,7 +667,7 @@ namespace re
 
 			if (auto resolver = mDepResolvers[dep.ns])
 			{
-				auto result = resolver->ResolveTargetDependency(target, dep);
+				auto result = resolver->ResolveTargetDependency(target, dep, mDepsVersionCache);
 
 				auto [scope, context] = target.GetBuildVarScope();
 
@@ -899,5 +899,10 @@ namespace re
 				mOut->Info({}, "{}", emitter.c_str());
 			}
 		}
+	}
+
+	void BuildEnv::SetDepsVersionCache(DepsVersionCache* cache)
+	{
+		mDepsVersionCache = cache;
 	}
 }

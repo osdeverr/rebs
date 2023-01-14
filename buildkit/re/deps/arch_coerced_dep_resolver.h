@@ -13,7 +13,7 @@ namespace re
             : mLoader{ loader }
         {}
 
-        Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep);
+        Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep, DepsVersionCache* cache);
         Target* ResolveCoercedTargetDependency(const Target& target, const Target& dep);
 
     private:

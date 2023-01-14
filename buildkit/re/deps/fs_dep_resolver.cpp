@@ -5,7 +5,7 @@
 
 namespace re
 {
-	Target* FsDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
+	Target* FsDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep, DepsVersionCache* cache)
 	{
 		auto [scope, context] = target.GetBuildVarScope();
 

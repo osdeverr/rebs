@@ -15,6 +15,7 @@
 #include "target_loader.h"
 #include "user_output.h"
 #include "target_load_middleware.h"
+#include "deps_version_cache.h"
 
 #include <re/vars.h>
 
@@ -144,6 +145,13 @@ namespace re
 
 		void DebugShowVisualBuildInfo(const Target* pTarget = nullptr, int depth = 0);
 
+		/**
+		 * @brief Set the DepsVersionCache to use when resolving dependencies.
+		 * 
+		 * @param cache The cache to use
+		 */
+		void SetDepsVersionCache(DepsVersionCache* cache);
+
 		inline Target* GetTargetOrNull(const std::string& module)
 		{
 			auto it = mTargetMap.find(module);
@@ -168,6 +176,8 @@ namespace re
 
 		LocalVarScope mVars;
 		IUserOutput* mOut;
+
+		DepsVersionCache* mDepsVersionCache = nullptr;
 
 		void PopulateTargetMap(Target* pTarget);
 

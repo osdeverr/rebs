@@ -4,7 +4,7 @@
 
 namespace re
 {
-	Target* GithubDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
+	Target* GithubDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep, DepsVersionCache* cache)
 	{
 		auto url = dep.name;
 
@@ -15,9 +15,9 @@ namespace re
 		auto force_ssh = temp && !strcmp(temp, "1");
 
 		if (dep.ns == "github-ssh" || force_ssh)
-			return mGit->ResolveGitDependency(target, dep, fmt::format("git@github.com:{}", url), dep.version);
+			return mGit->ResolveGitDependency(target, dep, fmt::format("git@github.com:{}", url), dep.version, cache);
 		else
-			return mGit->ResolveGitDependency(target, dep, fmt::format("https://github.com/{}", url), dep.version);
+			return mGit->ResolveGitDependency(target, dep, fmt::format("https://github.com/{}", url), dep.version, cache);
 	}
 	
 	bool GithubDepResolver::SaveDependencyToPath(const TargetDependency& dep, const fs::path& path)

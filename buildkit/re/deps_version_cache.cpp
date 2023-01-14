@@ -5,18 +5,48 @@ namespace re
     std::string DepsVersionCache::GetLatestVersionMatchingRequirements(
         const Target& target,
         const TargetDependency& dep,
-        std::function<std::vector<std::string>(const TargetDependency&)> get_available_versions
+        std::string_view name,
+        std::function<std::vector<std::string>(const re::TargetDependency&, std::string_view)> get_available_versions
     )
     {
         if (dep.version_kind == DependencyVersionKind::RawTag)
             return dep.version;
 
-        auto& existing = mData[dep.raw];
+        std::string kind_str = "@";
+            
+        switch (dep.version_kind)
+        {
+        case DependencyVersionKind::Equal:
+            kind_str = "==";
+            break;
+        case DependencyVersionKind::Greater:
+            kind_str = "<";
+            break;
+        case DependencyVersionKind::GreaterEqual:
+            kind_str = ">=";
+            break;
+        case DependencyVersionKind::Less:
+            kind_str = "<";
+            break;
+        case DependencyVersionKind::LessEqual:
+            kind_str = "<=";
+            break;
+        case DependencyVersionKind::SameMinor:
+            kind_str = "~";
+            break;
+        case DependencyVersionKind::SameMajor:
+            kind_str = "^";
+            break;
+        };
+
+        auto existing_key = fmt::format("{}:{}{}{}", dep.ns, dep.name, kind_str, dep.version);
+
+        auto& existing = mData[existing_key];
 
         if (!existing.is_null())
             return existing.get<std::string>();
 
-        auto available = get_available_versions(dep);
+        auto available = get_available_versions(dep, name);
 
         if (available.empty())
             RE_THROW TargetDependencyException(&target, "no versions for '{}'", dep.raw);

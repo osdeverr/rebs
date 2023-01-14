@@ -11,7 +11,7 @@
 
 namespace re
 {
-	Target* VcpkgDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep)
+	Target* VcpkgDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep, DepsVersionCache* cache)
 	{
         auto [scope, context] = target.GetBuildVarScope();
 
@@ -170,7 +170,7 @@ namespace re
 
         YAML::Node vcpkg_json = YAML::LoadFile((vcpkg_root / "ports" / dep.name / "vcpkg.json").u8string());
 
-        auto append_deps_from = [this, &dep, &target, &package_target, &re_platform](auto json)
+        auto append_deps_from = [this, &dep, &target, &package_target, &re_platform, cache](auto json)
         {
             if (auto deps = json["dependencies"])
             {
@@ -231,7 +231,7 @@ namespace re
                         continue;
                     }
 
-                    pkg_dep.resolved = { ResolveTargetDependency(target, pkg_dep) };
+                    pkg_dep.resolved = { ResolveTargetDependency(target, pkg_dep, cache) };
 
                     package_target->dependencies.emplace_back(std::move(pkg_dep));
                 }

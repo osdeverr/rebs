@@ -10,7 +10,7 @@ namespace re
 			: mGit{ pGit }
 		{}
 
-		Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep);
+		Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep, DepsVersionCache* cache);
 		
         virtual bool SaveDependencyToPath(const TargetDependency& dep, const fs::path& path);
 

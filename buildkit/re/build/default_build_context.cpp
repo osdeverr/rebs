@@ -15,6 +15,8 @@
 #include <re/deps/arch_coerced_dep_resolver.h>
 #include <re/deps/fs_dep_resolver.h>
 
+#include <re/deps_version_cache.h>
+
 #include <ninja/tool_main.h>
 #include <ninja/manifest_parser.h>
 
@@ -173,6 +175,28 @@ namespace re
 		NinjaBuildDesc desc;
 		desc.pRootTarget = &target;
 
+		auto version_cache_path = target.root->path / "re-deps-lock.json";
+
+		{
+            std::ifstream file(version_cache_path);
+            
+            if (!file.fail() && file.good() && file.is_open())
+            {
+            	std::string contents((std::istreambuf_iterator<char>(file)),
+            	                     std::istreambuf_iterator<char>());
+
+				mDepsVersionCache = std::make_unique<DepsVersionCache>(
+					nlohmann::json::parse(contents)
+				);
+            }
+			else
+			{
+				mDepsVersionCache = std::make_unique<DepsVersionCache>();
+			}
+
+			mEnv->SetDepsVersionCache(mDepsVersionCache.get());
+		}
+
 		fs::remove_all(target.root->path / ".re-cache" / "header-projection");
 
 		for (auto dep : mEnv->GetSingleTargetLocalDepSet(&target))
@@ -271,6 +295,12 @@ namespace re
 		}
 
 		desc.meta["root_target"] = target.root->module;
+
+		if (mVars.GetVarNoRecurse("no-meta").value_or("false") != "true")
+		{
+			std::ofstream file(version_cache_path);
+			file << mDepsVersionCache->GetData().dump(4);
+		}
 
 		return desc;
 	}
