@@ -25,14 +25,6 @@ namespace re
 	 * @brief Error info containing a stacktrace.
 	 */
 	using TracedError = boost::error_info<tag_stacktrace, boost::stacktrace::stacktrace>;
-
-	/*
-	template <class E>
-	inline void throw_with_trace(const E& e) {
-		throw boost::enable_error_info(e)
-			<< TracedError(boost::stacktrace::stacktrace());
-	}
-	*/
 	
 	/**
 	 * @brief A helper class allowing the usage of the RE_THROW drop-in macro.
@@ -78,4 +70,4 @@ namespace re
  * 
  * @example RE_THROW re::Exception("Something failed with error code {}", 42);
  */
-#define RE_THROW throw ReThrowSugarProxy{boost::stacktrace::stacktrace()} | 
+#define RE_THROW throw ::re::ReThrowSugarProxy{boost::stacktrace::stacktrace()} | 
