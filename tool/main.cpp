@@ -415,32 +415,31 @@ int main(int argc, const char** argv)
             {
                 auto desc = context.GenerateBuildDescForTarget(target);
 
-                if (context.GetVar("no-run-choice").value_or("false") == "true")
-                    throw re::TargetException("TargetRunException", desc.pRootTarget, "Artifact not specified and can't be interactively selected");
+                // Show a dialog asking the user to choose.
 
-                if (desc.artifacts.size() == 1)
+                std::vector<re::Target*> choices;
+                std::size_t index;
+
+                for (auto& [target, _] : desc.artifacts)
                 {
-                    run_target = (re::Target*) desc.artifacts.begin()->first;
+                    if (target->type != re::TargetType::Executable)
+                        continue;
+
+                    choices.push_back((re::Target*) target);
+                }
+
+                if (choices.empty())
+                {
+                    throw re::TargetException("TargetRunException", desc.pRootTarget, "Nothing to run");
+                }
+                else if (choices.size() == 1)
+                {
+                    run_target = choices[0];
                 }
                 else
                 {
-                    if (desc.artifacts.empty())
-                    {
-                        throw re::TargetException("TargetRunException", desc.pRootTarget, "Nothing to run");
-                    }
-
-                    // Show a dialog asking the user to choose.
-
-                    std::vector<re::Target*> choices;
-                    std::size_t index;
-
-                    for (auto& [target, _] : desc.artifacts)
-                    {
-                        if (target->type != re::TargetType::Executable)
-                            continue;
-
-                        choices.push_back((re::Target*) target);
-                    }
+                    if (context.GetVar("no-run-choice").value_or("false") == "true")
+                        throw re::TargetException("TargetRunException", desc.pRootTarget, "Artifact not specified and can't be interactively selected");
 
                     context.Info(style, "\n * This project has {} executable targets to run. Please choose one:\n\n", choices.size());
 
