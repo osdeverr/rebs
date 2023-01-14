@@ -5,7 +5,7 @@
  * @version 0.2.8
  * @date 2023-01-14
  * 
- * @copyright Copyright (c) Nikita Ivanov 2023
+ * @copyright Copyright (c) 2023 Nikita Ivanov
  */
 
 #pragma once
