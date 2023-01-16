@@ -16,14 +16,6 @@ namespace re
         
         if (!fs::exists(package_path))
             RE_THROW TargetDependencyException(&target, "Missing global package '{}'", dep.name);
-
-        if(tag.empty())
-        {
-            // Fetch the default version from the config file
-            std::ifstream file{package_path / "default-tag.txt"};
-            file >> tag;
-            file.close();
-        }
         
 		if (cache)
 		{
@@ -45,6 +37,14 @@ namespace re
 
 			tag = cache->GetLatestVersionMatchingRequirements(target, dep, dep.name, get_global_tags);
 		}
+
+        if(tag.empty())
+        {
+            // Fetch the default version from the config file
+            std::ifstream file{package_path / "default-tag.txt"};
+            file >> tag;
+            file.close();
+        }
 
         auto target_path = package_path / tag;
             
