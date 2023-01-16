@@ -56,3 +56,25 @@ cxxenv.!gcc:
     cxx-standard: latest
 cxxenv.gcc:
     cxx-standard: 2a
+    
+
+# Thanks K2Re8 for the right flags!
+cxxenv.msvc:
+    config.release:
+        cxx-build-flags:
+            compiler:
+                - "/Oi /GL /Ot /O2 /GS- /MD"
+            linker:
+                - "/LTCG"
+
+    config.debug:
+        cxx-build-flags:
+            compiler:
+                - "/MTd /Zi"
+
+    cxx-build-flags:
+        compiler:
+            - "/Zi /W3 /Fd$out.pdb"
+        linker.nostatic:
+            - "/DEBUG"
+    
