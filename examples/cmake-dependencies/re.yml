@@ -5,5 +5,5 @@ name: cmake-dependencies
 # This will download and configure those projects.
 #
 deps:
-  - github:fmtlib/fmt@9.1.0 [fmt::fmt]
-  - github:nlohmann/json@v3.11.2 [nlohmann_json]
+  - github:fmtlib/fmt ^9.1.0 [fmt::fmt]
+  - github:nlohmann/json ^3.11.2 [nlohmann_json]
