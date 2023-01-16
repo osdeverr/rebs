@@ -697,7 +697,7 @@ int main(int argc, const char** argv)
     {
         return 5;
     }
-    catch (const std::bad_alloc& e)
+    catch (const std::exception& e)
     {
         std::string message = "";
 

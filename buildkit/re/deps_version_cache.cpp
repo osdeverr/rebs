@@ -125,7 +125,7 @@ namespace re
         fmt::print("\n # result: {} -> [\n", dep.raw);
 
         for (auto& ver : available)
-            fmt::print("    {}\n", ver);
+            fmt::print("    {} @ {}\n", ver, semverpp::version{ver}.string());
 
         fmt::print("]\n");
         

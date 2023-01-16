@@ -191,7 +191,7 @@ namespace re
             }
 			else
 			{
-				mDepsVersionCache = std::make_unique<DepsVersionCache>();
+				mDepsVersionCache = std::make_unique<DepsVersionCache>(nlohmann::json::object({}));
 			}
 
 			mEnv->SetDepsVersionCache(mDepsVersionCache.get());

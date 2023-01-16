@@ -17,7 +17,7 @@ deps:
   - vcpkg:yaml-cpp
   - vcpkg:magic-enum
   - github:osdeverr/re-ninja@v1.7 [.libtool]
-  - github:osdeverr/semverpp@v1.1.4-no-tests [semverpp]
+  - github:osdeverr/semverpp@v1.1.5-no-tests [semverpp]
 
 actions:
   - run:
