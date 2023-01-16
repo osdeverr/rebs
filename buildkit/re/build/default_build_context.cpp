@@ -298,8 +298,13 @@ namespace re
 
 		if (mVars.GetVarNoRecurse("no-meta").value_or("false") != "true")
 		{
-			std::ofstream file(version_cache_path);
-			file << mDepsVersionCache->GetData().dump(4);
+			auto& data = mDepsVersionCache->GetData();
+
+			if (!data.empty())
+			{
+				std::ofstream file(version_cache_path);
+				file << data.dump(4);
+			}
 		}
 
 		return desc;
