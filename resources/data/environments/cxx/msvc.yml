@@ -69,6 +69,9 @@ templates:
 
     link-as-shared-library: "/DLL"
 
+    compile-as-c: "/TC"
+    compile-as-cpp: "/TP"
+
 #
 # Default file extensions for build outputs.
 # Can be overridden using the 'output-extension' property in targets.
