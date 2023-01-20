@@ -632,6 +632,15 @@ namespace re
 		build_target.out = fmt::format("$builddir/{}/{}.{}", fmt::format("$re_target_object_directory_{}", path), local_path, extension);
 		build_target.rule = "cxx_compile_" + path;
 
+		if (file.extension == "c")
+		{
+			build_target.vars["target_custom_flags"].append(env["templates"]["compile-as-c"].Scalar());
+		}
+		else
+		{
+			// build_target.vars["target_custom_flags"].append(env["templates"]["compile-as-cpp"].Scalar());
+		}
+
 		// fmt::print(" [DBG] Target '{}' has object '{}'->'{}'\n", path, build_target.in, build_target.out);
 
 		desc.targets.emplace_back(std::move(build_target));
