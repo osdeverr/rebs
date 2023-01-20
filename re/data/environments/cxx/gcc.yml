@@ -68,6 +68,9 @@ templates:
     cxx-compile-definition-no-value: "-D{name}"
 
     link-as-shared-library: "-shared"
+    
+    compile-as-c: "-x c"
+    compile-as-cpp: "-x cpp"
 
 #
 # Default file extensions for build outputs.
