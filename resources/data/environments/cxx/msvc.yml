@@ -39,8 +39,8 @@ tools:
 # Default tool invoke flags. Can be overridden in targets using the 'build-flags' map property.
 #
 default-flags:
-    compiler:  "/nologo /showIncludes /interface /experimental:module /EHsc /Zc:__cplusplus"
-    linker:    "/nologo /ignore:4006"
+    compiler:   "/nologo /showIncludes /EHsc /Zc:__cplusplus"
+    linker:     "/nologo /ignore:4006"
 
 #
 # Platform-specific C preprocessor macros. They will be defined in all source files using this environment.
@@ -171,6 +171,10 @@ build-options:
     entry-point:
         $value:
             linker.nostatic: ["/ENTRY:\"{value}\""]
+
+    cpp20-modules:
+        true:
+            compiler: [/interface /experimental:module]
 
 option-rules:
     arch:
