@@ -68,6 +68,9 @@ templates:
     cxx-compile-definition-no-value: "/D{name}"
 
     link-as-shared-library: "/DLL"
+    
+    compile-as-c: "/TC"
+    compile-as-cpp: "/TP"
 
 #
 # Default file extensions for build outputs.
