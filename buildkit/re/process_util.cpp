@@ -1,10 +1,9 @@
-#include <boost/process.hpp>
-#include <boost/process/async.hpp>
-
 #include "process_util.h"
 #include "target.h"
 
 #include <fmt/format.h>
+
+#include <reproc++/reproc.hpp>
 
 #ifdef WIN32
 #include <Windows.h>
@@ -14,49 +13,33 @@ namespace re
 {
     int RunProcessOrThrow(std::string_view program_name, const fs::path& path, std::vector<std::string> cmdline, bool output, bool throw_on_bad_exit, std::optional<std::string_view> working_directory)
     {
-        /*
-        // TRACE: Remove later!
-        fmt::print(" # Running process [{}]:", program_name);
+        reproc::options options;
+        options.redirect.parent = output;
+        options.working_directory = working_directory ? working_directory->data() : nullptr;
 
-        for(auto& arg : cmdline)
-            fmt::print(" {}", arg);
+        if (!path.empty())
+            cmdline.insert(cmdline.begin(), path.u8string());
 
-        fmt::print("\n");
-        */
+        reproc::process process;
 
-        std::error_code start_ec;
-
-        boost::filesystem::path run_path = path.c_str();
-
-        if (run_path.empty())
-        {            
-            run_path = boost::process::search_path(cmdline[0].data());
-            cmdline.erase(cmdline.begin());
-        }
-
-        boost::process::child child{
-            run_path,
-            boost::process::args = cmdline,
-            start_ec,
-            boost::process::start_dir = working_directory ? working_directory->data() : "."
-        };
-
+        auto start_ec = process.start(cmdline, options);
         if (start_ec)
-            RE_THROW ProcessRunException("{} failed to start: {} (ec={})", program_name, start_ec.message(), start_ec.value());
-        
-        std::error_code end_ec;
-        child.wait(end_ec);
-
-        auto exit_code = child.exit_code();
-
-        if (throw_on_bad_exit && exit_code != 0)
         {
-            RE_THROW ProcessRunException("{} failed: exit_code={}", program_name, exit_code);
+            RE_THROW ProcessRunException("{} failed to start: {} (ec={})", program_name, start_ec.message(), start_ec.value());
         }
+
+        auto [exit_code, end_ec] = process.wait(reproc::infinite);
+
+        // process.read(reproc::stream::out, );
 
         if (end_ec)
         {
             RE_THROW ProcessRunException("{} failed to run: {} (ec={} exit_code={})", program_name, end_ec.message(), end_ec.value(), exit_code);
+        }
+
+        if (throw_on_bad_exit && exit_code != 0)
+        {
+            RE_THROW ProcessRunException("{} failed: exit_code={}", program_name, exit_code);
         }
 
         return exit_code;

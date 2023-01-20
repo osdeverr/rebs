@@ -3,7 +3,6 @@ name: .buildkit
 
 cxx-compile-definitions-public:
   FMT_HEADER_ONLY: 1
-  REPROCXX_SHARED: 1
 
 deps:
   - vcpkg:fmt
@@ -18,6 +17,7 @@ deps:
   - vcpkg:magic-enum
   - github:osdeverr/re-ninja@v1.7 [.libtool]
   - github:osdeverr/semverpp@v1.1.6-no-tests [semverpp]
+  - github:osdeverr/reproc@v1.0.1-rebs
 
 actions:
   - run:
