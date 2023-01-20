@@ -506,6 +506,8 @@ int main(int argc, const char** argv)
             auto &target = context.LoadTarget(path);
             auto lock_path = target.path / "re-deps-lock.json";
 
+            context.SetVar("clean-deps-cache", "true");
+
             if (re::fs::exists(lock_path))
                 re::fs::remove(lock_path);
 

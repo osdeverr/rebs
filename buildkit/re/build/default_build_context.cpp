@@ -14,6 +14,7 @@
 #include <re/deps/github_dep_resolver.h>
 #include <re/deps/arch_coerced_dep_resolver.h>
 #include <re/deps/fs_dep_resolver.h>
+#include <re/deps/conan_dep_resolver.h>
 
 #include <re/deps_version_cache.h>
 
@@ -84,6 +85,8 @@ namespace re
 		auto ac_resolver = std::make_unique<ArchCoercedDepResolver>(mEnv.get());
 		auto fs_resolver = std::make_unique<FsDepResolver>(mEnv.get());
 
+		auto conan_resolver = std::make_unique<ConanDepResolver>(this);
+
 		mEnv->AddDepResolver("vcpkg", vcpkg_resolver.get());
 		mEnv->AddDepResolver("vcpkg-dep", vcpkg_resolver.get());
 
@@ -93,11 +96,14 @@ namespace re
 
 		mEnv->AddDepResolver("arch-coerced", ac_resolver.get());
 		mEnv->AddDepResolver("fs", fs_resolver.get());
+		
+		mEnv->AddDepResolver("conan", conan_resolver.get());
 
 		mDepResolvers.emplace_back(std::move(vcpkg_resolver));
 		mDepResolvers.emplace_back(std::move(git_resolver));
 		mDepResolvers.emplace_back(std::move(github_resolver));
 		mDepResolvers.emplace_back(std::move(ac_resolver));
+		mDepResolvers.emplace_back(std::move(conan_resolver));
 
 		auto global_deps_path = dynamic_data_path / "deps" / "installed";
 		fs::create_directories(global_deps_path);

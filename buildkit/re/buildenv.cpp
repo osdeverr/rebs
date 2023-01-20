@@ -859,7 +859,8 @@ namespace re
 
 					for (auto& res : dep.resolved)
 					{
-						mOut->Info(kStyleDepRes, "{} ", res->module);
+						DebugShowVisualBuildInfo(res, depth + 2);
+						// mOut->Info(kStyleDepRes, "{} ", res->module);
 					}
 
 					mOut->Info(kStyleCategoryTitle, "}}\n");
