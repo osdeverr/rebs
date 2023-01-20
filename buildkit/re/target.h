@@ -196,6 +196,11 @@ namespace re
          * @brief The dependency's version kind.
          */
         DependencyVersionKind version_kind;
+        
+        /**
+         * @brief The dependency's version kind as a string.
+         */
+        std::string version_kind_str;
 
         /**
          * @brief A list of "filters" for the dependency.

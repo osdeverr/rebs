@@ -369,7 +369,7 @@ namespace re
         dep.ns = match[1].str();
         dep.name = match[2].str();
 
-        auto kind_str = match[3].str();
+        auto& kind_str = (dep.version_kind_str = match[3].str());
 
         if (kind_str == "@" || kind_str == "")
             dep.version_kind = DependencyVersionKind::RawTag;

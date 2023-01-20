@@ -51,8 +51,19 @@ cxx-header-projection: false
 
 inherit-caller-in-deps: false
 
+arch.x64:
+    # Conan uses x86_64 to refer to x64. Re uses x64.
+    conan-arch-name: x86_64
+
+platform.windows:
+    conan-lib-suffix: .lib
+
+platform.!windows:
+    conan-lib-suffix: .a
+
 config.debug:
     cmake-build-type: Debug
+    conan-build-type: Debug
 
     cxx-build-options:
         debug:
@@ -61,6 +72,7 @@ config.debug:
         
 config.release:
     cmake-build-type: Release
+    conan-build-type: Release
 
     cxx-compile-definitions:
         NDEBUG: 1
