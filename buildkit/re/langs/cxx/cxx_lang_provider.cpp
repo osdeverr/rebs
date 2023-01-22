@@ -171,6 +171,7 @@ namespace re
 		auto& meta = desc.meta["targets"][target.path.u8string()];
 		auto& cxx = meta["cxx"];
 
+		meta["type"] = TargetTypeToString(target.type);
 		meta["module"] = target.module;
 		meta["links_with"] = "cxx";
 
