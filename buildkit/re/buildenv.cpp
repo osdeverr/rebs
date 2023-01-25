@@ -358,7 +358,7 @@ namespace re
 			fs::copy(
 				target.path / from,
 				desc->out_dir / desc->GetArtifactDirectory(GetEscapedModulePath(target)) / to,
-				fs::copy_options::recursive | fs::copy_options::skip_existing);
+				fs::copy_options::recursive | fs::copy_options::overwrite_existing);
 		}
 		else if (type == "copy-to-deps")
 		{
