@@ -25,7 +25,7 @@ namespace re
             return cached.get();
 
 		auto cache_name = ".re-cache";
-		auto pkg_cached = target.root_path / cache_name / cache_path;
+		auto pkg_cached = target.root_path / cache_name / "conan-deps-cache" / cache_path;
 
         auto build_info_path = pkg_cached / "conanbuildinfo.json";
 
