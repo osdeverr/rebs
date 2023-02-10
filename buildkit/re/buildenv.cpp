@@ -321,7 +321,7 @@ namespace re
 			auto to_dep = desc->out_dir / desc->GetArtifactDirectory(path);
 
 			auto &from_path = from;
-			fs::path to_path = to_dep / to;
+			fs::path to_path = to_dep / dependent->build_var_scope->Resolve(to);
 
 			RE_TRACE("        copying from '{}' to '{}'\n", from_path.u8string(), to_path.u8string());
 
@@ -362,7 +362,7 @@ namespace re
 		}
 		else if (type == "copy-to-deps")
 		{
-			auto from = data["from"].as<std::string>();
+			auto from = target.build_var_scope->Resolve(data["from"].as<std::string>());
 			auto to = data["to"].as<std::string>();
 
 			auto from_path = target.path / from;
