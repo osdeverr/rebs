@@ -269,6 +269,7 @@ namespace re
 			module_name_scope.SetVar("module", dep->module);
 			module_name_scope.SetVar("src", dep->path.u8string());
 			module_name_scope.SetVar("out", out_dir.u8string());
+			module_name_scope.SetVar("root", desc.pRootTarget->path.u8string());
 
 			auto artifact_dir = module_name_scope.Resolve(artifact_out_format);
 			auto object_dir = module_name_scope.Resolve(object_out_format);
@@ -283,6 +284,8 @@ namespace re
 			dep->build_var_scope->SetVar("src-dir", full_src_dir.u8string());
 			dep->build_var_scope->SetVar("artifact-dir", full_artifact_dir.u8string());
 			dep->build_var_scope->SetVar("object-dir", full_object_dir.u8string());
+			// dep->build_var_scope->SetVar("root-out-dir", out_dir.u8string());
+			// dep->build_var_scope->SetVar("root-dir", desc.pRootTarget->path.u8string());
 
 			auto &meta = desc.meta["targets"][full_src_dir.u8string()];
 
