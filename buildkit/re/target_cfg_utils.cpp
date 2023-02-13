@@ -81,6 +81,8 @@ namespace re
 		// copying parent deps and uses into children would lead to a performance impact due to redundant regex parsing
 		auto top_deps = Clone(leaf_cfg["deps"]);
 		auto top_uses = Clone(leaf_cfg["uses"]);
+		
+		auto top_actions = Clone(leaf_cfg["actions"]);
 
 		std::vector<const Target*> genealogy = {&leaf};
 
@@ -97,6 +99,7 @@ namespace re
 
 		result["deps"] = top_deps;
 		result["uses"] = top_uses;
+		result["actions"] = top_actions;
 
 /*
 		YAML::Emitter emitter;

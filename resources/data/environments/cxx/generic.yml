@@ -14,3 +14,7 @@ supported-extensions:
     - c++
     - cxx
     - ixx
+    - h
+    - hpp
+    - hh
+    - hxx
