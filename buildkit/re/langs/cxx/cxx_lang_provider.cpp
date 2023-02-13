@@ -59,7 +59,9 @@ namespace re
 
 			for (const auto& v : extra_includes)
 			{
-				auto dir = fs::path{ vars.Resolve(v.as<std::string>()) };
+				const auto& v_s = v.Scalar();
+
+				auto dir = fs::path{ vars.Resolve(v_s) };
 
 				if (!dir.is_absolute())
 					dir = target.path / dir;
@@ -224,6 +226,8 @@ namespace re
 			meta["tools"][name] = tool_path;
 			vars.SetVar("cxx.tool." + name, tool_path);
 		}
+
+		vars.SetVar("root-dir", desc.pRootTarget->path.u8string());
 	}
 
 	bool CxxLangProvider::InitBuildTargetRules(NinjaBuildDesc& desc, const Target& target)
@@ -617,6 +621,13 @@ namespace re
 				eligible = true;
 
 		if (!eligible)
+			return;
+
+		auto& meta = desc.meta["targets"][target.path.u8string()]["cxx"];
+
+		meta["sources"].push_back(file.path.generic_u8string());
+
+		if (file.extension.front() == 'h') // C/C++ Header File: no need to build it
 			return;
 
 		auto local_path = file.path.u8string().substr(target.path.u8string().size() + 1);
