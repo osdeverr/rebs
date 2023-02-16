@@ -5,6 +5,7 @@
 
 #include <re/langs/cxx/features/cxx_header_projection.h>
 #include <re/langs/cxx/features/cpp2_translation.h>
+#include <re/langs/cxx/features/source_translation.h>
 
 #include <re/langs/cmake/cmake_target_load_middleware.h>
 #include <re/langs/cmake/cmake_lang_provider.h>
@@ -115,14 +116,17 @@ namespace re
 
 		auto cxx_header_projection = std::make_unique<CxxHeaderProjection>();
 		auto cpp2_translation = std::make_unique<Cpp2Translation>();
+		auto source_translation = std::make_unique<SourceTranslation>();
 
 		mEnv->AddTargetFeature(cxx_header_projection.get());
 		mEnv->AddTargetFeature(cpp2_translation.get());
+		mEnv->AddTargetFeature(source_translation.get());
 		
 		mVars.SetVar("cxx-header-projection-root", kHeaderProjRoot);
 
 		mTargetFeatures.emplace_back(std::move(cxx_header_projection));
 		mTargetFeatures.emplace_back(std::move(cpp2_translation));
+		mTargetFeatures.emplace_back(std::move(source_translation));
 
 		auto& cmake = mLangs.emplace_back(std::make_unique<CMakeLangProvider>(&mVars));
 		mEnv->AddLangProvider("cmake", cmake.get());
