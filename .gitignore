@@ -5,3 +5,6 @@
 **/re.user.yml
 
 buildkit/.re-last-version-info
+
+**/.cache/
+**/compile_commands.json
