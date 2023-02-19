@@ -6,13 +6,14 @@
 #include <boost/algorithm/string.hpp>
 #include <regex>
 
-#include <re/yaml_merge.h>
 #include <re/debug.h>
+#include <re/yaml_merge.h>
 
 namespace re
 {
-    inline static constexpr auto kCaseInsensitiveComparePred = [](char lhs, char rhs)
-    { return std::tolower(lhs) == std::tolower(rhs); };
+    inline static constexpr auto kCaseInsensitiveComparePred = [](char lhs, char rhs) {
+        return std::tolower(lhs) == std::tolower(rhs);
+    };
 
     TargetType TargetTypeFromString(const std::string &type)
     {
@@ -49,7 +50,7 @@ namespace re
         }
     }
 
-    Target::Target(const fs::path& dir_path, Target *pParent)
+    Target::Target(const fs::path &dir_path, Target *pParent)
     {
         path = fs::canonical(dir_path);
         parent = pParent;
@@ -60,7 +61,7 @@ namespace re
 
         config_path = path / kTargetConfigFilename;
 
-        std::ifstream f{ config_path };
+        std::ifstream f{config_path};
         config = YAML::Load(f);
 
         // Load all config partitions
@@ -69,9 +70,9 @@ namespace re
         {
             auto name = entry.path().filename().u8string();
 
-            if(boost::algorithm::ends_with(name, ".re.yml"))
+            if (boost::algorithm::ends_with(name, ".re.yml"))
             {
-                std::ifstream merge_f{ entry.path() };
+                std::ifstream merge_f{entry.path()};
                 auto merge_c = YAML::Load(merge_f);
 
                 MergeYamlNode(config, merge_c);
@@ -91,11 +92,12 @@ namespace re
         LoadBaseData();
     }
 
-    Target::Target(const fs::path& virtual_path, std::string_view name, TargetType type, const TargetConfig &config, Target *pParent)
+    Target::Target(const fs::path &virtual_path, std::string_view name, TargetType type, const TargetConfig &config,
+                   Target *pParent)
     {
         path = fs::canonical(virtual_path);
 
-        parent = pParent;        
+        parent = pParent;
         root = parent ? parent->root : this;
 
         this->type = type;
@@ -140,7 +142,7 @@ namespace re
 
                 auto dep = ParseTargetDependencyNode(node, this);
 
-                for (auto& existing : dependencies)
+                for (auto &existing : dependencies)
                     if (existing.raw == dep.raw && existing.extra_config_hash == dep.extra_config_hash)
                         exists = true;
 
@@ -155,17 +157,18 @@ namespace re
         {
             if (auto uses = resolved_config["uses"])
             {
-                for (const auto& kv : uses)
+                for (const auto &kv : uses)
                 {
                     auto key = kv.first.Scalar();
 
                     // fmt::print("{}\n", key);
 
-                    auto& mapping = used_mapping[key];
+                    auto &mapping = used_mapping[key];
 
                     // TODO: Move to ParseTargetDependencyNode
                     if (!mapping)
-                        mapping = std::make_unique<TargetDependency>(ParseTargetDependency(build_var_scope->Resolve(kv.second.Scalar()), this));
+                        mapping = std::make_unique<TargetDependency>(
+                            ParseTargetDependency(build_var_scope->Resolve(kv.second.Scalar()), this));
                 }
             }
         }
@@ -191,7 +194,8 @@ namespace re
         if (auto langs = GetCfgEntry<TargetConfig>("langs"))
         {
             if (!lang_locator)
-                throw TargetLoadException("language locator not specified - 'langs' config entries may not be processed correctly");
+                throw TargetLoadException("language locator not specified - 'langs' config entries may not be processed
+        correctly");
 
             for (const auto& lang : *langs)
             {
@@ -266,7 +270,7 @@ namespace re
         }
     }
 
-    void Target::CreateEmptyTarget(const fs::path& path, TargetType type, std::string_view name)
+    void Target::CreateEmptyTarget(const fs::path &path, TargetType type, std::string_view name)
     {
         YAML::Emitter out;
 
@@ -283,19 +287,26 @@ namespace re
         file << out.c_str();
     }
 
-    std::optional<std::string> Target::GetVar(const std::string& key) const
+    std::optional<std::string> Target::GetVar(const std::string &key) const
     {
         // fmt::print("target '{}'/'{}': ", module, key);
 
-        if(key == "path")
+        if (key == "path")
             return path.u8string();
-        else if(key == "module")
+        else if (key == "module")
             return module;
 
-        if (config["vars"] && config["vars"][key].IsDefined())
+        auto used_config = resolved_config ? resolved_config : config;
+
+        if (used_config["vars"] && used_config["vars"][key].IsDefined())
         {
             // fmt::print("found in vars");
-            return config["vars"][key].as<std::string>();
+            return used_config["vars"][key].as<std::string>();
+        }
+        else if (used_config[key])
+        {
+            // fmt::print("found in used vars");
+            return used_config[key].as<std::string>();
         }
         else if (auto entry = GetCfgEntry<std::string>(key, CfgEntryKind::Recursive))
         {
@@ -319,7 +330,7 @@ namespace re
         }
     }
 
-    std::pair<const LocalVarScope&, VarContext&> Target::GetBuildVarScope() const
+    std::pair<const LocalVarScope &, VarContext &> Target::GetBuildVarScope() const
     {
         if (build_var_scope)
             return std::make_pair(std::ref(*build_var_scope), std::ref(local_var_ctx));
@@ -329,7 +340,7 @@ namespace re
             RE_THROW TargetConfigException(this, "reached top of hierarchy without finding a valid build var scope");
     }
 
-    TargetDependency* Target::GetUsedDependency(const std::string& name) const
+    TargetDependency *Target::GetUsedDependency(const std::string &name) const
     {
         auto it = used_mapping.find(name);
 
@@ -345,18 +356,19 @@ namespace re
         return nullptr;
     }
 
-    Target* Target::FindChild(std::string_view name) const
+    Target *Target::FindChild(std::string_view name) const
     {
-        for (auto& child : children)
+        for (auto &child : children)
             if (child->name == name)
                 return child.get();
 
         return nullptr;
     }
-    
-    const std::regex kTargetDepRegex{ R"(\s?(?:([a-zA-Z0-9.-]*)(?::))?\s?([^\s@=<>~\^]*)\s*(?:(@|==|<|<=|>|>=|~|\^)\s*([a-zA-Z0-9._-]*))?\s*(?:(?:\[)(.+)(?:\]))?)" };
 
-    TargetDependency ParseTargetDependency(const std::string& str, const Target* pTarget)
+    const std::regex kTargetDepRegex{
+        R"(\s?(?:([a-zA-Z0-9.-]*)(?::))?\s?([^\s@=<>~\^]*)\s*(?:(@|==|<|<=|>|>=|~|\^)\s*([a-zA-Z0-9._-]*))?\s*(?:(?:\[)(.+)(?:\]))?)"};
+
+    TargetDependency ParseTargetDependency(const std::string &str, const Target *pTarget)
     {
         std::smatch match;
 
@@ -369,7 +381,7 @@ namespace re
         dep.ns = match[1].str();
         dep.name = match[2].str();
 
-        auto& kind_str = (dep.version_kind_str = match[3].str());
+        auto &kind_str = (dep.version_kind_str = match[3].str());
 
         if (kind_str == "@" || kind_str == "")
             dep.version_kind = DependencyVersionKind::RawTag;
@@ -411,20 +423,20 @@ namespace re
 
         return dep;
     }
-    
-    TargetDependency ParseTargetDependencyNode(YAML::Node node, const Target* pTarget)
+
+    TargetDependency ParseTargetDependencyNode(YAML::Node node, const Target *pTarget)
     {
         if (node.IsScalar())
         {
             return ParseTargetDependency(node.Scalar(), pTarget);
         }
-        else if(node.IsMap())
+        else if (node.IsMap())
         {
             // HACK: This YAML library sucks.
             for (auto kv : node)
             {
                 auto result = ParseTargetDependency(kv.first.Scalar(), pTarget);
-                
+
                 result.extra_config = YAML::Clone(kv.second);
 
                 YAML::Emitter emitter;
@@ -446,7 +458,8 @@ namespace re
         else
         {
             auto mark = node.Mark();
-            RE_THROW TargetDependencyException(pTarget, "dependency node at {}:{} must be string or map", mark.line, mark.column);
+            RE_THROW TargetDependencyException(pTarget, "dependency node at {}:{} must be string or map", mark.line,
+                                               mark.column);
             return {}; // Unreachable but the compiler complains
         }
     }
@@ -461,10 +474,10 @@ namespace re
     {
     }
 
-    std::string ResolveTargetParentRef(std::string name, const Target* target)
+    std::string ResolveTargetParentRef(std::string name, const Target *target)
     {
         std::string prefix = "";
-        const Target* parent = nullptr;
+        const Target *parent = nullptr;
 
         while (!name.empty() && name.front() == '.')
         {
@@ -483,13 +496,13 @@ namespace re
         return prefix + name;
     }
 
-    std::string GetEscapedModulePath(const Target& target)
+    std::string GetEscapedModulePath(const Target &target)
     {
         auto module_escaped = target.module;
-        
+
         std::replace(module_escaped.begin(), module_escaped.end(), '.', '_');
         std::replace(module_escaped.begin(), module_escaped.end(), ':', '_');
 
         return module_escaped;
     }
-}
+} // namespace re

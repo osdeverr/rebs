@@ -4,7 +4,7 @@
 #
 
 #
-# Inherits from the specified build environment - in this example, the 'generic' C++ build environment 
+# Inherits from the specified build environment - in this example, the 'generic' C++ build environment
 #
 inherits:
     - generic
@@ -16,7 +16,7 @@ vars:
 
     vc-tools-root: ${env:VCToolsInstallDir | .}
     vc-tools-bin: ${vc-tools-root}/bin/Host${re:host-arch}/${arch}
-    
+
     vc-tools-cl: ${vc-tools-bin}/cl.exe
     vc-tools-link: ${vc-tools-bin}/link.exe
     vc-tools-archiver: ${vc-tools-bin}/lib.exe
@@ -31,16 +31,16 @@ vars:
 # Specifies the paths to build tools. Can be absolute or relative - it doesn't matter - but the paths obviously need to resolve properly.
 #
 tools:
-    compiler:  ${msvc-compiler-path | $env:RE_MSVC_COMPILER_PATH | $vc-tools-cl       | cl.exe}
-    linker:    ${msvc-linker-path   | $env:RE_MSVC_LINKER_PATH   | $vc-tools-link     | link.exe}
-    archiver:  ${msvc-archiver-path | $env:RE_MSVC_ARCHIVER_PATH | $vc-tools-archiver | lib.exe}
+    compiler: ${msvc-compiler-path | $env:RE_MSVC_COMPILER_PATH | $vc-tools-cl       | cl.exe}
+    linker: ${msvc-linker-path   | $env:RE_MSVC_LINKER_PATH   | $vc-tools-link     | link.exe}
+    archiver: ${msvc-archiver-path | $env:RE_MSVC_ARCHIVER_PATH | $vc-tools-archiver | lib.exe}
 
 #
 # Default tool invoke flags. Can be overridden in targets using the 'build-flags' map property.
 #
 default-flags:
-    compiler:   "/nologo /showIncludes /EHsc /Zc:__cplusplus"
-    linker:     "/nologo /ignore:4006"
+    compiler: "/nologo /showIncludes /EHsc /Zc:__cplusplus"
+    linker: "/nologo /ignore:4006"
 
 #
 # Platform-specific C preprocessor macros. They will be defined in all source files using this environment.
@@ -61,8 +61,8 @@ templates:
 
     cxx-module-output: "/ifcOutput {directory}"
     cxx-module-lookup-dir: "/ifcSearchDir {directory}"
-    cxx-include-dir: "/I \"{directory}\""
-    cxx-lib-dir: "/LIBPATH:\"{directory}\""
+    cxx-include-dir: '/I "{directory}"'
+    cxx-lib-dir: '/LIBPATH:"{directory}"'
 
     cxx-compile-definition: "/D{name}={value}"
     cxx-compile-definition-no-value: "/D{name}"
@@ -78,10 +78,7 @@ templates:
 #
 default-extensions:
     object: obj
-    executable: exe
-    static-library: lib
-    shared-library: dll
-    
+
 #
 # The keys and values from this field will be appended verbatim to all rules created using this build environment.
 # Here, we make sure the underlying build system (Ninja in particular) knows we're building with MSVC and works with header deps accordingly.
@@ -158,7 +155,7 @@ build-options:
             compiler: [/MT]
         multithreaded-static-debug:
             compiler: [/MTd]
-    
+
     permissive:
         true:
             compiler: [/permissive]
@@ -173,7 +170,7 @@ build-options:
 
     entry-point:
         $value:
-            linker.nostatic: ["/ENTRY:\"{value}\""]
+            linker.nostatic: ['/ENTRY:"{value}"']
 
     cpp20-modules:
         true:

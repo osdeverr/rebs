@@ -16,10 +16,25 @@ enabled: true
 langs:
     - cpp
 
-cxx-env:
-    windows: msvc
-    osx: gcc #clang
-    unix: gcc
+platform.windows: 
+    vars:
+        default-cxx-env: msvc
+
+    out-ext:
+        target-type.executable: exe
+        target-type.static-library: lib
+        target-type.shared-library: dll
+        
+platform.linux|osx:
+    vars:
+        default-cxx-env: gcc
+
+    out-ext:
+        target-type.executable: ""
+        target-type.static-library: a
+        target-type.shared-library: so
+
+cxx-env: ${override-cxx-env | $default-cxx-env}
 
 #
 # Custom targets do not need linking.
@@ -29,11 +44,11 @@ link-with:
     default: cpp
 
 cxx-compile-definitions-public: {}
-        
+
 cxx-include-dirs: []
 
 cxx-lib-dirs: []
-        
+
 cxx-build-flags:
     compiler:
         - ${platform-default-flags-compiler}
@@ -69,14 +84,14 @@ config.debug:
         debug:
     cxx-compile-definitions:
         DEBUG: 1
-        
+
 config.release:
     cmake-build-type: Release
     conan-build-type: Release
 
     cxx-compile-definitions:
         NDEBUG: 1
-    
+
 config.release.debinfo:
     cmake-build-type: RelWithDebInfo
 
