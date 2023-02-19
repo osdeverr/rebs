@@ -1,18 +1,18 @@
 #include <boost/process.hpp>
 
-#include <re/build/ninja_gen.h>
 #include <re/build/default_build_context.h>
+#include <re/build/ninja_gen.h>
 
 #include <re/path_util.h>
 #include <re/process_util.h>
 
-#include <re/version.h>
 #include <re/deps_version_cache.h>
+#include <re/version.h>
 
-#include <fmt/format.h>
-#include <fmt/os.h>
 #include <fmt/args.h>
 #include <fmt/color.h>
+#include <fmt/format.h>
+#include <fmt/os.h>
 #include <fmt/ostream.h>
 
 #include <fstream>
@@ -20,7 +20,7 @@
 
 #include <boost/algorithm/string.hpp>
 
-int main(int argc, const char** argv)
+int main(int argc, const char **argv)
 {
 #ifdef WIN32
     SetConsoleOutputCP(65001);
@@ -36,33 +36,33 @@ int main(int argc, const char** argv)
         std::unordered_map<std::string, std::string> target_cfg_overrides;
 
         // TODO: Add error handling to variable parsing
-        for(auto it = args.begin(); it != args.end();)
+        for (auto it = args.begin(); it != args.end();)
         {
             constexpr char kDefaultPrefix[] = "--";
             constexpr char kVarPrefix[] = "--var.";
             constexpr char kTargetPrefix[] = "--target.";
 
-            if(it->find(kTargetPrefix) == 0)
+            if (it->find(kTargetPrefix) == 0)
             {
                 auto key = it->substr(sizeof kTargetPrefix - 1);
-                auto& value = *(it + 1);
+                auto &value = *(it + 1);
 
                 target_cfg_overrides[key.data()] = value.data();
                 it = args.erase(it, it + 2);
             }
-            else if(it->find(kVarPrefix) == 0)
+            else if (it->find(kVarPrefix) == 0)
             {
                 auto key = it->substr(sizeof kVarPrefix - 1);
-                auto& value = *(it + 1);
+                auto &value = *(it + 1);
 
                 context.SetVar(key.data(), value.data());
                 it = args.erase(it, it + 2);
             }
-            else if(it->find(kDefaultPrefix) == 0)
+            else if (it->find(kDefaultPrefix) == 0)
             {
                 auto key = it->substr(sizeof kDefaultPrefix - 1);
-                auto& value = *(it + 1);
-                
+                auto &value = *(it + 1);
+
                 // context.Info({}, "setting var {} to {} ({})\n", key, value, kDefaultPrefix);
 
                 context.SetVar(key.data(), value.data());
@@ -73,9 +73,8 @@ int main(int argc, const char** argv)
                 it++;
         }
 
-        auto apply_cfg_overrides = [&target_cfg_overrides](re::Target* pTarget)
-        {
-            for(auto& [k, v] : target_cfg_overrides)
+        auto apply_cfg_overrides = [&target_cfg_overrides](re::Target *pTarget) {
+            for (auto &[k, v] : target_cfg_overrides)
                 pTarget->config[k] = v;
         };
 
@@ -98,15 +97,15 @@ int main(int argc, const char** argv)
             apply_cfg_overrides(&target);
 
             return context.BuildTarget(context.GenerateBuildDescForTarget(target));
-            // return context.BuildTargetInDir(L"D:/PlakSystemsSW/NetUnitCollection"); 
+            // return context.BuildTargetInDir(L"D:/PlakSystemsSW/NetUnitCollection");
         }
         else if (args[1] == "new")
         {
-            if (args.size() < 4)            
+            if (args.size() < 4)
                 throw re::Exception("re new: invalid command line\n\tusage: re new <type> <name> [path | .]");
 
-            auto& type = args[2];
-            auto& name = args[3];
+            auto &type = args[2];
+            auto &name = args[3];
 
             auto path = name;
             if (path.front() == '.')
@@ -114,7 +113,7 @@ int main(int argc, const char** argv)
 
             if (args.size() > 4)
                 path = args[4];
- 
+
             re::Target::CreateEmptyTarget(path, re::TargetTypeFromString(type.data()), name);
             fmt::print("\n");
             fmt::print("Created new {} target '{}' in directory '{}'.\n", type, name, path);
@@ -128,7 +127,7 @@ int main(int argc, const char** argv)
         }
         else if (args[1] == "do")
         {
-            if (args.size() < 3)            
+            if (args.size() < 3)
                 throw re::Exception("re do: invalid command line\n\tusage: re do <action-category> [path | .]");
 
             auto path = context.GetVar(kBuildPathVar).value_or(".");
@@ -150,7 +149,7 @@ int main(int argc, const char** argv)
             fmt::print(style, " - Running custom actions for '{}'\n\n", action_type);
 
             auto env = context.GetBuildEnv();
-            for (auto& dep : env->GetSingleTargetDepSet(desc.pRootTarget))
+            for (auto &dep : env->GetSingleTargetDepSet(desc.pRootTarget))
                 env->RunActionsCategorized(dep, &desc, action_type);
 
             return 0;
@@ -160,12 +159,12 @@ int main(int argc, const char** argv)
             auto path = context.GetVar(kBuildPathVar).value_or(".");
             auto yaml = context.LoadCachedParams(path);
 
-            if(args.size() == 2)
+            if (args.size() == 2)
             {
                 // Print the current config and quit.
-                
-		        YAML::Emitter emitter;
-		        emitter << yaml;
+
+                YAML::Emitter emitter;
+                emitter << yaml;
 
                 fmt::print("{}\n", emitter.c_str());
 
@@ -209,7 +208,7 @@ int main(int argc, const char** argv)
         }
         else if (args[1] == "pkg")
         {
-            if (args.size() < 3)            
+            if (args.size() < 3)
                 throw re::Exception("re pkg: invalid command line\n\tusage: re pkg <operation> [args]");
 
             context.UpdateOutputSettings();
@@ -221,15 +220,17 @@ int main(int argc, const char** argv)
 
             if (operation == "install")
             {
-                if (args.size() < 4)            
-                    throw re::Exception("re pkg install: invalid command line\n\tusage: re pkg install <dependency> [as <alias>]");
+                if (args.size() < 4)
+                    throw re::Exception(
+                        "re pkg install: invalid command line\n\tusage: re pkg install <dependency> [as <alias>]");
 
                 auto dep = re::ParseTargetDependency(args[3].data());
 
-                if(args.size() > 4 && args[4] == "as")
+                if (args.size() > 4 && args[4] == "as")
                 {
-                    if (args.size() < 6)            
-                        throw re::Exception("re pkg install as: invalid command line\n\tusage: re pkg install <dependency> as <alias>");
+                    if (args.size() < 6)
+                        throw re::Exception(
+                            "re pkg install as: invalid command line\n\tusage: re pkg install <dependency> as <alias>");
 
                     resolver->InstallGlobalPackage(dep, re::ParseTargetDependency(args[5].data()));
                 }
@@ -240,83 +241,57 @@ int main(int argc, const char** argv)
             }
             else if (operation == "select")
             {
-                if (args.size() < 5)            
-                    throw re::Exception("re pkg select: invalid command line\n\tusage: re pkg select <package> <version>");
+                if (args.size() < 5)
+                    throw re::Exception(
+                        "re pkg select: invalid command line\n\tusage: re pkg select <package> <version>");
 
                 auto dep = re::ParseTargetDependency(args[3].data());
                 resolver->SelectGlobalPackageTag(dep, args[4].data());
             }
             else if (operation == "info")
             {
-                if (args.size() < 4)            
+                if (args.size() < 4)
                     throw re::Exception("re pkg info: invalid command line\n\tusage: re pkg info <package>");
 
                 auto dep = re::ParseTargetDependency(args[3].data());
 
                 auto info = resolver->GetGlobalPackageInfo(dep);
 
-                context.Info(
-                    fg(fmt::color::cadet_blue) | fmt::emphasis::bold,
-                    "\n Installed versions for {}:\n",
-                    dep.ToString()
-                );
+                context.Info(fg(fmt::color::cadet_blue) | fmt::emphasis::bold, "\n Installed versions for {}:\n",
+                             dep.ToString());
 
-                for (auto& [tag, selected] : info)
+                for (auto &[tag, selected] : info)
                 {
-                    context.Info(
-                        fg(selected ? fmt::color::azure : fmt::color::cadet_blue),
-                        "   {} {} {}\n",
-                        selected ? "*" : "-", tag, selected ? "(selected)" : ""
-                    );
+                    context.Info(fg(selected ? fmt::color::azure : fmt::color::cadet_blue), "   {} {} {}\n",
+                                 selected ? "*" : "-", tag, selected ? "(selected)" : "");
                 }
-                
-                context.Info(
-                    {},
-                    "\n"
-                );
+
+                context.Info({}, "\n");
             }
             else if (operation == "list")
-            {                
-                context.Info(
-                    fg(fmt::color::cadet_blue) | fmt::emphasis::bold,
-                    "\n All installed packages:\n\n"
-                );
+            {
+                context.Info(fg(fmt::color::cadet_blue) | fmt::emphasis::bold, "\n All installed packages:\n\n");
 
-                for (auto& [package, version] : resolver->GetGlobalPackageList())
+                for (auto &[package, version] : resolver->GetGlobalPackageList())
                 {
-                    context.Info(
-                        {},
-                        "   "
-                    );
-                    
-                    context.Info(
-                        fg(fmt::color::yellow),
-                        "{}",
-                        package
-                    );
-                    
-                    context.Info(
-                        {},
-                        " - "
-                    );
-                    
-                    context.Info(
-                        fg(fmt::color::yellow),
-                        "{}\n",
-                        version
-                    );
+                    context.Info({}, "   ");
+
+                    context.Info(fg(fmt::color::yellow), "{}", package);
+
+                    context.Info({}, " - ");
+
+                    context.Info(fg(fmt::color::yellow), "{}\n", version);
                 }
-                
-                context.Info(
-                    fg(fmt::color::cadet_blue) | fmt::emphasis::bold,
-                    "\n Use 're pkg info <package>' to get more extensive info\n\n"
-                );
+
+                context.Info(fg(fmt::color::cadet_blue) | fmt::emphasis::bold,
+                             "\n Use 're pkg info <package>' to get more extensive info\n\n");
             }
             else if (operation == "remove")
             {
-                if (args.size() < 4)            
-                    throw re::Exception("re pkg remove: invalid command line\n\tusage: re pkg remove <package>[@<version>]");
-                    
+                if (args.size() < 4)
+                    throw re::Exception(
+                        "re pkg remove: invalid command line\n\tusage: re pkg remove <package>[@<version>]");
+
                 auto dep = re::ParseTargetDependency(args[3].data());
 
                 // Run this BEFORE the scary confirmation so that if something is wrong, it gets shown
@@ -328,8 +303,7 @@ int main(int argc, const char** argv)
                     "              This action CANNOT BE UNDONE after you confirm. YOU HAVE BEEN WARNED.\n"
                     "\n"
                     "Do you wish to PERMANENTLY REMOVE '{}'? (Y/N): ",
-                    args[3], args[3]
-                );
+                    args[3], args[3]);
 
                 if (std::cin.get() != 'y')
                 {
@@ -339,8 +313,9 @@ int main(int argc, const char** argv)
 
                 resolver->RemoveGlobalPackage(dep);
             }
-            else      
-                throw re::Exception("re pkg: invalid operation '{}'\n\tsupported operations: [install, select, info]", operation);
+            else
+                throw re::Exception("re pkg: invalid operation '{}'\n\tsupported operations: [install, select, info]",
+                                    operation);
         }
         else if (args[1] == "summary")
         {
@@ -372,33 +347,32 @@ int main(int argc, const char** argv)
 
             const auto style = fmt::emphasis::bold | fg(fmt::color::yellow);
 
-            auto get_run_target = [&context, &target](const std::string& str) -> re::Target*
-            {
+            auto get_run_target = [&context, &target](const std::string &str) -> re::Target * {
                 if (auto absolute = context.GetBuildEnv()->GetTargetOrNull(str))
                 {
                     return absolute;
                 }
                 else
                 {
-			        std::vector<std::string> parts;
-			        boost::algorithm::split(parts, str, boost::is_any_of("."));
+                    std::vector<std::string> parts;
+                    boost::algorithm::split(parts, str, boost::is_any_of("."));
 
-			        auto temp = &target;
+                    auto temp = &target;
 
-			        for (auto &part : parts)
-			        {
-			        	if (!part.empty())
-			        		temp = temp->FindChild(part);
+                    for (auto &part : parts)
+                    {
+                        if (!part.empty())
+                            temp = temp->FindChild(part);
 
-			        	if (!temp)
-			        		return nullptr;
-			        }
+                        if (!temp)
+                            return nullptr;
+                    }
 
                     return temp;
                 }
             };
 
-            re::Target* run_target = nullptr;
+            re::Target *run_target = nullptr;
 
             if (auto var = context.GetVar("target"))
             {
@@ -418,15 +392,15 @@ int main(int argc, const char** argv)
 
                 // Show a dialog asking the user to choose.
 
-                std::vector<re::Target*> choices;
+                std::vector<re::Target *> choices;
                 std::size_t index;
 
-                for (auto& [target, _] : desc.artifacts)
+                for (auto &[target, _] : desc.artifacts)
                 {
                     if (target->type != re::TargetType::Executable)
                         continue;
 
-                    choices.push_back((re::Target*) target);
+                    choices.push_back((re::Target *)target);
                 }
 
                 if (choices.empty())
@@ -440,13 +414,15 @@ int main(int argc, const char** argv)
                 else
                 {
                     if (context.GetVar("no-run-choice").value_or("false") == "true")
-                        throw re::TargetException("TargetRunException", desc.pRootTarget, "Artifact not specified and can't be interactively selected");
+                        throw re::TargetException("TargetRunException", desc.pRootTarget,
+                                                  "Artifact not specified and can't be interactively selected");
 
-                    context.Info(style, "\n * This project has {} executable targets to run. Please choose one:\n\n", choices.size());
+                    context.Info(style, "\n * This project has {} executable targets to run. Please choose one:\n\n",
+                                 choices.size());
 
                     std::size_t i = 0;
 
-                    for (auto& choice : choices)
+                    for (auto &choice : choices)
                     {
                         context.Info(fg(fmt::color::dim_gray), "   [{}] ", i++);
                         context.Info(fg(fmt::color::yellow), "{}\n", choice->module);
@@ -473,7 +449,7 @@ int main(int argc, const char** argv)
 
             if (it != desc.artifacts.end())
             {
-                auto& exe_path = it->second;
+                auto &exe_path = it->second;
 
                 std::vector<std::string> run_args(args.begin() + 2, args.end());
 
@@ -484,7 +460,8 @@ int main(int argc, const char** argv)
             }
             else
             {
-                throw re::TargetException("TargetRunException", run_target, "This target does not provide any artifacts");
+                throw re::TargetException("TargetRunException", run_target,
+                                          "This target does not provide any artifacts");
             }
         }
         else if (args[1] == "version")
@@ -526,36 +503,18 @@ int main(int argc, const char** argv)
 
             re::DepsVersionCache cache;
 
-            auto get_available_versions = [](const re::TargetDependency&, std::string_view) -> std::vector<std::string>
-            {
-                return {
-                    "v1.2",
-                    "0.3.5",
-                    "1.5.2",
-                    "ver0.3.3",
-                    "1.5.3",
-                    "1.7.10"
-                };
-            };
-            
-            auto deps = {
-                "re:test-dep ==0.3.5",
-                "re:test-dep ^0.3.3",
-                "re:test-dep >1.2",
-                "re:test-dep @ver0.3.3",
-                "re:test-dep <1.5.2",
-                "re:test-dep ^1.5.2",
-                "re:test-dep ~1.5.2"
+            auto get_available_versions = [](const re::TargetDependency &,
+                                             std::string_view) -> std::vector<std::string> {
+                return {"v1.2", "0.3.5", "1.5.2", "ver0.3.3", "1.5.3", "1.7.10"};
             };
 
-            for (auto& dep : deps)
+            auto deps = {"re:test-dep ==0.3.5", "re:test-dep ^0.3.3", "re:test-dep >1.2",  "re:test-dep @ver0.3.3",
+                         "re:test-dep <1.5.2",  "re:test-dep ^1.5.2", "re:test-dep ~1.5.2"};
+
+            for (auto &dep : deps)
             {
-                auto tag = cache.GetLatestVersionMatchingRequirements(
-                    target,
-                    re::ParseTargetDependency(dep, &target),
-                    "",
-                    get_available_versions
-                );
+                auto tag = cache.GetLatestVersionMatchingRequirements(target, re::ParseTargetDependency(dep, &target),
+                                                                      "", get_available_versions);
 
                 context.Info(fg(fmt::color::crimson), "{} - {}\n", dep, tag);
             }
@@ -579,40 +538,36 @@ int main(int argc, const char** argv)
             if (args.size() > 1 && (args[1] == "build" || args[1] == "b"))
                 partial_paths_offset++;
 
-
             if (args.size() > partial_paths_offset)
             {
                 if (!context.GetVar("no-meta"))
                     context.SetVar("no-meta", "true");
 
-                auto& filter = args[partial_paths_offset];
+                auto &filter = args[partial_paths_offset];
 
                 for (auto i = partial_paths_offset; i < args.size(); i++)
-                {                    
-			        std::vector<std::string> parts;
-			        boost::algorithm::split(parts, filter, boost::is_any_of("."));
+                {
+                    std::vector<std::string> parts;
+                    boost::algorithm::split(parts, filter, boost::is_any_of("."));
 
-			        auto temp = root;
+                    auto temp = root;
 
-			        for (auto &part : parts)
-			        {
-			        	if (!part.empty())
-			        		temp = temp->FindChild(part);
+                    for (auto &part : parts)
+                    {
+                        if (!part.empty())
+                            temp = temp->FindChild(part);
 
-			        	if (!temp)
-			        		throw re::TargetBuildException(
-			        			root,
-			        			"unresolved partial build filter '{}' for '{}'",
-			        			filter, root->module);
-			        }
+                        if (!temp)
+                            throw re::TargetBuildException(root, "unresolved partial build filter '{}' for '{}'",
+                                                           filter, root->module);
+                    }
 
-			        if (!temp)
-			        	throw re::TargetBuildException(
-			        		root,
-			        		"unresolved partial dependency filter '{}' for '{}'",
-			        		filter, root->module);
+                    if (!temp)
+                        throw re::TargetBuildException(root, "unresolved partial dependency filter '{}' for '{}'",
+                                                       filter, root->module);
 
-                    context.Info(fg(fmt::color::blue_violet) | fmt::emphasis::bold, "\n ! Partial build - Processing target '{}'\n\n", temp->module);
+                    context.Info(fg(fmt::color::blue_violet) | fmt::emphasis::bold,
+                                 "\n ! Partial build - Processing target '{}'\n\n", temp->module);
 
                     auto desc = context.GenerateBuildDescForTarget(*temp);
                     context.BuildTarget(desc);
@@ -695,49 +650,47 @@ int main(int argc, const char** argv)
         }
         */
     }
-    catch (const re::TargetUncachedDependencyException& e)
+    catch (const re::TargetUncachedDependencyException &e)
     {
         return 5;
     }
-    catch (const std::exception& e)
+    catch (const std::exception &e)
     {
         std::string message = "";
 
-        const boost::stacktrace::stacktrace* st = boost::get_error_info<re::TracedError>(e);
-        if (st) {
+        const boost::stacktrace::stacktrace *st = boost::get_error_info<re::TracedError>(e);
+        if (st)
+        {
             int i = 0;
 
-            for (auto& f : *st)
+            for (auto &f : *st)
             {
                 auto name = f.name();
-                auto path = re::fs::path{ f.source_file() };
+                auto path = re::fs::path{f.source_file()};
 
                 if (name.find("re::") != name.npos)
-                    message.append(fmt::format(
-                        "  at {} @ {}:{}\n", name, path.filename().u8string(), f.source_line()
-                    ));
+                    message.append(fmt::format("  at {} @ {}:{}\n", name, path.filename().u8string(), f.source_line()));
             }
-
         }
 
-        const auto kErrorStyle = fmt::emphasis::bold | fg(fmt::color::crimson); //bg(fmt::color::orange_red);
+        const auto kErrorStyle = fmt::emphasis::bold | fg(fmt::color::crimson); // bg(fmt::color::orange_red);
 
         context.Error({}, "\n");
         context.Error(kErrorStyle, "error: {}\n(type: {})\n{}", e.what(), typeid(e).name(), message);
         context.Error({}, "\n\n");
 
-/*
-        fmt::print(
-            stderr,
-            bg(fmt::color{ 0x090909 }) | fg(fmt::color::light_coral),
-            "\n\n{}", message
-        );
+        /*
+                fmt::print(
+                    stderr,
+                    bg(fmt::color{ 0x090909 }) | fg(fmt::color::light_coral),
+                    "\n\n{}", message
+                );
 
-        fmt::print(
-            stderr,
-            "\n\n"
-        );
-        */
+                fmt::print(
+                    stderr,
+                    "\n\n"
+                );
+                */
 
         return 1;
     }
