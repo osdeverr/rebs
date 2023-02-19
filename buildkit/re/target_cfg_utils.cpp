@@ -7,107 +7,110 @@
 
 namespace re
 {
-	TargetConfig GetFlatResolvedTargetCfg(const TargetConfig& cfg, const std::unordered_map<std::string, std::string>& mappings)
-	{
-		// recurse the ky
-		auto result = Clone(cfg);
+    TargetConfig GetFlatResolvedTargetCfg(const TargetConfig &cfg,
+                                          const std::unordered_map<std::string, std::string> &mappings)
+    {
+        // recurse the ky
+        auto result = Clone(cfg);
 
-		if (cfg.IsMap())
-		{
-			for (auto& kv : cfg)
-			{
-				std::string key = kv.first.as<std::string>();
+        if (cfg.IsMap())
+        {
+            for (auto &kv : cfg)
+            {
+                std::string key = kv.first.as<std::string>();
 
-				for (const auto& [category, value] : mappings)
-				{
-					if (key.find(category + ".") == 0)
-					{
-						auto raw = key.substr(category.size() + 1);
+                for (const auto &[category, value] : mappings)
+                {
+                    if (key.find(category + ".") == 0)
+                    {
+                        auto raw = key.substr(category.size() + 1);
 
-						std::vector<std::string> categories;
-						boost::algorithm::split(categories, raw, boost::is_any_of("|"));
+                        std::vector<std::string> categories;
+                        boost::algorithm::split(categories, raw, boost::is_any_of("|"));
 
-						bool supported = (raw == "any");
+                        bool supported = (raw == "any");
 
-						for (auto& supported_category : categories)
-						{
-							RE_TRACE("{}.{}\n", category, supported_category);
+                        for (auto &supported_category : categories)
+                        {
+                            RE_TRACE("{}.{}\n", category, supported_category);
 
-							if (supported)
-								break;
+                            if (supported)
+                                break;
 
-							supported |= (value == supported_category || boost::algorithm::starts_with(supported_category, value + ".") || boost::algorithm::starts_with(value, supported_category + "."));
+                            supported |= (value == supported_category ||
+                                          boost::algorithm::starts_with(supported_category, value + ".") ||
+                                          boost::algorithm::starts_with(value, supported_category + "."));
 
-							if (supported_category.front() == '!')
-							{
-								RE_TRACE("    Negation: value={}\n", (supported_category != value.substr(1)));
-								supported |= (supported_category.substr(1) != value);
-							}
-						}
+                            if (supported_category.front() == '!')
+                            {
+                                RE_TRACE("    Negation: value={}\n", (supported_category != value.substr(1)));
+                                supported |= (supported_category.substr(1) != value);
+                            }
+                        }
 
-						if (supported)
-						{
-							if (kv.second.IsScalar() && kv.second.Scalar() == "unsupported")
-								RE_THROW Exception("unsupported {} '{}'", category, value);
+                        if (supported)
+                        {
+                            if (kv.second.IsScalar() && kv.second.Scalar() == "unsupported")
+                                RE_THROW Exception("unsupported {} '{}'", category, value);
 
-							auto cloned = GetFlatResolvedTargetCfg(kv.second, mappings);
+                            auto cloned = GetFlatResolvedTargetCfg(kv.second, mappings);
 
-							if (cloned.IsMap())
-							{
-								for (auto inner_kv : cloned)
-									inner_kv.second = GetFlatResolvedTargetCfg(inner_kv.second, mappings);
-							}
+                            if (cloned.IsMap())
+                            {
+                                for (auto inner_kv : cloned)
+                                    inner_kv.second = GetFlatResolvedTargetCfg(inner_kv.second, mappings);
+                            }
 
-							MergeYamlNode(result, cloned);
-						}
+                            MergeYamlNode(result, cloned);
+                        }
 
-						result.remove(key);
-						break;
-					}
-				}
-			}
-		}
+                        result.remove(key);
+                        break;
+                    }
+                }
+            }
+        }
 
-		return result;
-	}
+        return result;
+    }
 
-	TargetConfig GetResolvedTargetCfg(const Target& leaf, const std::unordered_map<std::string, std::string>& mappings)
-	{
-		auto p = leaf.parent;
+    TargetConfig GetResolvedTargetCfg(const Target &leaf, const std::unordered_map<std::string, std::string> &mappings)
+    {
+        auto p = leaf.parent;
 
-		auto leaf_cfg = GetFlatResolvedTargetCfg(leaf.config, mappings);
+        auto leaf_cfg = GetFlatResolvedTargetCfg(leaf.config, mappings);
 
-		// Deps and uses are automatically recursed by Target facilities:
-		// copying parent deps and uses into children would lead to a performance impact due to redundant regex parsing
-		auto top_deps = Clone(leaf_cfg["deps"]);
-		auto top_uses = Clone(leaf_cfg["uses"]);
-		
-		auto top_actions = Clone(leaf_cfg["actions"]);
+        // Deps and uses are automatically recursed by Target facilities:
+        // copying parent deps and uses into children would lead to a performance impact due to redundant regex parsing
+        auto top_deps = Clone(leaf_cfg["deps"]);
+        auto top_uses = Clone(leaf_cfg["uses"]);
 
-		std::vector<const Target*> genealogy = {&leaf};
+        auto top_actions = Clone(leaf_cfg["actions"]);
 
-		while (p)
-		{
-			genealogy.insert(genealogy.begin(), p);
-			p = p->parent;
-		}
+        std::vector<const Target *> genealogy = {&leaf};
 
-		TargetConfig result{YAML::NodeType::Map};
-		
-		for(auto& target : genealogy)
-			MergeYamlNode(result, GetFlatResolvedTargetCfg(target->config, mappings));
+        while (p)
+        {
+            genealogy.insert(genealogy.begin(), p);
+            p = p->parent;
+        }
 
-		result["deps"] = top_deps;
-		result["uses"] = top_uses;
-		result["actions"] = top_actions;
+        TargetConfig result{YAML::NodeType::Map};
 
-/*
-		YAML::Emitter emitter;
-		emitter << result;
+        for (auto &target : genealogy)
+            MergeYamlNode(result, GetFlatResolvedTargetCfg(target->config, mappings));
 
-		fmt::print(" [DBG] Flat target config for '{}':\n\n{}\n\n", leaf.module, emitter.c_str());
-		*/
+        result["deps"] = top_deps;
+        result["uses"] = top_uses;
+        result["actions"] = top_actions;
 
-		return result;
-	}
-}
+        /*
+                YAML::Emitter emitter;
+                emitter << result;
+
+                fmt::print(" [DBG] Flat target config for '{}':\n\n{}\n\n", leaf.module, emitter.c_str());
+        */
+
+        return result;
+    }
+} // namespace re

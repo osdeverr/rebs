@@ -4,7 +4,7 @@
 #
 
 #
-# Inherits from the specified build environment - in this example, the 'generic' C++ build environment 
+# Inherits from the specified build environment - in this example, the 'generic' C++ build environment
 #
 inherits:
     - generic
@@ -21,26 +21,26 @@ vars:
     #vc-tools-link: ${vc-tools-bin}/link.exe
     #vc-tools-archiver: ${vc-tools-bin}/lib.exe
 #
-    #windows-kits-root: ${env:WindowsSdkDir | .}
-    #windows-kits-ver: ${env:WindowsSDKLibVersion | 0}
-    #windows-kits-lib-path: ${windows-kits-root}/lib/${windows-kits-ver}
+#windows-kits-root: ${env:WindowsSdkDir | .}
+#windows-kits-ver: ${env:WindowsSDKLibVersion | 0}
+#windows-kits-lib-path: ${windows-kits-root}/lib/${windows-kits-ver}
 #
-    #platform-link-paths: /LIBPATH:"${vc-tools-root}/lib/${arch}" /LIBPATH:"${windows-kits-lib-path}/um/${arch}" /LIBPATH:"${windows-kits-lib-path}/ucrt/$#{arch}"
+#platform-link-paths: /LIBPATH:"${vc-tools-root}/lib/${arch}" /LIBPATH:"${windows-kits-lib-path}/um/${arch}" /LIBPATH:"${windows-kits-lib-path}/ucrt/$#{arch}"
 
 #
 # Specifies the paths to build tools. Can be absolute or relative - it doesn't matter - but the paths obviously need to resolve properly.
 #
 tools:
-    compiler:  ${gcc-compiler-path | $env:RE_COMPILER_PATH | $gcc-tools-cl       | g++}
-    linker:    ${gcc-compiler-path | $env:RE_COMPILER_PATH | $gcc-tools-cl       | g++}
-    archiver:  ${gcc-archiver-path | $env:RE_ARCHIVER_PATH | $gcc-tools-archiver | ar}
+    compiler: ${gcc-compiler-path | $env:RE_COMPILER_PATH | $gcc-tools-cl       | g++}
+    linker: ${gcc-compiler-path | $env:RE_COMPILER_PATH | $gcc-tools-cl       | g++}
+    archiver: ${gcc-archiver-path | $env:RE_ARCHIVER_PATH | $gcc-tools-archiver | ar}
 
 #
 # Default tool invoke flags. Can be overridden in targets using the 'build-flags' map property.
 #
 default-flags:
-    compiler:  "" #"/nologo /showIncludes /interface /experimental:module /EHsc /MD"
-    linker:    "" #"/nologo /ignore:4006 ${platform-link-paths} /MACHINE:${arch}"
+    compiler: "" #"/nologo /showIncludes /interface /experimental:module /EHsc /MD"
+    linker: "" #"/nologo /ignore:4006 ${platform-link-paths} /MACHINE:${arch}"
 
 #
 # Platform-specific C preprocessor macros. They will be defined in all source files using this environment.
@@ -61,8 +61,8 @@ templates:
 
     cxx-module-output: "" # "/ifcOutput {directory}"
     cxx-module-lookup-dir: "" # "/ifcSearchDir {directory}"
-    cxx-include-dir: "-I\"{directory}\""
-    cxx-lib-dir: "-D\"{directory}\""
+    cxx-include-dir: '-I"{directory}"'
+    cxx-lib-dir: '-D"{directory}"'
 
     cxx-compile-definition: "-D{name}={value}"
     cxx-compile-definition-no-value: "-D{name}"
@@ -78,10 +78,7 @@ templates:
 #
 default-extensions:
     object: o
-    executable: 
-    static-library: a
-    shared-library: so
-    
+
 #
 # The keys and values from this field will be appended verbatim to all rules created using this build environment.
 # Here, we make sure the underlying build system (Ninja in particular) knows we're building with GCC and works with header deps accordingly.
