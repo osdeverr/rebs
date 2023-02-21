@@ -334,6 +334,7 @@ namespace re
 
         std::ofstream file{cache_path / "full.json"};
         file << desc.meta.dump();
+        file.close();
 
         for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
         {
