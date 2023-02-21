@@ -24,7 +24,7 @@ platform.windows:
         target-type.executable: exe
         target-type.static-library: lib
         target-type.shared-library: dll
-        
+
 platform.linux|osx:
     vars:
         default-cxx-env: gcc
@@ -57,10 +57,27 @@ cxx-build-flags:
     archiver:
         - ${platform-default-flags-archiver}
 
-cxxenv.!gcc:
+cxxenv.msvc:
     cxx-standard: latest
-cxxenv.gcc:
+cxxenv.gcc|clang:
     cxx-standard: 2a
+
+cxxenv.clang:
+    arch.x86:
+        vars:
+            clang-arch-type: i686
+    arch.x64:
+        vars:
+            clang-arch-type: x86_64
+            
+    vars:
+        clang-arch-flags: --target=${clang-arch-type}-win32-unknown
+
+    cxx-build-flags:
+      compiler:
+        - ${clang-arch-flags}
+      linker:
+        - ${clang-arch-flags}
 
 cxx-header-projection: false
 
