@@ -3,29 +3,29 @@
 
 #include <re/langs/cxx/cxx_lang_provider.h>
 
-#include <re/langs/cxx/features/cxx_header_projection.h>
 #include <re/langs/cxx/features/cpp2_translation.h>
+#include <re/langs/cxx/features/cxx_header_projection.h>
 #include <re/langs/cxx/features/source_translation.h>
 
-#include <re/langs/cmake/cmake_target_load_middleware.h>
 #include <re/langs/cmake/cmake_lang_provider.h>
+#include <re/langs/cmake/cmake_target_load_middleware.h>
 
-#include <re/deps/vcpkg_dep_resolver.h>
+#include <re/deps/arch_coerced_dep_resolver.h>
+#include <re/deps/conan_dep_resolver.h>
+#include <re/deps/fs_dep_resolver.h>
 #include <re/deps/git_dep_resolver.h>
 #include <re/deps/github_dep_resolver.h>
-#include <re/deps/arch_coerced_dep_resolver.h>
-#include <re/deps/fs_dep_resolver.h>
-#include <re/deps/conan_dep_resolver.h>
+#include <re/deps/vcpkg_dep_resolver.h>
 
 #include <re/deps_version_cache.h>
 
-#include <ninja/tool_main.h>
 #include <ninja/manifest_parser.h>
+#include <ninja/tool_main.h>
 
 #include <re/debug.h>
 
-#include <fmt/format.h>
 #include <fmt/color.h>
+#include <fmt/format.h>
 
 #include <fstream>
 
@@ -33,542 +33,547 @@
 
 namespace re
 {
-	DefaultBuildContext::DefaultBuildContext()
-		: mVars{ &mVarContext, "re" }
-	{
-		mVars.AddNamespace("env", &mSystemEnvVars);
+    DefaultBuildContext::DefaultBuildContext() : mVars{&mVarContext, "re"}
+    {
+        mVars.AddNamespace("env", &mSystemEnvVars);
 
-		mVars.SetVar("version", "1.0");
+        mVars.SetVar("version", "1.0");
 
 #if defined(WIN32)
-		mVars.SetVar("platform", "windows");
-		mVars.SetVar("platform-closest", "unix");
+        mVars.SetVar("platform", "windows");
+        mVars.SetVar("platform-closest", "unix");
 #elif defined(__linux__)
-		mVars.SetVar("platform", "linux");
-		mVars.SetVar("platform-closest", "unix");
+        mVars.SetVar("platform", "linux");
+        mVars.SetVar("platform-closest", "unix");
 #elif defined(__APPLE__)
-		mVars.SetVar("platform", "osx");
-		mVars.SetVar("platform-closest", "unix");
+        mVars.SetVar("platform", "osx");
+        mVars.SetVar("platform-closest", "unix");
 #endif
- 
-		mVars.SetVar("cxx-default-include-dirs", ".");
-		mVars.SetVar("cxx-default-lib-dirs", ".");
 
-		mVars.SetVar("host-arch", "x64");
+        mVars.SetVar("cxx-default-include-dirs", ".");
+        mVars.SetVar("cxx-default-lib-dirs", ".");
 
-		mVars.SetVar("generate-build-meta", "false");
-		mVars.SetVar("auto-load-uncached-deps", "true");
+        mVars.SetVar("host-arch", "x64");
 
-		mVars.SetVar("msg-level", "info");
-		mVars.SetVar("colors", "true");
+        mVars.SetVar("generate-build-meta", "false");
+        mVars.SetVar("auto-load-uncached-deps", "true");
 
-		UpdateOutputSettings();
-	}
+        mVars.SetVar("msg-level", "info");
+        mVars.SetVar("colors", "true");
 
-	void DefaultBuildContext::LoadDefaultEnvironment(const fs::path& data_path, const fs::path& dynamic_data_path)
-	{
-		re::PerfProfile _{ __FUNCTION__ };
+        UpdateOutputSettings();
+    }
 
-		mDataPath = data_path;
+    void DefaultBuildContext::LoadDefaultEnvironment(const fs::path &data_path, const fs::path &dynamic_data_path)
+    {
+        re::PerfProfile _{__FUNCTION__};
 
-		mEnv = std::make_unique<BuildEnv>(mVars, this);
+        mDataPath = data_path;
 
-		auto& cxx = mLangs.emplace_back(std::make_unique<CxxLangProvider>(mDataPath / "data" / "environments" / "cxx", &mVars));
-		mEnv->AddLangProvider("cpp", cxx.get());
+        mEnv = std::make_unique<BuildEnv>(mVars, this);
 
-		auto vcpkg_deps_path = dynamic_data_path / "deps" / "vcpkg";
-		fs::create_directories(vcpkg_deps_path);
+        auto &cxx =
+            mLangs.emplace_back(std::make_unique<CxxLangProvider>(mDataPath / "data" / "environments" / "cxx", &mVars));
+        mEnv->AddLangProvider("cpp", cxx.get());
 
-		auto vcpkg_resolver = std::make_unique<VcpkgDepResolver>(vcpkg_deps_path, this);
-		auto git_resolver = std::make_unique<GitDepResolver>(mEnv.get(), this);
-		auto github_resolver = std::make_unique<GithubDepResolver>(git_resolver.get());
+        auto vcpkg_deps_path = dynamic_data_path / "deps" / "vcpkg";
+        fs::create_directories(vcpkg_deps_path);
 
-		auto ac_resolver = std::make_unique<ArchCoercedDepResolver>(mEnv.get());
-		auto fs_resolver = std::make_unique<FsDepResolver>(mEnv.get());
+        auto vcpkg_resolver = std::make_unique<VcpkgDepResolver>(vcpkg_deps_path, this);
+        auto git_resolver = std::make_unique<GitDepResolver>(mEnv.get(), this);
+        auto github_resolver = std::make_unique<GithubDepResolver>(git_resolver.get());
 
-		auto conan_resolver = std::make_unique<ConanDepResolver>(this);
+        auto ac_resolver = std::make_unique<ArchCoercedDepResolver>(mEnv.get());
+        auto fs_resolver = std::make_unique<FsDepResolver>(mEnv.get());
 
-		mEnv->AddDepResolver("vcpkg", vcpkg_resolver.get());
-		mEnv->AddDepResolver("vcpkg-dep", vcpkg_resolver.get());
+        auto conan_resolver = std::make_unique<ConanDepResolver>(this);
 
-		mEnv->AddDepResolver("git", git_resolver.get());
-		mEnv->AddDepResolver("github", github_resolver.get());
-		mEnv->AddDepResolver("github-ssh", github_resolver.get());
+        mEnv->AddDepResolver("vcpkg", vcpkg_resolver.get());
+        mEnv->AddDepResolver("vcpkg-dep", vcpkg_resolver.get());
 
-		mEnv->AddDepResolver("arch-coerced", ac_resolver.get());
-		mEnv->AddDepResolver("fs", fs_resolver.get());
-		
-		mEnv->AddDepResolver("conan", conan_resolver.get());
+        mEnv->AddDepResolver("git", git_resolver.get());
+        mEnv->AddDepResolver("github", github_resolver.get());
+        mEnv->AddDepResolver("github-ssh", github_resolver.get());
 
-		mDepResolvers.emplace_back(std::move(vcpkg_resolver));
-		mDepResolvers.emplace_back(std::move(git_resolver));
-		mDepResolvers.emplace_back(std::move(github_resolver));
-		mDepResolvers.emplace_back(std::move(ac_resolver));
-		mDepResolvers.emplace_back(std::move(conan_resolver));
+        mEnv->AddDepResolver("arch-coerced", ac_resolver.get());
+        mEnv->AddDepResolver("fs", fs_resolver.get());
 
-		auto global_deps_path = dynamic_data_path / "deps" / "installed";
-		fs::create_directories(global_deps_path);
+        mEnv->AddDepResolver("conan", conan_resolver.get());
 
-		mGlobalDepResolver = std::make_unique<GlobalDepResolver>(global_deps_path, mEnv.get(), this);
-		mEnv->AddDepResolver("global", mGlobalDepResolver.get());
+        mDepResolvers.emplace_back(std::move(vcpkg_resolver));
+        mDepResolvers.emplace_back(std::move(git_resolver));
+        mDepResolvers.emplace_back(std::move(github_resolver));
+        mDepResolvers.emplace_back(std::move(ac_resolver));
+        mDepResolvers.emplace_back(std::move(conan_resolver));
 
-		constexpr auto kHeaderProjRoot = ".re-cache/header-projection";
+        auto global_deps_path = dynamic_data_path / "deps" / "installed";
+        fs::create_directories(global_deps_path);
 
-		auto cxx_header_projection = std::make_unique<CxxHeaderProjection>();
-		auto cpp2_translation = std::make_unique<Cpp2Translation>();
-		auto source_translation = std::make_unique<SourceTranslation>();
+        mGlobalDepResolver = std::make_unique<GlobalDepResolver>(global_deps_path, mEnv.get(), this);
+        mEnv->AddDepResolver("global", mGlobalDepResolver.get());
 
-		mEnv->AddTargetFeature(cxx_header_projection.get());
-		mEnv->AddTargetFeature(cpp2_translation.get());
-		mEnv->AddTargetFeature(source_translation.get());
-		
-		mVars.SetVar("cxx-header-projection-root", kHeaderProjRoot);
+        constexpr auto kHeaderProjRoot = ".re-cache/header-projection";
 
-		mTargetFeatures.emplace_back(std::move(cxx_header_projection));
-		mTargetFeatures.emplace_back(std::move(cpp2_translation));
-		mTargetFeatures.emplace_back(std::move(source_translation));
+        auto cxx_header_projection = std::make_unique<CxxHeaderProjection>();
+        auto cpp2_translation = std::make_unique<Cpp2Translation>();
+        auto source_translation = std::make_unique<SourceTranslation>();
 
-		auto& cmake = mLangs.emplace_back(std::make_unique<CMakeLangProvider>(&mVars));
-		mEnv->AddLangProvider("cmake", cmake.get());
+        mEnv->AddTargetFeature(cxx_header_projection.get());
+        mEnv->AddTargetFeature(cpp2_translation.get());
+        mEnv->AddTargetFeature(source_translation.get());
 
-		auto cmake_middleware = std::make_unique<CMakeTargetLoadMiddleware>(
-			mDataPath / "data" / "cmake-adapter",
-			this
-		);
+        mVars.SetVar("cxx-header-projection-root", kHeaderProjRoot);
 
-		mEnv->AddTargetLoadMiddleware(cmake_middleware.get());
+        mTargetFeatures.emplace_back(std::move(cxx_header_projection));
+        mTargetFeatures.emplace_back(std::move(cpp2_translation));
+        mTargetFeatures.emplace_back(std::move(source_translation));
 
-		mTargetLoadMiddlewares.emplace_back(std::move(cmake_middleware));
+        auto &cmake = mLangs.emplace_back(std::make_unique<CMakeLangProvider>(&mVars));
+        mEnv->AddLangProvider("cmake", cmake.get());
 
-		mEnv->LoadCoreProjectTarget(mDataPath / "data" / "core-project");
-	}
+        auto cmake_middleware = std::make_unique<CMakeTargetLoadMiddleware>(mDataPath / "data" / "cmake-adapter", this);
 
-	Target& DefaultBuildContext::LoadTarget(const fs::path& path)
-	{
-		re::PerfProfile _{ fmt::format(R"({}("{}"))", __FUNCTION__, path.u8string())};
+        mEnv->AddTargetLoadMiddleware(cmake_middleware.get());
 
-		auto& target = mEnv->LoadTarget(path);
-		return target;
-	}
+        mTargetLoadMiddlewares.emplace_back(std::move(cmake_middleware));
 
-	YAML::Node DefaultBuildContext::LoadCachedParams(const fs::path& path)
-	{
-		std::ifstream file{ path / "re.user.yml" };
+        mEnv->LoadCoreProjectTarget(mDataPath / "data" / "core-project");
+    }
 
-		if (file.good())
-		{
-			auto yaml = YAML::Load(file);
+    Target &DefaultBuildContext::LoadTarget(const fs::path &path)
+    {
+        re::PerfProfile _{fmt::format(R"({}("{}"))", __FUNCTION__, path.u8string())};
 
-			for (const auto& kv : yaml)
-				mVars.SetVar(mVars.Resolve(kv.first.Scalar()), mVars.Resolve(kv.second.Scalar()));
+        auto &target = mEnv->LoadTarget(path);
+        return target;
+    }
 
-			return yaml;
-		}
+    YAML::Node DefaultBuildContext::LoadCachedParams(const fs::path &path)
+    {
+        std::ifstream file{path / "re.user.yml"};
 
-		return YAML::Node{ YAML::Null };
-	}
+        if (file.good())
+        {
+            auto yaml = YAML::Load(file);
 
-	void DefaultBuildContext::SaveCachedParams(const fs::path& path, const YAML::Node& node)
-	{
-		std::ofstream file{ path / "re.user.yml" };
+            for (const auto &kv : yaml)
+                mVars.SetVar(mVars.Resolve(kv.first.Scalar()), mVars.Resolve(kv.second.Scalar()));
 
-		YAML::Emitter emitter;
-		emitter << node;
+            return yaml;
+        }
 
-		file << emitter.c_str();
-	}
+        return YAML::Node{YAML::Null};
+    }
 
-	NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTarget(Target& target)
-	{
-		re::PerfProfile _{ fmt::format(R"({}("{}"))", __FUNCTION__, target.module) };
+    void DefaultBuildContext::SaveCachedParams(const fs::path &path, const YAML::Node &node)
+    {
+        std::ofstream file{path / "re.user.yml"};
 
-		NinjaBuildDesc desc;
-		desc.pRootTarget = &target;
+        YAML::Emitter emitter;
+        emitter << node;
 
-		auto version_cache_path = target.root->path / "re-deps-lock.json";
+        file << emitter.c_str();
+    }
 
-		{
+    NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTarget(Target &target)
+    {
+        re::PerfProfile _{fmt::format(R"({}("{}"))", __FUNCTION__, target.module)};
+
+        NinjaBuildDesc desc;
+        desc.pRootTarget = &target;
+
+        auto version_cache_path = target.root->path / "re-deps-lock.json";
+
+        {
             std::ifstream file(version_cache_path);
-            
+
             if (!file.fail() && file.good() && file.is_open())
             {
-            	std::string contents((std::istreambuf_iterator<char>(file)),
-            	                     std::istreambuf_iterator<char>());
+                std::string contents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
-				mDepsVersionCache = std::make_unique<DepsVersionCache>(
-					nlohmann::json::parse(contents)
-				);
+                mDepsVersionCache = std::make_unique<DepsVersionCache>(nlohmann::json::parse(contents));
             }
-			else
-			{
-				mDepsVersionCache = std::make_unique<DepsVersionCache>(nlohmann::json::object({}));
-			}
+            else
+            {
+                mDepsVersionCache = std::make_unique<DepsVersionCache>(nlohmann::json::object({}));
+            }
 
-			mEnv->SetDepsVersionCache(mDepsVersionCache.get());
-		}
+            mEnv->SetDepsVersionCache(mDepsVersionCache.get());
+        }
 
-		fs::remove_all(target.root->path / ".re-cache" / "header-projection");
+        fs::remove_all(target.root->path / ".re-cache" / "header-projection");
 
-		for (auto dep : mEnv->GetSingleTargetLocalDepSet(&target))
-		{
-			dep->var_parent = &mVars;
-			mEnv->InitializeTargetLinkEnvWithDeps(dep, desc);
-		}
+        for (auto dep : mEnv->GetSingleTargetLocalDepSet(&target))
+        {
+            dep->var_parent = &mVars;
+            mEnv->InitializeTargetLinkEnvWithDeps(dep, desc);
+        }
 
-		auto deps = mEnv->GetSingleTargetDepSet(desc.pRootTarget);
+        auto deps = mEnv->GetSingleTargetDepSet(desc.pRootTarget);
 
-		for (auto dep : deps)
-		{
-			dep->var_parent = &mVars;
+        for (auto dep : deps)
+        {
+            dep->var_parent = &mVars;
 
-			mEnv->InitializeTargetLinkEnvWithDeps(dep, desc);
-			mVars.AddNamespace("target." + target.module, &target);
+            mEnv->InitializeTargetLinkEnvWithDeps(dep, desc);
+            mVars.AddNamespace("target." + target.module, &target);
 
-			mEnv->RunActionsCategorized(dep, nullptr, "pre-configure");
-			
-			for(auto& [key, object] : dep->features)
-			{
-				object->ProcessTargetPostInit(*dep);
-			}
-		}
+            mEnv->RunActionsCategorized(dep, nullptr, "pre-configure");
 
-		deps = mEnv->GetSingleTargetDepSet(desc.pRootTarget);
+            for (auto &[key, object] : dep->features)
+            {
+                object->ProcessTargetPostInit(*dep);
+            }
+        }
 
-		mEnv->PopulateBuildDescWithDeps(&target, desc);
+        deps = mEnv->GetSingleTargetDepSet(desc.pRootTarget);
 
-		auto& vars = target.build_var_scope.value();
+        mEnv->PopulateBuildDescWithDeps(&target, desc);
 
-		auto root_arch = vars.ResolveLocal("arch");
+        auto &vars = target.build_var_scope.value();
 
-		auto out_dir = target.root->path / "out";
+        auto root_arch = vars.ResolveLocal("arch");
 
-		if (auto entry = target.GetCfgEntry<std::string>("out-dir"))
-		{
-			out_dir = vars.Resolve(*entry);
+        auto out_dir = target.root->path / "out";
 
-			if (target.path <= fs::current_path() || out_dir.u8string().front() == '.')
-				out_dir = target.path / out_dir;
-		}
+        if (auto entry = target.GetCfgEntry<std::string>("out-dir"))
+        {
+            out_dir = vars.Resolve(*entry);
 
-		constexpr auto kDefaultDirTriplet = "${arch}-${platform}-${configuration}";
-		out_dir /= vars.Resolve(target.GetCfgEntry<std::string>("out-dir-triplet", CfgEntryKind::Recursive).value_or(kDefaultDirTriplet));
+            if (target.path <= fs::current_path() || out_dir.u8string().front() == '.')
+                out_dir = target.path / out_dir;
+        }
 
-		fs::create_directories(out_dir);
-		out_dir = fs::canonical(out_dir);
+        constexpr auto kDefaultDirTriplet = "${arch}-${platform}-${configuration}";
+        out_dir /= vars.Resolve(
+            target.GetCfgEntry<std::string>("out-dir-triplet", CfgEntryKind::Recursive).value_or(kDefaultDirTriplet));
 
-		std::ofstream create_temp{out_dir / ".re-ignore-this"};
+        fs::create_directories(out_dir);
+        out_dir = fs::canonical(out_dir);
 
-		desc.out_dir = out_dir;
+        std::ofstream create_temp{out_dir / ".re-ignore-this"};
 
-		for (auto& dep : deps)
-		{
-			if (!dep->build_var_scope)
-				continue;
+        desc.out_dir = out_dir;
 
-			LocalVarScope module_name_scope{ &dep->build_var_scope.value(), dep->module };
+        for (auto &dep : deps)
+        {
+            if (!dep->build_var_scope)
+                continue;
 
-			auto artifact_out_format = dep->GetCfgEntry<std::string>("out-artifact-dir", CfgEntryKind::Recursive).value_or("build/${module}");
-			auto object_out_format = dep->GetCfgEntry<std::string>("out-object-dir", CfgEntryKind::Recursive).value_or("obj/${module}");
+            LocalVarScope module_name_scope{&dep->build_var_scope.value(), dep->module};
 
-			module_name_scope.SetVar("module", dep->module);
-			module_name_scope.SetVar("src", dep->path.u8string());
-			module_name_scope.SetVar("out", out_dir.u8string());
-			module_name_scope.SetVar("root", desc.pRootTarget->path.u8string());
+            auto artifact_out_format =
+                dep->GetCfgEntry<std::string>("out-artifact-dir", CfgEntryKind::Recursive).value_or("build/${module}");
+            auto object_out_format =
+                dep->GetCfgEntry<std::string>("out-object-dir", CfgEntryKind::Recursive).value_or("obj/${module}");
 
-			auto artifact_dir = module_name_scope.Resolve(artifact_out_format);
-			auto object_dir = module_name_scope.Resolve(object_out_format);
+            module_name_scope.SetVar("module", dep->module);
+            module_name_scope.SetVar("src", dep->path.u8string());
+            module_name_scope.SetVar("out", out_dir.u8string());
+            module_name_scope.SetVar("root", desc.pRootTarget->path.u8string());
 
-			desc.init_vars["re_target_artifact_directory_" + GetEscapedModulePath(*dep)] = artifact_dir;
-			desc.init_vars["re_target_object_directory_" + GetEscapedModulePath(*dep)] = object_dir;
+            auto artifact_dir = module_name_scope.Resolve(artifact_out_format);
+            auto object_dir = module_name_scope.Resolve(object_out_format);
 
-			auto &full_src_dir = dep->path;
-			auto full_artifact_dir = desc.out_dir / artifact_dir;
-			auto full_object_dir = desc.out_dir / object_dir;
+            desc.init_vars["re_target_artifact_directory_" + GetEscapedModulePath(*dep)] = artifact_dir;
+            desc.init_vars["re_target_object_directory_" + GetEscapedModulePath(*dep)] = object_dir;
 
-			dep->build_var_scope->SetVar("src-dir", full_src_dir.u8string());
-			dep->build_var_scope->SetVar("artifact-dir", full_artifact_dir.u8string());
-			dep->build_var_scope->SetVar("object-dir", full_object_dir.u8string());
-			// dep->build_var_scope->SetVar("root-out-dir", out_dir.u8string());
-			// dep->build_var_scope->SetVar("root-dir", desc.pRootTarget->path.u8string());
+            auto &full_src_dir = dep->path;
+            auto full_artifact_dir = desc.out_dir / artifact_dir;
+            auto full_object_dir = desc.out_dir / object_dir;
 
-			auto &meta = desc.meta["targets"][full_src_dir.u8string()];
+            dep->build_var_scope->SetVar("src-dir", full_src_dir.u8string());
+            dep->build_var_scope->SetVar("artifact-dir", full_artifact_dir.u8string());
+            dep->build_var_scope->SetVar("object-dir", full_object_dir.u8string());
+            // dep->build_var_scope->SetVar("root-out-dir", out_dir.u8string());
+            // dep->build_var_scope->SetVar("root-dir", desc.pRootTarget->path.u8string());
 
-			meta["src-dir"] = full_src_dir.u8string();
-			meta["artifact-dir"] = full_artifact_dir.u8string();
-			meta["object-dir"] = full_object_dir.u8string();
+            auto &meta = desc.meta["targets"][full_src_dir.u8string()];
 
-			if (auto artifact = dep->build_var_scope->GetVarNoRecurse("build-artifact"))
-				meta["main-artifact"] = (full_artifact_dir / *artifact).u8string();
-		}
-		
-		// Resolve all the paths
-		for (auto it = desc.artifacts.begin(); it != desc.artifacts.end(); it++)
-		{
-			it.value() = it->first->build_var_scope->Resolve(it->second.generic_u8string());
-		}
+            meta["src-dir"] = full_src_dir.u8string();
+            meta["artifact-dir"] = full_artifact_dir.u8string();
+            meta["object-dir"] = full_object_dir.u8string();
 
-		desc.meta["root_target"] = target.root->module;
+            if (auto artifact = dep->build_var_scope->GetVarNoRecurse("build-artifact"))
+                meta["main-artifact"] = (full_artifact_dir / *artifact).u8string();
+        }
 
-		if (mVars.GetVarNoRecurse("no-meta").value_or("false") != "true")
-		{
-			auto& data = mDepsVersionCache->GetData();
+        // Resolve all the paths
+        for (auto it = desc.artifacts.begin(); it != desc.artifacts.end(); it++)
+        {
+            it.value() = it->first->build_var_scope->Resolve(it->second.generic_u8string());
+        }
 
-			if (!data.empty())
-			{
-				std::ofstream file(version_cache_path);
-				file << data.dump(4);
-			}
-		}
+        desc.meta["root_target"] = target.root->module;
 
-		return desc;
-	}
+        if (mVars.GetVarNoRecurse("no-meta").value_or("false") != "true")
+        {
+            auto &data = mDepsVersionCache->GetData();
 
-	NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTargetInDir(const fs::path& path)
-	{
-		auto& target = LoadTarget(path);
-		return GenerateBuildDescForTarget(target);
-	}
+            if (!data.empty())
+            {
+                std::ofstream file(version_cache_path);
+                file << data.dump(4);
+            }
+        }
 
-	void DefaultBuildContext::SaveTargetMeta(const NinjaBuildDesc& desc)
-	{
-		auto cache_path = desc.pRootTarget->path / ".re-cache" / "meta";
+        return desc;
+    }
 
-		fs::create_directories(cache_path);
+    NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTargetInDir(const fs::path &path)
+    {
+        auto &target = LoadTarget(path);
+        return GenerateBuildDescForTarget(target);
+    }
 
-		std::ofstream file{ cache_path / "full.json" };
-		file << desc.meta.dump();
-	}
+    void DefaultBuildContext::SaveTargetMeta(const NinjaBuildDesc &desc)
+    {
+        auto cache_path = desc.pRootTarget->path / ".re-cache" / "meta";
 
-	int DefaultBuildContext::BuildTarget(const NinjaBuildDesc& desc)
-	{
-		re::PerfProfile perf{ fmt::format(R"({}("{}"))", __FUNCTION__, desc.out_dir.u8string()) };
+        fs::create_directories(cache_path);
 
-		auto current_path_at_invoke = fs::current_path();
+        std::ofstream file{cache_path / "full.json"};
+        file << desc.meta.dump();
 
-		auto style = fmt::emphasis::bold | fg(fmt::color::aquamarine);
+        for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+        {
+            mEnv->RunActionsCategorized(dep, &desc, "meta-available");
+        }
+    }
 
-		Info(style, " - Generating build files\n");
+    int DefaultBuildContext::BuildTarget(const NinjaBuildDesc &desc)
+    {
+        re::PerfProfile perf{fmt::format(R"({}("{}"))", __FUNCTION__, desc.out_dir.u8string())};
 
-		re::GenerateNinjaBuildFile(desc, desc.out_dir);
+        auto current_path_at_invoke = fs::current_path();
 
-		if (mVars.GetVarNoRecurse("no-meta").value_or("false") != "true")
-			SaveTargetMeta(desc);
+        auto style = fmt::emphasis::bold | fg(fmt::color::aquamarine);
 
-		Info(style, " - Running pre-build actions\n");
+        Info(style, " - Generating build files\n");
 
-		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
-		{
-			for (auto &[key, object] : dep->features)
-				object->ProcessTargetPreBuild(*dep);
+        re::GenerateNinjaBuildFile(desc, desc.out_dir);
 
-			mEnv->RunActionsCategorized(dep, &desc, "pre-build");
-		}
+        if (mVars.GetVarNoRecurse("no-meta").value_or("false") != "true")
+            SaveTargetMeta(desc);
 
-		Info(style, " - Building...\n\n");
+        Info(style, " - Running pre-build actions\n");
 
-		for (auto& subninja : desc.subninjas)
-			RunNinjaBuild(subninja, desc.pRootTarget);
+        for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+        {
+            for (auto &[key, object] : dep->features)
+                object->ProcessTargetPreBuild(*dep);
 
-		auto result = RunNinjaBuild(desc.out_dir / "build.ninja", desc.pRootTarget);
+            mEnv->RunActionsCategorized(dep, &desc, "pre-build");
+        }
 
-		Info(style, "\n - Running post-build actions\n\n");
+        Info(style, " - Building...\n\n");
 
-		// Running post-build actions
-		for (auto& dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
-			mEnv->RunActionsCategorized(dep, &desc, "post-build");
+        for (auto &subninja : desc.subninjas)
+            RunNinjaBuild(subninja, desc.pRootTarget);
 
-		perf.Finish();
+        auto result = RunNinjaBuild(desc.out_dir / "build.ninja", desc.pRootTarget);
 
-		Info(style, " - Build successful! ({})\n", perf.ToString());
+        Info(style, "\n - Running post-build actions\n\n");
 
-		Info(style, "\n - Built {} artifacts:\n", desc.artifacts.size());
+        // Running post-build actions
+        for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+            mEnv->RunActionsCategorized(dep, &desc, "post-build");
 
-		for (auto& [target, artifact] : desc.artifacts)
-		{
-			auto style = fmt::emphasis::bold | fg(fmt::color::royal_blue);
+        perf.Finish();
 
-			Info(fg(fmt::color::dim_gray), "     {}:\n", target->module);
+        Info(style, " - Build successful! ({})\n", perf.ToString());
 
-			fs::path path = artifact.lexically_relative(current_path_at_invoke);
-			Info(fg(fmt::color::dim_gray), "       {}\n", path.generic_u8string());
-		}
+        Info(style, "\n - Built {} artifacts:\n", desc.artifacts.size());
 
-		Info(style, "\n");
+        for (auto &[target, artifact] : desc.artifacts)
+        {
+            auto style = fmt::emphasis::bold | fg(fmt::color::royal_blue);
 
-		return result;
-	}
-	
-	int DefaultBuildContext::RunNinjaBuild(const fs::path& script, const Target* root)
-	{
-		auto out_dir = script.parent_path().u8string();
-		auto script_name = script.filename().u8string();
-
-		::BuildConfig config;
-		ninja::Options options;
-
-		switch (int processors = GetProcessorCount())
-		{
-		case 0:
-		case 1:
-			config.parallelism = 2;
-		case 2:
-			config.parallelism = 3;
-		default:
-			config.parallelism = processors + 2;
-		}
-
-		if (auto parallelism = mVars.GetVar("parallelism"))
-			config.parallelism = std::stoi(*parallelism);
-
-		class ReAwareStatusPrinter : public ::StatusPrinter
-		{
-		public:
-			ReAwareStatusPrinter(const ::BuildConfig& config, IUserOutput* pOut)
-			: ::StatusPrinter{config}, mOut{pOut}
-			{}
-
-  			virtual ~ReAwareStatusPrinter() { }
-
-  			virtual void Info(const char* msg, ...)
-			{
-  				va_list ap;
-  				va_start(ap, msg);
-  				mOut->Info({}, "ninja: {}\n", FormatString(msg, ap));
-  				va_end(ap);
-			}
-
-  			virtual void Warning(const char* msg, ...)
-			{
-  				va_list ap;
-  				va_start(ap, msg);
-  				mOut->Warn(fmt::fg(fmt::color::yellow), "warning: {}\n", FormatString(msg, ap));
-  				va_end(ap);
-			}
-
-  			virtual void Error(const char* msg, ...)
-			{
-  				va_list ap;
-  				va_start(ap, msg);
-  				mOut->Error(fmt::fg(fmt::color::pale_violet_red), "error: {}\n", FormatString(msg, ap));
-  				va_end(ap);
-			}
-
-		private:
-			IUserOutput* mOut;
-
-			std::string FormatString(const char* msg, va_list args)
-			{
-				std::string result;
-
-				result.resize(std::vsnprintf(nullptr, 0, msg, args));
-				std::vsnprintf(result.data(), result.size(), msg, args);
-
-				return result;
-			}
-		};
-
-		ReAwareStatusPrinter status{config, this};
-
-		// status->Info("Running Ninja!");
-
-		options.working_dir = out_dir.c_str();
-		options.input_file = script_name.c_str();
-		options.dupe_edges_should_err = true;
-
-		if (options.working_dir)
-		{
-			Info({}, "ninja: Entering directory `{}'\n", out_dir);
-
-			fs::current_path(script.parent_path());
-		}
-
-		ninja::NinjaMain ninja("", config);
-
-		ManifestParserOptions parser_opts;
-		if (options.dupe_edges_should_err)
-		{
-			parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
-		}
-		if (options.phony_cycle_should_err)
-		{
-			parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
-		}
-		
-		ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
-
-		std::string err;
-		if (!parser.Load(options.input_file, &err))
-		{
-			RE_THROW TargetBuildException(root, "Failed to load generated config: {}", err);
-			exit(1);
-		}
-
-		if (!ninja.EnsureBuildDirExists())
-			RE_THROW TargetBuildException(root, "ninja.EnsureBuildDirExists() failed");
-
-		if (!ninja.OpenBuildLog() || !ninja.OpenDepsLog())
-			RE_THROW TargetBuildException(root, "ninja.OpenBuildLog() || ninja.OpenDepsLog() failed");
-
-		/*
-		// Attempt to rebuild the manifest before building anything else
-		if (ninja.RebuildManifest(options.input_file, &err, status))
-		{
-			// In dry_run mode the regeneration will succeed without changing the
-			// manifest forever. Better to return immediately.
-			if (config.dry_run)
-				exit(0);
-			// Start the build over with the new manifest.
-			continue;
-		}
-		else if (!err.empty())
-		{
-			status->Error("rebuilding '%s': %s", options.input_file, err.c_str());
-			exit(1);
-		}
-		*/
-
-		std::vector<const char*> targets = {};
-
-		int result = ninja.RunBuild(targets.size(), (char**) targets.data(), &status);
-
-		if (result)
-			RE_THROW TargetBuildException(root, "Ninja build failed: exit_code={}", result);
-
-		if (g_metrics)
-			ninja.DumpMetrics();
-
-		Info({}, "\n");
-
-		return result;
-	}
-
-	void DefaultBuildContext::InstallTarget(const NinjaBuildDesc& desc)
-	{
-		mEnv->RunInstallActions(desc.pRootTarget, desc);
-	}
+            Info(fg(fmt::color::dim_gray), "     {}:\n", target->module);
+
+            fs::path path = artifact.lexically_relative(current_path_at_invoke);
+            Info(fg(fmt::color::dim_gray), "       {}\n", path.generic_u8string());
+        }
+
+        Info(style, "\n");
+
+        return result;
+    }
+
+    int DefaultBuildContext::RunNinjaBuild(const fs::path &script, const Target *root)
+    {
+        auto out_dir = script.parent_path().u8string();
+        auto script_name = script.filename().u8string();
+
+        ::BuildConfig config;
+        ninja::Options options;
+
+        switch (int processors = GetProcessorCount())
+        {
+        case 0:
+        case 1:
+            config.parallelism = 2;
+        case 2:
+            config.parallelism = 3;
+        default:
+            config.parallelism = processors + 2;
+        }
+
+        if (auto parallelism = mVars.GetVar("parallelism"))
+            config.parallelism = std::stoi(*parallelism);
+
+        class ReAwareStatusPrinter : public ::StatusPrinter
+        {
+        public:
+            ReAwareStatusPrinter(const ::BuildConfig &config, IUserOutput *pOut) : ::StatusPrinter{config}, mOut{pOut}
+            {
+            }
+
+            virtual ~ReAwareStatusPrinter()
+            {
+            }
+
+            virtual void Info(const char *msg, ...)
+            {
+                va_list ap;
+                va_start(ap, msg);
+                mOut->Info({}, "ninja: {}\n", FormatString(msg, ap));
+                va_end(ap);
+            }
+
+            virtual void Warning(const char *msg, ...)
+            {
+                va_list ap;
+                va_start(ap, msg);
+                mOut->Warn(fmt::fg(fmt::color::yellow), "warning: {}\n", FormatString(msg, ap));
+                va_end(ap);
+            }
+
+            virtual void Error(const char *msg, ...)
+            {
+                va_list ap;
+                va_start(ap, msg);
+                mOut->Error(fmt::fg(fmt::color::pale_violet_red), "error: {}\n", FormatString(msg, ap));
+                va_end(ap);
+            }
+
+        private:
+            IUserOutput *mOut;
+
+            std::string FormatString(const char *msg, va_list args)
+            {
+                std::string result;
+
+                result.resize(std::vsnprintf(nullptr, 0, msg, args));
+                std::vsnprintf(result.data(), result.size(), msg, args);
+
+                return result;
+            }
+        };
+
+        ReAwareStatusPrinter status{config, this};
+
+        // status->Info("Running Ninja!");
+
+        options.working_dir = out_dir.c_str();
+        options.input_file = script_name.c_str();
+        options.dupe_edges_should_err = true;
+
+        if (options.working_dir)
+        {
+            Info({}, "ninja: Entering directory `{}'\n", out_dir);
+
+            fs::current_path(script.parent_path());
+        }
+
+        ninja::NinjaMain ninja("", config);
+
+        ManifestParserOptions parser_opts;
+        if (options.dupe_edges_should_err)
+        {
+            parser_opts.dupe_edge_action_ = kDupeEdgeActionError;
+        }
+        if (options.phony_cycle_should_err)
+        {
+            parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
+        }
+
+        ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
+
+        std::string err;
+        if (!parser.Load(options.input_file, &err))
+        {
+            RE_THROW TargetBuildException(root, "Failed to load generated config: {}", err);
+            exit(1);
+        }
+
+        if (!ninja.EnsureBuildDirExists())
+            RE_THROW TargetBuildException(root, "ninja.EnsureBuildDirExists() failed");
+
+        if (!ninja.OpenBuildLog() || !ninja.OpenDepsLog())
+            RE_THROW TargetBuildException(root, "ninja.OpenBuildLog() || ninja.OpenDepsLog() failed");
+
+        /*
+        // Attempt to rebuild the manifest before building anything else
+        if (ninja.RebuildManifest(options.input_file, &err, status))
+        {
+            // In dry_run mode the regeneration will succeed without changing the
+            // manifest forever. Better to return immediately.
+            if (config.dry_run)
+                exit(0);
+            // Start the build over with the new manifest.
+            continue;
+        }
+        else if (!err.empty())
+        {
+            status->Error("rebuilding '%s': %s", options.input_file, err.c_str());
+            exit(1);
+        }
+        */
+
+        std::vector<const char *> targets = {};
+
+        int result = ninja.RunBuild(targets.size(), (char **)targets.data(), &status);
+
+        if (result)
+            RE_THROW TargetBuildException(root, "Ninja build failed: exit_code={}", result);
+
+        if (g_metrics)
+            ninja.DumpMetrics();
+
+        Info({}, "\n");
+
+        return result;
+    }
+
+    void DefaultBuildContext::InstallTarget(const NinjaBuildDesc &desc)
+    {
+        mEnv->RunInstallActions(desc.pRootTarget, desc);
+    }
 
     void DefaultBuildContext::DoPrint(UserOutputLevel level, fmt::text_style style, std::string_view text)
-	{
-		auto is_problem = (level <= UserOutputLevel::Warn);
+    {
+        auto is_problem = (level <= UserOutputLevel::Warn);
 
-		if (mOutLevel < level && !(mOutLevel == UserOutputLevel::Problems && is_problem))
-			return;
+        if (mOutLevel < level && !(mOutLevel == UserOutputLevel::Problems && is_problem))
+            return;
 
-		// auto level_str = magic_enum::enum_name(level);
+        // auto level_str = magic_enum::enum_name(level);
 
-		auto stream = is_problem ? stderr : stdout;
+        auto stream = is_problem ? stderr : stdout;
 
-		if (mOutColors)
-			fmt::print(stream, style, "{}", text);
-		else
-			fmt::print(stream, "{}", text);
-	}
+        if (mOutColors)
+            fmt::print(stream, style, "{}", text);
+        else
+            fmt::print(stream, "{}", text);
+    }
 
-	void DefaultBuildContext::UpdateOutputSettings()
-	{
-		auto no_case_pred = [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); };
+    void DefaultBuildContext::UpdateOutputSettings()
+    {
+        auto no_case_pred = [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); };
 
-		mOutLevel = magic_enum::enum_cast<UserOutputLevel>(mVars.ResolveLocal("msg-level"), no_case_pred).value_or(UserOutputLevel::Info);
-		mOutColors = mVars.ResolveLocal("colors") == "true";
-	}
-}
+        mOutLevel = magic_enum::enum_cast<UserOutputLevel>(mVars.ResolveLocal("msg-level"), no_case_pred)
+                        .value_or(UserOutputLevel::Info);
+        mOutColors = mVars.ResolveLocal("colors") == "true";
+    }
+} // namespace re
