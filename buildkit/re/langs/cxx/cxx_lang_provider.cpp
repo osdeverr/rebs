@@ -113,7 +113,8 @@ namespace re
 
         std::unordered_map<std::string, std::string> cond_desc = {{"target-type", TargetTypeToString(target.type)},
                                                                   {"platform", vars.ResolveLocal("platform")},
-                                                                  {"config", vars.ResolveLocal("configuration")}};
+                                                                  {"config", vars.ResolveLocal("configuration")},
+                                                                  {"load-context", vars.ResolveLocal("load-context")}};
 
         target.resolved_config = GetResolvedTargetCfg(target, cond_desc);
 
