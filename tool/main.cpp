@@ -658,18 +658,18 @@ int main(int argc, const char **argv)
     {
         std::string message = "";
 
-        const boost::stacktrace::stacktrace *st = boost::get_error_info<re::TracedError>(e);
+        const re::ExceptionCallStack *st = boost::get_error_info<re::TracedError>(e);
         if (st)
         {
             int i = 0;
 
             for (auto &f : *st)
             {
-                auto name = f.name();
-                auto path = re::fs::path{f.source_file()};
+                auto name = f.function_name();
+                auto path = re::fs::path{f.file_name()};
 
-                if (name.find("re::") != name.npos)
-                    message.append(fmt::format("  at {} @ {}:{}\n", name, path.filename().u8string(), f.source_line()));
+                // if (name.find("re::") != name.npos)
+                message.append(fmt::format("  at {} @ {}:{}\n", name, path.filename().u8string(), f.line()));
             }
         }
 
