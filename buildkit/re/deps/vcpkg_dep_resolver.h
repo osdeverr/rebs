@@ -10,18 +10,23 @@ namespace re
     class VcpkgDepResolver : public IDepResolver
     {
     public:
-        VcpkgDepResolver(const fs::path& path, IUserOutput* pOut)
-            : mVcpkgPath{ fs::canonical(path) }, mOut{ pOut }
-        {}
+        VcpkgDepResolver(const fs::path &path, IUserOutput *pOut) : mVcpkgPath{fs::canonical(path)}, mOut{pOut}
+        {
+        }
 
-        Target* ResolveTargetDependency(const Target& target, const TargetDependency& dep, DepsVersionCache* cache);
-        
-        virtual bool SaveDependencyToPath(const TargetDependency& dep, const fs::path& path);
+        Target *ResolveTargetDependency(const Target &target, const TargetDependency &dep, DepsVersionCache *cache);
+
+        virtual bool SaveDependencyToPath(const TargetDependency &dep, const fs::path &path);
+
+        virtual bool DoesCustomHandleFilters()
+        {
+            return true;
+        }
 
     private:
         fs::path mVcpkgPath;
-        IUserOutput* mOut;
+        IUserOutput *mOut;
 
         std::unordered_map<std::string, std::unique_ptr<Target>> mTargetCache;
     };
-}
+} // namespace re
