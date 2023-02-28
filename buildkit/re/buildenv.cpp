@@ -607,7 +607,9 @@ namespace re
                     RE_THROW TargetDependencyException(&target, "unresolved uses-dependency '{}' <- '{}'",
                                                        dep.ToString(), used->ToString());
 
-                if (!dep.filters.empty())
+                auto resolver = mDepResolvers[used->ns];
+
+                if (!dep.filters.empty() && !(resolver && resolver->DoesCustomHandleFilters()))
                 {
                     if (!used->filters.empty())
                     {
@@ -684,7 +686,7 @@ namespace re
                     result->LoadConditionalDependencies();
                 }
 
-                if (dep.filters.empty() || dep.filters[0].front() == '/')
+                if (resolver->DoesCustomHandleFilters() || dep.filters.empty() || dep.filters[0].front() == '/')
                 {
                     out.emplace_back(result);
                 }
