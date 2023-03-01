@@ -88,10 +88,11 @@ int main(int argc, const char **argv)
         if (args.size() == 1)
         {
             auto path = context.GetVar(kBuildPathVar).value_or(".");
-            context.LoadCachedParams(path);
-            context.UpdateOutputSettings();
 
             context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
+            context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
 
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
@@ -102,21 +103,38 @@ int main(int argc, const char **argv)
         else if (args[1] == "new")
         {
             if (args.size() < 4)
-                throw re::Exception("re new: invalid command line\n\tusage: re new <type> <name> [path | .]");
+                throw re::Exception("re new: invalid command line\n\tusage: re new <template> <name> [with <additional "
+                                    "templates...>] [--path <path>]");
 
             auto &type = args[2];
             auto &name = args[3];
 
-            auto path = name;
+            std::string path{name};
+
             if (path.front() == '.')
                 path = path.substr(1);
 
-            if (args.size() > 4)
-                path = args[4];
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+            context.UpdateOutputSettings();
 
-            re::Target::CreateEmptyTarget(path, re::TargetTypeFromString(type.data()), name);
+            path = context.GetVar(kBuildPathVar).value_or(path);
+
             fmt::print("\n");
-            fmt::print("Created new {} target '{}' in directory '{}'.\n", type, name, path);
+            context.CreateTargetFromTemplate(path, type, name);
+
+            if (args.size() > 4 && args[4] == "with")
+            {
+                for (auto it = args.begin() + 5; it != args.end(); it++)
+                {
+                    auto tpl = *it;
+
+                    if (tpl.back() == ',')
+                        tpl = tpl.substr(0, tpl.size() - 1);
+
+                    context.ApplyTemplateInDirectory(path, tpl);
+                }
+            }
+
             fmt::print("\n");
             fmt::print("    To build the new target, type:\n");
             fmt::print("        > cd {}\n", path);
@@ -125,16 +143,49 @@ int main(int argc, const char **argv)
             fmt::print("    To edit the new target, modify the {}/re.yml file.\n", path);
             fmt::print("\n");
         }
+        else if (args[1] == "template")
+        {
+            if (args.size() < 3)
+                throw re::Exception("re template: invalid command line\n\tusage: re template <operation> [args]");
+
+            if (args[2] == "apply")
+            {
+                if (args.size() < 4)
+                    throw re::Exception("re template apply: invalid command line\n\tusage: re template apply "
+                                        "<templates...> [--path <path>]");
+
+                auto path = context.GetVar(kBuildPathVar).value_or(".");
+
+                context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
+                fmt::print("\n");
+
+                for (auto it = args.begin() + 3; it != args.end(); it++)
+                {
+                    auto tpl = *it;
+
+                    if (tpl.back() == ',')
+                        tpl = tpl.substr(0, tpl.size() - 1);
+
+                    context.ApplyTemplateInDirectory(path, tpl);
+                }
+
+                fmt::print("\n");
+            }
+            else
+                throw re::Exception("re template: invalid operation '{}'\n\tsupported operations: [apply]", args[2]);
+        }
         else if (args[1] == "do")
         {
             if (args.size() < 3)
                 throw re::Exception("re do: invalid command line\n\tusage: re do <action-category> [path | .]");
 
             auto path = context.GetVar(kBuildPathVar).value_or(".");
-            context.LoadCachedParams(path);
-            context.UpdateOutputSettings();
 
             context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
+            context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
 
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
@@ -186,10 +237,11 @@ int main(int argc, const char **argv)
         else if (args[1] == "meta")
         {
             auto path = args.size() > 2 && args[2].front() != '.' ? args[2] : ".";
-            context.LoadCachedParams(path);
-            context.UpdateOutputSettings();
 
             context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
+            context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
 
             context.SetVar("generate-build-meta", "true");
 
@@ -211,8 +263,8 @@ int main(int argc, const char **argv)
             if (args.size() < 3)
                 throw re::Exception("re pkg: invalid command line\n\tusage: re pkg <operation> [args]");
 
-            context.UpdateOutputSettings();
             context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+            context.UpdateOutputSettings();
 
             auto resolver = context.GetGlobalDepResolver();
 
@@ -321,10 +373,10 @@ int main(int argc, const char **argv)
         {
             auto path = context.GetVar(kBuildPathVar).value_or(".");
 
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
-
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
@@ -337,10 +389,10 @@ int main(int argc, const char **argv)
         {
             auto path = context.GetVar(kBuildPathVar).value_or(".");
 
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
-
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
@@ -475,10 +527,10 @@ int main(int argc, const char **argv)
         {
             auto path = context.GetVar(kBuildPathVar).value_or(".");
 
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
-
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             auto &target = context.LoadTarget(path);
             auto lock_path = target.path / "re-deps-lock.json";
@@ -494,10 +546,10 @@ int main(int argc, const char **argv)
         {
             auto path = context.GetVar(kBuildPathVar).value_or(".");
 
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
-
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             auto &target = context.LoadTarget(path);
 
@@ -525,10 +577,10 @@ int main(int argc, const char **argv)
         {
             auto path = context.GetVar(kBuildPathVar).value_or(".");
 
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
-
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             auto root = &context.LoadTarget(path);
             apply_cfg_overrides(root);

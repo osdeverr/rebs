@@ -1,0 +1,2 @@
+type: project
+name: "{{template-target-name}}"

@@ -1,0 +1,8 @@
+**/out/
+**/.re-cache/
+**/.vscode/
+
+**/re.user.yml
+
+**/.cache/
+**/compile_commands.json

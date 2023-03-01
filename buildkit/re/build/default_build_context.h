@@ -9,66 +9,91 @@
 
 namespace re
 {
-	class DefaultBuildContext : public IUserOutput
-	{
-	public:
-		DefaultBuildContext();
-		DefaultBuildContext(const DefaultBuildContext&) = delete;
+    class DefaultBuildContext : public IUserOutput
+    {
+    public:
+        DefaultBuildContext();
+        DefaultBuildContext(const DefaultBuildContext &) = delete;
 
-		void LoadDefaultEnvironment(const fs::path& data_path, const fs::path& dynamic_data_path);
+        void LoadDefaultEnvironment(const fs::path &data_path, const fs::path &dynamic_data_path);
 
-		inline LocalVarScope& GetVars() { return mVars; }
+        inline LocalVarScope &GetVars()
+        {
+            return mVars;
+        }
 
-		inline void SetVar(const std::string& key, std::string value) { mVars.SetVar(key, value); }
-		inline std::optional<std::string> GetVar(const std::string& key) { return mVars.GetVar(key); }
-		inline void RemoveVar(const std::string& key) { mVars.RemoveVar(key); }
+        inline void SetVar(const std::string &key, std::string value)
+        {
+            mVars.SetVar(key, value);
+        }
+        inline std::optional<std::string> GetVar(const std::string &key)
+        {
+            return mVars.GetVar(key);
+        }
+        inline void RemoveVar(const std::string &key)
+        {
+            mVars.RemoveVar(key);
+        }
 
-		Target& LoadTarget(const fs::path& path);
+        Target &LoadTarget(const fs::path &path);
 
-		YAML::Node LoadCachedParams(const fs::path& path);
-		void SaveCachedParams(const fs::path& path, const YAML::Node& node);
+        YAML::Node LoadCachedParams(const fs::path &path);
+        void SaveCachedParams(const fs::path &path, const YAML::Node &node);
 
-		NinjaBuildDesc GenerateBuildDescForTarget(Target& target);
-		NinjaBuildDesc GenerateBuildDescForTargetInDir(const fs::path& path);
+        NinjaBuildDesc GenerateBuildDescForTarget(Target &target);
+        NinjaBuildDesc GenerateBuildDescForTargetInDir(const fs::path &path);
 
-		void SaveTargetMeta(const NinjaBuildDesc& desc);
+        void SaveTargetMeta(const NinjaBuildDesc &desc);
 
-		int BuildTarget(const NinjaBuildDesc& desc);
-		void InstallTarget(const NinjaBuildDesc& desc);
+        int BuildTarget(const NinjaBuildDesc &desc);
+        void InstallTarget(const NinjaBuildDesc &desc);
 
-		int BuildTargetInDir(const fs::path& path)
-		{
-			auto desc = GenerateBuildDescForTargetInDir(path);
-			return BuildTarget(desc);
-		}
+        int BuildTargetInDir(const fs::path &path)
+        {
+            auto desc = GenerateBuildDescForTargetInDir(path);
+            return BuildTarget(desc);
+        }
 
-		BuildEnv* GetBuildEnv() const { return mEnv.get(); }
-		GlobalDepResolver* GetGlobalDepResolver() const { return mGlobalDepResolver.get(); }
+        BuildEnv *GetBuildEnv() const
+        {
+            return mEnv.get();
+        }
+        GlobalDepResolver *GetGlobalDepResolver() const
+        {
+            return mGlobalDepResolver.get();
+        }
 
         virtual void DoPrint(UserOutputLevel level, fmt::text_style style, std::string_view text) override;
 
-		void UpdateOutputSettings();
+        void UpdateOutputSettings();
 
-	private:
-		VarContext mVarContext;
-		LocalVarScope mVars;
-		EnvironmentVarNamespace mSystemEnvVars;
+        void ApplyTemplateInDirectory(const fs::path &dir, std::string_view template_name);
 
-		fs::path mDataPath;
+        void CreateTargetFromTemplate(const fs::path &out_path, std::string_view template_name,
+                                      std::string_view target_name);
 
-		std::unique_ptr<BuildEnv> mEnv;
+    private:
+        VarContext mVarContext;
+        LocalVarScope mVars;
+        EnvironmentVarNamespace mSystemEnvVars;
 
-		std::vector<std::unique_ptr<ILangProvider>> mLangs;
-		std::vector<std::unique_ptr<IDepResolver>> mDepResolvers;
-		std::vector<std::unique_ptr<ITargetFeature>> mTargetFeatures;
-		std::vector<std::unique_ptr<ITargetLoadMiddleware>> mTargetLoadMiddlewares;
+        fs::path mDataPath;
 
-		UserOutputLevel mOutLevel = UserOutputLevel::Info;
-		bool mOutColors = true;
+        std::unique_ptr<BuildEnv> mEnv;
 
-		std::unique_ptr<GlobalDepResolver> mGlobalDepResolver;
-		std::unique_ptr<DepsVersionCache> mDepsVersionCache;
+        std::vector<std::unique_ptr<ILangProvider>> mLangs;
+        std::vector<std::unique_ptr<IDepResolver>> mDepResolvers;
+        std::vector<std::unique_ptr<ITargetFeature>> mTargetFeatures;
+        std::vector<std::unique_ptr<ITargetLoadMiddleware>> mTargetLoadMiddlewares;
 
-		int RunNinjaBuild(const fs::path& script, const Target* root);
-	};
-}
+        UserOutputLevel mOutLevel = UserOutputLevel::Info;
+        bool mOutColors = true;
+
+        std::unique_ptr<GlobalDepResolver> mGlobalDepResolver;
+        std::unique_ptr<DepsVersionCache> mDepsVersionCache;
+
+        int RunNinjaBuild(const fs::path &script, const Target *root);
+
+        void CopyTemplateToDirectory(const fs::path &dir, const fs::path &template_dir);
+    };
+} // namespace re
