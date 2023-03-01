@@ -1,0 +1,2 @@
+type: static-library
+name: "{{template-target-name}}"

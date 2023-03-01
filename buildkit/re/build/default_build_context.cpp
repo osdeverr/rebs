@@ -1,6 +1,11 @@
 #include "default_build_context.h"
+#include "boost/algorithm/string/replace.hpp"
 #include "ninja_gen.h"
+#include "re/error.h"
+#include "re/yaml_merge.h"
+#include "yaml-cpp/emitter.h"
 
+#include <filesystem>
 #include <re/langs/cxx/cxx_lang_provider.h>
 
 #include <re/langs/cxx/features/cpp2_translation.h>
@@ -69,6 +74,7 @@ namespace re
         re::PerfProfile _{__FUNCTION__};
 
         mDataPath = data_path;
+        LoadCachedParams(mDataPath / "data");
 
         mEnv = std::make_unique<BuildEnv>(mVars, this);
 
@@ -576,5 +582,98 @@ namespace re
         mOutLevel = magic_enum::enum_cast<UserOutputLevel>(mVars.ResolveLocal("msg-level"), no_case_pred)
                         .value_or(UserOutputLevel::Info);
         mOutColors = mVars.ResolveLocal("colors") == "true";
+    }
+
+    void DefaultBuildContext::ApplyTemplateInDirectory(const fs::path &dir, std::string_view template_name)
+    {
+        auto template_dir = mDataPath / "data" / "templates" / template_name;
+
+        if (!fs::exists(template_dir))
+            RE_THROW Exception("Template '{}' does not exist (dir={})", template_name, template_dir.generic_u8string());
+
+        bool should_merge_configs = (fs::exists(template_dir / "re.yml") && fs::exists(dir / "re.yml"));
+
+        if (should_merge_configs)
+        {
+            fs::copy(dir / "re.yml", dir / "re.yml._old");
+            fs::remove(dir / "re.yml");
+        }
+
+        CopyTemplateToDirectory(dir, template_dir);
+
+        if (should_merge_configs)
+        {
+            std::ifstream t1{dir / "re.yml._old"};
+            std::ifstream t2{template_dir / "re.yml"};
+
+            auto old_config = YAML::Load(t1);
+            auto new_config = YAML::Load(t2);
+
+            std::ofstream out{dir / "re.yml"};
+
+            YAML::Emitter emitter;
+            emitter << MergeYamlNodes(old_config, new_config);
+
+            out << emitter.c_str();
+
+            Warn(fg(fmt::color::light_yellow),
+                 "WARN: Merged the existing re.yml with the one specified in the '{}'"
+                 "template. Old re.yml saved in `re.yml._old`.",
+                 template_name);
+        }
+
+        Info(fg(fmt::color::blue_violet), "Applied template '{}' in directory '{}'\n", template_name,
+             dir.generic_u8string());
+    }
+
+    void DefaultBuildContext::CreateTargetFromTemplate(const fs::path &out_path, std::string_view template_name,
+                                                       std::string_view target_name)
+    {
+        auto template_dir = mDataPath / "data" / "templates" / template_name;
+
+        if (!fs::exists(template_dir))
+            RE_THROW Exception("Template '{}' does not exist (dir={})", template_name, template_dir.generic_u8string());
+
+        if (!fs::exists(template_dir / "re.yml"))
+            RE_THROW Exception("Template '{}' does not support creating targets from it", template_name);
+
+        if (fs::exists(out_path / "re.yml"))
+            RE_THROW Exception("Path '{}' already contains a Re target! If you want to overwrite it, please delete the "
+                               "old target re.yml first.");
+
+        CopyTemplateToDirectory(out_path, template_dir);
+
+        std::ifstream t{out_path / "re.yml"};
+        std::string content{(std::istreambuf_iterator<char>(t)), (std::istreambuf_iterator<char>())};
+        t.close();
+
+        boost::replace_all(content, "{{template-target-name}}", target_name);
+
+        std::ofstream out{out_path / "re.yml"};
+        out << content;
+        out.close();
+
+        Info(fg(fmt::color::blue_violet), "Created new target '{}' from template '{}' in directory '{}'\n", target_name,
+             template_name, out_path.generic_u8string());
+    }
+
+    void DefaultBuildContext::CopyTemplateToDirectory(const fs::path &dir, const fs::path &template_dir)
+    {
+        auto deps_path = template_dir / "template_deps.json";
+        auto has_deps = fs::exists(deps_path);
+
+        if (has_deps)
+        {
+            std::ifstream t{deps_path};
+            auto json = nlohmann::json::parse(t);
+
+            for (auto &v : json)
+                ApplyTemplateInDirectory(dir, v.get<std::string>());
+        }
+
+        fs::copy(template_dir, dir, fs::copy_options::recursive | fs::copy_options::update_existing);
+
+        if (has_deps)
+            fs::remove(dir / "template_deps.json");
     }
 } // namespace re

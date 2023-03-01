@@ -1,0 +1,2 @@
+type: shared-library
+name: "{{template-target-name}}"

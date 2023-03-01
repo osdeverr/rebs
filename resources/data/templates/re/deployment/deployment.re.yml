@@ -1,0 +1,9 @@
+#
+# FROM TEMPLATE: re/deployment
+#
+
+actions:
+  - install:
+      on: [deploy]
+      to:
+        - ${deploy-path}
