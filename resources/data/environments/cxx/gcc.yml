@@ -55,7 +55,7 @@ platform-definitions:
 templates:
     cxx-standard: "-std=c++{version}"
 
-    compiler-cmdline: "{flags} -c {input} -o {output}"
+    compiler-cmdline: "-MD {flags} -c {input} -o {output}"
     linker-cmdline: "{flags} -o {output} {input} {link_deps} {global_link_deps}"
     archiver-cmdline: "{flags} -crs {output} {input} {link_deps}"
 
