@@ -534,10 +534,10 @@ namespace re
 
                     if (target_arch != dep_arch)
                     {
-                        if (use_external)
+                        if (use_external || true)
                         {
-                            RE_TRACE(" *** Performing arch coercion: {}:{} <- {}:{}\n", target.module, target_arch,
-                                     result->module, dep_arch);
+                            fmt::print(" *** Performing arch coercion: {}:{} <- {}:{}\n", target.module, target_arch,
+                                       result->module, dep_arch);
 
                             if (auto resolver = mDepResolvers["arch-coerced"])
                                 result = resolver->ResolveCoercedTargetDependency(target, *result);

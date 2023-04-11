@@ -201,6 +201,7 @@ namespace re
             vars.SetVar("cxx.tool." + name, tool_path);
         }
 
+        vars.SetVar("src-dir", target.path.u8string());
         vars.SetVar("root-dir", desc.pRootTarget->path.u8string());
     }
 
@@ -305,7 +306,11 @@ namespace re
                 deps_list.push_back("\"$cxx_artifact_" + res_path + "\"");
             }
 
-            AppendLinkFlags(*target, config, cxx_lib_dir, extra_link_flags, deps_list, vars);
+            auto dep_vars = LocalVarScope{&target->local_var_ctx, "dep-target", &target->GetBuildVarScope().first};
+
+            dep_vars.SetVar("arch", vars.ResolveLocal("arch"));
+
+            AppendLinkFlags(*target, config, cxx_lib_dir, extra_link_flags, deps_list, dep_vars);
 
             for (const auto &dep : config["cxx-global-link-deps"])
                 global_link_deps.push_back(fmt::format("-l{}", vars.Resolve(dep.as<std::string>())));
