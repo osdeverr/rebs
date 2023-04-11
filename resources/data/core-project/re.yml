@@ -140,3 +140,16 @@ cxxenv.msvc:
         build-link-debug-info: true
         permissive: false
         msvc.pdb-path: $out.pdb
+
+cxxenv.emscripten:
+    out-ext: js
+    
+    cxx-include-dirs:
+      - "${env:EMSDK}/upstream/emscripten/cache/sysroot/include"
+
+    platform.windows:
+        emscripten-tools-cl: cmd /c emcc
+        emscripten-tools-archiver: cmd /c emcc
+    platform.!windows:
+        emscripten-tools-cl: sh emcc
+        emscripten-tools-archiver: sh emcc
