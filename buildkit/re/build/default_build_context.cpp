@@ -56,6 +56,7 @@ namespace re
 #endif
 
         mVars.SetVar("host-platform", mVars.ResolveLocal("platform"));
+
         mVars.SetVar("cxx-default-include-dirs", ".");
         mVars.SetVar("cxx-default-lib-dirs", ".");
 
@@ -223,9 +224,10 @@ namespace re
             dep->var_parent = &mVars;
 
             mEnv->InitializeTargetLinkEnvWithDeps(dep, desc);
-            mVars.AddNamespace("target." + target.module, &target);
+            // mVars.AddNamespace("target." + target.module, &target);
 
             mEnv->RunActionsCategorized(dep, nullptr, "pre-configure");
+            mEnv->RunAutomaticStructuredTasks(dep, nullptr, "pre-configure");
 
             for (auto &[key, object] : dep->features)
             {
@@ -292,6 +294,10 @@ namespace re
             dep->build_var_scope->SetVar("src-dir", full_src_dir.u8string());
             dep->build_var_scope->SetVar("artifact-dir", full_artifact_dir.u8string());
             dep->build_var_scope->SetVar("object-dir", full_object_dir.u8string());
+
+            if (auto artifact = dep->build_var_scope->GetVarNoRecurse("build-artifact"))
+                dep->build_var_scope->SetVar("main-artifact", (full_artifact_dir / *artifact).u8string());
+
             // dep->build_var_scope->SetVar("root-out-dir", out_dir.u8string());
             // dep->build_var_scope->SetVar("root-dir", desc.pRootTarget->path.u8string());
 
@@ -303,6 +309,20 @@ namespace re
 
             if (auto artifact = dep->build_var_scope->GetVarNoRecurse("build-artifact"))
                 meta["main-artifact"] = (full_artifact_dir / *artifact).u8string();
+        }
+
+        for (auto &dep : deps)
+        {
+            if (!dep->build_var_scope)
+                continue;
+
+            for (auto &other_dep : deps)
+            {
+                if (!other_dep->build_var_scope)
+                    continue;
+
+                dep->build_var_scope->AddNamespace("target/" + other_dep->module, &*other_dep->build_var_scope);
+            }
         }
 
         // Resolve all the paths
@@ -346,6 +366,7 @@ namespace re
         for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
         {
             mEnv->RunActionsCategorized(dep, &desc, "meta-available");
+            mEnv->RunAutomaticStructuredTasks(dep, &desc, "meta-available");
         }
     }
 
@@ -372,6 +393,7 @@ namespace re
                 object->ProcessTargetPreBuild(*dep);
 
             mEnv->RunActionsCategorized(dep, &desc, "pre-build");
+            mEnv->RunAutomaticStructuredTasks(dep, &desc, "pre-build");
         }
 
         Info(style, " - Building...\n\n");
@@ -385,7 +407,10 @@ namespace re
 
         // Running post-build actions
         for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+        {
             mEnv->RunActionsCategorized(dep, &desc, "post-build");
+            mEnv->RunAutomaticStructuredTasks(dep, &desc, "post-build");
+        }
 
         perf.Finish();
 
