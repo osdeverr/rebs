@@ -38,7 +38,6 @@ namespace re
                                 break;
 
                             supported |= (value == supported_category ||
-                                          boost::algorithm::starts_with(supported_category, value + ".") ||
                                           boost::algorithm::starts_with(value, supported_category + "."));
 
                             if (supported_category.front() == '!')
@@ -86,6 +85,7 @@ namespace re
         auto top_uses = Clone(leaf_cfg["uses"]);
 
         auto top_actions = Clone(leaf_cfg["actions"]);
+        auto top_tasks = Clone(leaf_cfg["tasks"]);
 
         std::vector<const Target *> genealogy = {&leaf};
 
@@ -103,6 +103,7 @@ namespace re
         result["deps"] = top_deps;
         result["uses"] = top_uses;
         result["actions"] = top_actions;
+        result["tasks"] = top_tasks;
 
         /*
                 YAML::Emitter emitter;
