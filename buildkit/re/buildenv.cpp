@@ -361,18 +361,29 @@ namespace re
     {
         if (type == "copy")
         {
-            auto from = data["from"].as<std::string>();
-            auto to = data["to"].as<std::string>();
+            auto from = target.build_var_scope->Resolve(data["from"].as<std::string>());
+            auto to = target.build_var_scope->Resolve(data["to"].as<std::string>());
 
-            fs::copy(target.path / from, desc->out_dir / desc->GetArtifactDirectory(GetEscapedModulePath(target)) / to,
-                     fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+            auto from_path = fs::path{from};
+            auto to_path = fs::path{to};
+
+            if (!from_path.is_absolute())
+                from_path = target.path / from_path;
+
+            if (!to_path.is_absolute())
+                to_path = desc->out_dir / desc->GetArtifactDirectory(GetEscapedModulePath(target)) / to_path;
+
+            fs::copy(from_path, to_path, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
         }
         else if (type == "copy-to-deps")
         {
             auto from = target.build_var_scope->Resolve(data["from"].as<std::string>());
             auto to = data["to"].as<std::string>();
 
-            auto from_path = target.path / from;
+            auto from_path = fs::path{from};
+
+            if (!from_path.is_absolute())
+                from_path = target.path / from_path;
 
             for (auto &dependent : target.dependents)
             {
@@ -391,6 +402,12 @@ namespace re
                 args.push_back(target.build_var_scope->Resolve(arg.Scalar()));
 
             RunProcessOrThrow("command", {}, args, true, true, target.path.u8string());
+        }
+        else if (type == "shell-run")
+        {
+            auto command = target.build_var_scope->Resolve(data["command"].as<std::string>());
+
+            std::system(command.data());
         }
         else if (type == "install")
         {
@@ -786,6 +803,76 @@ namespace re
             {
                 RunActionList(desc, target, actions, run_type, "post-build");
             }
+        }
+    }
+
+    void BuildEnv::RunAutomaticStructuredTasks(Target *target, const NinjaBuildDesc *desc, std::string_view stage)
+    {
+        if (auto tasks = (target->resolved_config ? target->resolved_config : target->config)["tasks"])
+        {
+            for (auto kv : tasks)
+            {
+                auto name = kv.first.as<std::string>();
+                auto &task = kv.second;
+
+                if (task.IsMap())
+                {
+                    if (task["run"] && task["run"].Scalar() == "always")
+                    {
+                        RunStructuredTaskData(target, desc, task, name, stage);
+                    }
+                }
+            }
+        }
+    }
+
+    void BuildEnv::RunStructuredTask(Target *target, const NinjaBuildDesc *desc, std::string_view name,
+                                     std::string_view stage)
+    {
+        if (auto tasks = (target->resolved_config ? target->resolved_config : target->config)["tasks"])
+        {
+            if (auto task = tasks[name.data()])
+            {
+                RunStructuredTaskData(target, desc, task, name, stage);
+            }
+        }
+    }
+
+    void BuildEnv::RunStructuredTaskData(Target *target, const NinjaBuildDesc *desc, const TargetConfig &task,
+                                         std::string_view name, std::string_view stage)
+    {
+        // TODO: this is problematic and needs to be improved somehow
+        if (auto deps = task["deps"])
+        {
+            for (auto dep_task : deps)
+            {
+                if (desc)
+                {
+                    for (auto &dep : GetSingleTargetDepSet(desc->pRootTarget))
+                        RunStructuredTask(dep, desc, dep_task.Scalar(), stage);
+                }
+                else
+                {
+                    RunStructuredTask(target, desc, dep_task.Scalar(), stage);
+                }
+            }
+        }
+
+        if (auto stage_actions = task[stage.data()])
+        {
+            auto completion_key = fmt::format("{} / {} [{}]", target->module, name, stage);
+
+            if (mCompletedActions.find(completion_key) != mCompletedActions.end())
+                return;
+
+            const auto kStyle = fg(fmt::color::blue_violet) | fmt::emphasis::bold;
+
+            mOut->Info(kStyle, " - Running task ");
+            mOut->Info(kStyle | fmt::emphasis::underline, "{}\n\n", completion_key);
+
+            RunActionList(desc, target, stage_actions, stage, stage.data());
+
+            mCompletedActions.insert(completion_key);
         }
     }
 

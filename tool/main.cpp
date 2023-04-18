@@ -191,17 +191,25 @@ int main(int argc, const char **argv)
             apply_cfg_overrides(&target);
 
             auto desc = context.GenerateBuildDescForTarget(target);
+            auto env = context.GetBuildEnv();
 
-            context.BuildTarget(desc);
+            auto deps = env->GetSingleTargetDepSet(desc.pRootTarget);
 
             auto action_type = args[2];
+
+            for (auto &dep : deps)
+                env->RunStructuredTask(dep, &desc, action_type, "pre-build");
+
+            context.BuildTarget(desc);
 
             auto style = fmt::emphasis::bold | fg(fmt::color::aquamarine);
             fmt::print(style, " - Running custom actions for '{}'\n\n", action_type);
 
-            auto env = context.GetBuildEnv();
-            for (auto &dep : env->GetSingleTargetDepSet(desc.pRootTarget))
+            for (auto &dep : deps)
+            {
+                env->RunStructuredTask(dep, &desc, action_type, "post-build");
                 env->RunActionsCategorized(dep, &desc, action_type);
+            }
 
             return 0;
         }
