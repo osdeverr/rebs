@@ -55,6 +55,7 @@ namespace re
         mVars.SetVar("platform-closest", "unix");
 #endif
 
+        mVars.SetVar("host-platform", mVars.ResolveLocal("platform"));
         mVars.SetVar("cxx-default-include-dirs", ".");
         mVars.SetVar("cxx-default-lib-dirs", ".");
 

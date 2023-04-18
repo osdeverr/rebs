@@ -31,9 +31,9 @@ vars:
 # Specifies the paths to build tools. Can be absolute or relative - it doesn't matter - but the paths obviously need to resolve properly.
 #
 tools:
-    compiler: ${gcc-compiler-path | $env:RE_COMPILER_PATH | $gcc-tools-cl       | clang++}
-    linker: ${gcc-compiler-path | $env:RE_COMPILER_PATH | $gcc-tools-cl       | clang++}
-    archiver: ${gcc-archiver-path | $env:RE_ARCHIVER_PATH | $gcc-tools-archiver | clang++}
+    compiler: ${clang-compiler-path | $env:RE_COMPILER_PATH | $clang-tools-compiler       | clang++}
+    linker: ${clang-linker-path | $env:RE_LINKER_PATH | $clang-tools-linker       | clang++}
+    archiver: ${clang-archiver-path | $env:RE_ARCHIVER_PATH | $clang-tools-archiver | clang++}
 
 #
 # Default tool invoke flags. Can be overridden in targets using the 'build-flags' map property.
