@@ -5,37 +5,37 @@
 
 namespace re
 {
-    CMakeLangProvider::CMakeLangProvider(LocalVarScope* var_scope)
-    : mVarScope{var_scope}
-    {}
+    CMakeLangProvider::CMakeLangProvider(LocalVarScope *var_scope) : mVarScope{var_scope}
+    {
+    }
 
-	void CMakeLangProvider::InitInBuildDesc(NinjaBuildDesc& desc)
+    void CMakeLangProvider::InitInBuildDesc(NinjaBuildDesc &desc)
     {
         // Do nothing
     }
 
-	void CMakeLangProvider::InitLinkTargetEnv(NinjaBuildDesc& desc, Target& target)
+    void CMakeLangProvider::InitLinkTargetEnv(NinjaBuildDesc &desc, Target &target)
     {
         // Init the var scopes
-		target.local_var_ctx = *mVarScope->GetContext();
+        target.local_var_ctx = *mVarScope->GetContext();
 
-		auto& target_vars = target.target_var_scope.emplace(&target.local_var_ctx, "target", &target);
-		auto& vars = target.build_var_scope.emplace(&target.local_var_ctx, "build", &target_vars);
+        auto &target_vars = target.target_var_scope.emplace(&target.local_var_ctx, "target", &target);
+        auto &vars = target.build_var_scope.emplace(&target.local_var_ctx, "build", &target_vars);
 
         vars.SetVar("arch", target.config["arch"].Scalar());
         vars.SetVar("configuration", target.config["configuration"].Scalar());
         vars.SetVar("platform", target.config["platform"].Scalar());
-        
-		std::unordered_map<std::string, std::string> configuration = {
-			{ "arch", vars.ResolveLocal("arch") },
-			{ "platform", vars.ResolveLocal("platform") },
-			{ "config", vars.ResolveLocal("configuration") }
-		};
 
-		target.resolved_config = GetResolvedTargetCfg(target, configuration);
+        std::unordered_map<std::string, std::string> configuration = {
+            {"arch", vars.ResolveLocal("arch")},
+            {"platform", vars.ResolveLocal("platform")},
+            {"host-platform", vars.ResolveLocal("host-platform")},
+            {"config", vars.ResolveLocal("configuration")}};
+
+        target.resolved_config = GetResolvedTargetCfg(target, configuration);
     }
 
-	bool CMakeLangProvider::InitBuildTargetRules(NinjaBuildDesc& desc, const Target& target)
+    bool CMakeLangProvider::InitBuildTargetRules(NinjaBuildDesc &desc, const Target &target)
     {
         if (auto build_script = target.resolved_config["cmake-out-build-script"])
         {
@@ -45,18 +45,18 @@ namespace re
 
         if (auto cmake_meta = target.resolved_config["cmake-meta"]["targets"][target.name])
             if (auto location = cmake_meta["location"])
-		        desc.artifacts[&target] = location.Scalar();
+                desc.artifacts[&target] = location.Scalar();
 
         return true;
     }
 
-	void CMakeLangProvider::ProcessSourceFile(NinjaBuildDesc& desc, const Target& target, const SourceFile& file)
+    void CMakeLangProvider::ProcessSourceFile(NinjaBuildDesc &desc, const Target &target, const SourceFile &file)
     {
         // CMake targets have no source files
     }
 
-	void CMakeLangProvider::CreateTargetArtifact(NinjaBuildDesc& desc, const Target& target)
+    void CMakeLangProvider::CreateTargetArtifact(NinjaBuildDesc &desc, const Target &target)
     {
         // CMake targets are built through custom artifacts
     }
-}
+} // namespace re

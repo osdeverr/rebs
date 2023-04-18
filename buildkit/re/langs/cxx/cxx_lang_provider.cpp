@@ -113,6 +113,7 @@ namespace re
 
         std::unordered_map<std::string, std::string> cond_desc = {{"target-type", TargetTypeToString(target.type)},
                                                                   {"platform", vars.ResolveLocal("platform")},
+                                                                  {"host-platform", vars.ResolveLocal("host-platform")},
                                                                   {"config", vars.ResolveLocal("configuration")},
                                                                   {"load-context", vars.ResolveLocal("load-context")}};
 
