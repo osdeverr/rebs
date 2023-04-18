@@ -12,7 +12,7 @@ inherits:
 use-rspfiles: false
 
 vars:
-    arch: wasm
+    arch: wasm32
     platform: emscripten
 
     #vc-tools-root: ${env:VCToolsInstallDir | .}
@@ -34,7 +34,7 @@ vars:
 tools:
     compiler: ${emscripten-compiler-path | $env:RE_COMPILER_PATH | $emscripten-tools-cl       | emcc}
     linker: ${emscripten-compiler-path | $env:RE_COMPILER_PATH | $emscripten-tools-cl       | emcc}
-    archiver: ${emscripten-archiver-path | $env:RE_ARCHIVER_PATH | $emscripten-tools-archiver | emcc}
+    archiver: ${emscripten-archiver-path | $env:RE_ARCHIVER_PATH | $emscripten-tools-archiver | emar}
 
 #
 # Default tool invoke flags. Can be overridden in targets using the 'build-flags' map property.

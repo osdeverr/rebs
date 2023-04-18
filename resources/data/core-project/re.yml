@@ -62,7 +62,7 @@ cxxenv.msvc:
 cxxenv.gcc|clang:
     cxx-standard: 2a
 
-cxxenv.clang:
+cxxenv.clang.msvc:
     arch.x86:
         vars:
             clang-arch-type: i686
@@ -140,6 +140,11 @@ cxxenv.msvc:
         build-link-debug-info: true
         permissive: false
         msvc.pdb-path: $out.pdb
+        
+
+platform.emscripten:
+    default-cxx-env: emscripten
+    cxx-standard: 20
 
 cxxenv.emscripten:
     out-ext: js
@@ -147,9 +152,11 @@ cxxenv.emscripten:
     cxx-include-dirs:
       - "${env:EMSDK}/upstream/emscripten/cache/sysroot/include"
 
-    platform.windows:
+    platform.!emscripten: unsupported
+
+    host-platform.windows:
         emscripten-tools-cl: cmd /c emcc
-        emscripten-tools-archiver: cmd /c emcc
-    platform.!windows:
+        emscripten-tools-archiver: cmd /c emar
+    host-platform.!windows:
         emscripten-tools-cl: sh emcc
-        emscripten-tools-archiver: sh emcc
+        emscripten-tools-archiver: sh emar
