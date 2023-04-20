@@ -160,3 +160,5 @@ cxxenv.emscripten:
     host-platform.!windows:
         emscripten-tools-cl: sh emcc
         emscripten-tools-archiver: sh emar
+
+c-standard: 11

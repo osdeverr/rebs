@@ -68,11 +68,23 @@ namespace re
                 {
                     PopulateTargetDependencySet(t, to, dep_resolver, throw_on_missing);
 
-                    std::vector<Target *> dependents_needed;
-                    PopulateTargetDependencySet(t, dependents_needed, dep_resolver, throw_on_missing);
+                    std::vector<Target *> kids;
+                    PopulateTargetChildSet(t, kids);
 
-                    for (auto &needed : dependents_needed)
+                    for (auto &needed : kids)
+                    {
+                        // fmt::print(" * Target '{}' depends on '{}'\n", pTarget->module, needed->module);
                         needed->dependents.insert(pTarget);
+                    }
+
+                    /*
+                                        std::vector<Target *> dependents_needed;
+                                        PopulateTargetDependencySet(t, dependents_needed, dep_resolver,
+                       throw_on_missing);
+
+                                        for (auto &needed : dependents_needed)
+                                            needed->dependents.insert(pTarget);
+                    */
                 }
 
                 RE_TRACE("     done\n");

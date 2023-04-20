@@ -13,7 +13,7 @@ use-rspfiles: true
 
 vars:
     arch: ${target:arch | $re:arch | $env:VSCMD_ARG_TGT_ARCH}
-    
+
     vc-tools-root: ${env:VCToolsInstallDir | .}
     vc-tools-bin: ${vc-tools-root}/bin/Host${re:host-arch}/${arch}
 
@@ -54,6 +54,7 @@ platform-definitions:
 #
 templates:
     cxx-standard: "/std:c++{version}"
+    c-standard: "/std:c{version}"
 
     compiler-cmdline: "{flags} /c {input} /Fo:{output}"
     linker-cmdline: "/MACHINE:${arch} ${platform-link-paths} {flags} {link_deps} {input} /OUT:{output}"

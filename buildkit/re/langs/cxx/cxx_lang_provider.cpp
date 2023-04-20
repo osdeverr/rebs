@@ -269,8 +269,6 @@ namespace re
 
         meta["standard"] = "c++" + cpp_std;
 
-        extra_flags.push_back(fmt::format(templates["cxx-standard"].as<std::string>(), fmt::arg("version", cpp_std)));
-
         extra_flags.push_back(fmt::format(templates["cxx-module-output"].as<std::string>(),
                                           fmt::arg("directory", fmt::format("$re_target_object_directory_{}", path))));
 
@@ -626,9 +624,20 @@ namespace re
         if (file.extension == "c")
         {
             build_target.vars["target_custom_flags"].append(env["templates"]["compile-as-c"].Scalar());
+
+            std::string c_std = target.resolved_config["c-standard"].Scalar();
+
+            auto c_std_flag = fmt::format(env["templates"]["c-standard"].as<std::string>(), fmt::arg("version", c_std));
+            build_target.vars["target_custom_flags"].append(" " + c_std_flag);
         }
         else
         {
+            std::string cpp_std = target.resolved_config["cxx-standard"].Scalar();
+
+            auto cpp_std_flag =
+                fmt::format(env["templates"]["cxx-standard"].as<std::string>(), fmt::arg("version", cpp_std));
+            build_target.vars["target_custom_flags"].append(" " + cpp_std_flag);
+
             // build_target.vars["target_custom_flags"].append(env["templates"]["compile-as-cpp"].Scalar());
         }
 
