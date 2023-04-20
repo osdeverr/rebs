@@ -32,8 +32,8 @@ vars:
 #
 tools:
     compiler: ${clang-compiler-path | $env:RE_COMPILER_PATH | $clang-tools-compiler       | clang++}
-    linker: ${clang-linker-path | $env:RE_LINKER_PATH | $clang-tools-linker       | clang++}
-    archiver: ${clang-archiver-path | $env:RE_ARCHIVER_PATH | $clang-tools-archiver | clang++}
+    linker: ${clang-linker-path | $env:RE_LINKER_PATH | $clang-tools-linker       | lld-link}
+    archiver: ${clang-archiver-path | $env:RE_ARCHIVER_PATH | $clang-tools-archiver | llvm-ar}
 
 #
 # Default tool invoke flags. Can be overridden in targets using the 'build-flags' map property.
