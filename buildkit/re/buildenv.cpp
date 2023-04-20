@@ -1,5 +1,8 @@
 #include "buildenv.h"
+#include "re/buildenv.h"
+#include "re/vars.h"
 
+#include <filesystem>
 #include <fmt/color.h>
 #include <fmt/format.h>
 
@@ -13,6 +16,14 @@
 
 namespace re
 {
+    void PopulateTargetChildSet(Target *pTarget, std::vector<Target *> &to)
+    {
+        to.push_back(pTarget);
+
+        for (auto &child : pTarget->children)
+            PopulateTargetChildSet(child.get(), to);
+    }
+
     void PopulateTargetDependencySet(Target *pTarget, std::vector<Target *> &to, TargetDepResolver dep_resolver,
                                      bool throw_on_missing)
     {
@@ -56,7 +67,12 @@ namespace re
                 for (auto &t : dep.resolved)
                 {
                     PopulateTargetDependencySet(t, to, dep_resolver, throw_on_missing);
-                    t->dependents.insert(pTarget);
+
+                    std::vector<Target *> dependents_needed;
+                    PopulateTargetDependencySet(t, dependents_needed, dep_resolver, throw_on_missing);
+
+                    for (auto &needed : dependents_needed)
+                        needed->dependents.insert(pTarget);
                 }
 
                 RE_TRACE("     done\n");
@@ -331,8 +347,20 @@ namespace re
         {
             auto to_dep = desc->out_dir / desc->GetArtifactDirectory(path);
 
+            auto context = dependent->local_var_ctx;
+            context["self"] = &*target.build_var_scope;
+
+            auto scope = LocalVarScope{&context, "_", &*dependent->build_var_scope, "target"};
+
+            auto to_resolved = scope.Resolve(to);
+
             auto &from_path = from;
-            fs::path to_path = to_dep / dependent->build_var_scope->Resolve(to);
+            fs::path to_path = to_dep / to_resolved;
+
+            if (to_resolved.back() == '/')
+                fs::create_directories(to_path);
+            else
+                fs::create_directories(to_path.parent_path());
 
             RE_TRACE("        copying from '{}' to '{}'\n", from_path.u8string(), to_path.u8string());
 
@@ -385,9 +413,12 @@ namespace re
             if (!from_path.is_absolute())
                 from_path = target.path / from_path;
 
-            for (auto &dependent : target.dependents)
+            if (fs::exists(from_path))
             {
-                PerformCopyToDependentsImpl(target, dependent, desc, from_path, to);
+                for (auto &dependent : target.dependents)
+                {
+                    PerformCopyToDependentsImpl(target, dependent, desc, from_path, to);
+                }
             }
         }
         else if (type == "run")

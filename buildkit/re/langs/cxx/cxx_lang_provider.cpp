@@ -158,7 +158,26 @@ namespace re
         cond_desc["cxxenv"] = env_cached_name;
 
         target.resolved_config = GetResolvedTargetCfg(target, cond_desc);
+
         target.LoadConditionalDependencies();
+
+        vars.SetVar("src-dir", target.path.u8string());
+        vars.SetVar("root-dir", desc.pRootTarget->path.u8string());
+
+        for (auto with : target.resolved_config["with"])
+        {
+            fs::path path = vars.Resolve(with.Scalar());
+
+            if (!path.is_absolute())
+                path = target.path / path;
+
+            std::ifstream file{path};
+
+            auto config = YAML::Load(file);
+
+            MergeYamlNode(target.config, config);
+            target.resolved_config = GetResolvedTargetCfg(target, cond_desc);
+        }
 
         auto &meta = desc.meta["targets"][target.path.u8string()];
         auto &cxx = meta["cxx"];
@@ -201,9 +220,6 @@ namespace re
             meta["tools"][name] = tool_path;
             vars.SetVar("cxx.tool." + name, tool_path);
         }
-
-        vars.SetVar("src-dir", target.path.u8string());
-        vars.SetVar("root-dir", desc.pRootTarget->path.u8string());
     }
 
     bool CxxLangProvider::InitBuildTargetRules(NinjaBuildDesc &desc, const Target &target)
