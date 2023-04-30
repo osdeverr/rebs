@@ -11,7 +11,8 @@ namespace re
     Target *ConanDepResolver::ResolveTargetDependency(const Target &target, const TargetDependency &dep,
                                                       DepsVersionCache *cache)
     {
-        auto [scope, context] = target.GetBuildVarScope();
+        auto bv_scope = target.GetBuildVarScope();
+        auto [scope, context] = bv_scope;
 
         auto re_arch = scope.ResolveLocal("arch");
         auto re_platform = scope.ResolveLocal("platform");
@@ -141,7 +142,10 @@ namespace re
 
         auto conan_lib_suffix = target.resolved_config["conan-lib-suffix"].Scalar();
 
-        auto load_conan_dependency = [this, conan_lib_suffix, &re_arch, &re_platform, &re_config](YAML::Node data) {
+        auto load_conan_dependency = [this, conan_lib_suffix, &re_arch, &re_platform, &re_config, &bv_scope,
+                                      &target](YAML::Node data) {
+            auto [scope, context] = bv_scope;
+
             auto name = data["name"].Scalar();
             auto version = data["version"].Scalar();
             auto path = data["rootpath"].Scalar();
@@ -183,6 +187,10 @@ namespace re
             dep_target->config["configuration"] = re_config;
 
             dep_target->resolved_config = dep_target->config;
+
+            dep_target->var_parent = target.var_parent;
+            dep_target->local_var_ctx = context;
+            dep_target->build_var_scope.emplace(&dep_target->local_var_ctx, "build", &scope);
 
             auto &result = (mTargetCache[cache_path] = std::move(dep_target));
             return result.get();
