@@ -502,6 +502,7 @@ namespace re
 
         std::replace(module_escaped.begin(), module_escaped.end(), '.', '_');
         std::replace(module_escaped.begin(), module_escaped.end(), ':', '_');
+        std::replace(module_escaped.begin(), module_escaped.end(), '@', '_');
 
         return module_escaped;
     }
