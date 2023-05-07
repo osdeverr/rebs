@@ -8,10 +8,11 @@ namespace re
 {
     void SourceTranslation::ProcessTargetPostInit(Target &target)
     {
-        auto out_dir = target.build_var_scope->GetVar("source-translation-temp-dir").value_or(".re-cache/source-translation");
+        auto out_dir =
+            target.build_var_scope->GetVar("source-translation-temp-dir").value_or(".re-cache/source-translation");
         auto out_root = target.root_path / out_dir / target.module;
 
-        for(auto& source : target.sources)
+        for (auto &source : target.sources)
         {
             if (boost::algorithm::starts_with(source.path, out_root))
                 continue;
@@ -26,9 +27,9 @@ namespace re
                 auto vars = LocalVarScope{&*target.build_var_scope, "translation"};
 
                 auto step_suffix = fmt::format("_st_step{}", num_steps);
-                
+
                 auto step_name = step["name"];
-                
+
                 auto out_ext_node = step["out-extension"];
                 auto out_ext = out_ext_node ? out_ext_node.Scalar() : source.extension;
 
@@ -59,16 +60,18 @@ namespace re
 
                 if (!supported)
                     continue;
-                    
-                std::vector<std::string> command;                
+
+                std::vector<std::string> command;
                 boost::algorithm::split(command, step["command"].Scalar(), boost::is_any_of(" "));
 
-                for (auto& part : command)
+                for (auto &part : command)
                     part = vars.Resolve(part);
 
                 fs::create_directories(out_path.parent_path());
 
                 re::RunProcessOrThrow(step_name ? step_name.Scalar() : step_suffix.substr(1), {}, command, true, true);
+
+                // fmt::print("translating {} -> {}\n", source.path.generic_u8string(), out_path.generic_u8string());
 
                 source.path = out_path;
                 source.extension = out_ext;
@@ -79,4 +82,4 @@ namespace re
             }
         }
     }
-}
+} // namespace re

@@ -596,6 +596,10 @@ namespace re
             if (file.extension == ext.as<std::string>())
                 eligible = true;
 
+        for (const auto &ext : target.resolved_config["cxx-supported-extensions"])
+            if (file.extension == ext.as<std::string>())
+                eligible = true;
+
         if (!eligible)
             return;
 
@@ -606,7 +610,8 @@ namespace re
         if (file.extension.front() == 'h') // C/C++ Header File: no need to build it
             return;
 
-        auto local_path = file.path.u8string().substr(target.path.u8string().size() + 1);
+        auto local_path = fs::relative(file.path, target.path).generic_u8string();
+
         auto extension = env["default-extensions"]["object"].as<std::string>();
 
         BuildTarget build_target;
