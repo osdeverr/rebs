@@ -309,6 +309,11 @@ namespace re
 
             if (auto artifact = dep->build_var_scope->GetVarNoRecurse("build-artifact"))
                 meta["main-artifact"] = (full_artifact_dir / *artifact).u8string();
+
+            auto &unused_sources = (meta["unused-sources"] = nlohmann::json::array());
+
+            for (auto &src : target.unused_sources)
+                unused_sources.push_back(src.path.generic_u8string());
         }
 
         for (auto &dep : deps)

@@ -4,14 +4,14 @@
  * @brief Build target infrastructure
  * @version 0.2.8
  * @date 2023-01-14
- * 
+ *
  * @copyright Copyright (c) 2023 osdever
  */
 
 #pragma once
+#include <optional>
 #include <string>
 #include <string_view>
-#include <optional>
 #include <unordered_set>
 
 #include <re/error.h>
@@ -20,8 +20,8 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include "lang_provider.h"
 #include "lang_locator.h"
+#include "lang_provider.h"
 
 #include <semverpp/version.hpp>
 
@@ -44,12 +44,13 @@ namespace re
 
         /**
          * @brief Targets of this type can be linked to other executable and library targets via dependencies.
-        */
+         */
         StaticLibrary,
-        
+
         /**
-         * @brief There currently is no way to link to shared library targets - however, they can be built and used manually.
-        */
+         * @brief There currently is no way to link to shared library targets - however, they can be built and used
+         * manually.
+         */
         SharedLibrary,
 
         /**
@@ -60,21 +61,21 @@ namespace re
 
     /**
      * @brief Constructs a TargetType from its string representation.
-     * 
+     *
      * @param type The string to convert.
      * @return The resulting target type.
-     * 
+     *
      * @throws Exception Thrown if the string does not represent a valid target type.
      */
-    TargetType TargetTypeFromString(const std::string& type);
+    TargetType TargetTypeFromString(const std::string &type);
 
     /**
      * @brief Converts a TargetType to a string.
-     * 
+     *
      * @param type The TargetType to convert.
      * @return A const char* representing the target type that can be fed back to TargetTypeFromString.
      */
-    const char* TargetTypeToString(TargetType type);
+    const char *TargetTypeToString(TargetType type);
 
     using TargetConfig = YAML::Node;
 
@@ -124,22 +125,22 @@ namespace re
          * @brief (SemVer) Look for a version exactly matching the specified one.
          */
         Equal,
-        
+
         /**
          * @brief (SemVer) Look for a version greater than the specified one.
          */
         Greater,
-        
+
         /**
          * @brief (SemVer) Look for a version greater than or equal to the specified one.
          */
         GreaterEqual,
-        
+
         /**
          * @brief (SemVer) Look for a version less than the specified one.
          */
         Less,
-        
+
         /**
          * @brief (SemVer) Look for a version less than or equal to the specified one.
          */
@@ -147,14 +148,14 @@ namespace re
 
         /**
          * @brief (SemVer) Look for the newest version with the same major and minor values but any patch value.
-         * 
+         *
          * Behavior is analogous to npm's '~1.0.0' specifier.
          */
         SameMinor,
-        
+
         /**
          * @brief (SemVer) Look for the newest version with the same major value but any patch and minor values.
-         * 
+         *
          * Behavior is analogous to npm's '^1.0.0' specifier.
          */
         SameMajor,
@@ -162,7 +163,7 @@ namespace re
 
     /**
      * @brief A single dependency of a Target.
-     * 
+     *
      * Dependencies are passed to IDepResolver implementations to do with as they please.
      */
     struct TargetDependency
@@ -196,7 +197,7 @@ namespace re
          * @brief The dependency's version kind.
          */
         DependencyVersionKind version_kind;
-        
+
         /**
          * @brief The dependency's version kind as a string.
          */
@@ -204,22 +205,22 @@ namespace re
 
         /**
          * @brief A list of "filters" for the dependency.
-         * 
+         *
          * These are in most cases subtargets to depend on, so as to not build parts of the dependency you don't need.
          */
         std::vector<std::string> filters;
 
         /**
          * @brief This dependency's resulting resolved target list.
-         * 
+         *
          * This is filled at dependency resolution time. Dependencies whose TargetDependency::resolved
          * isn't empty are considered resolved and ignored in subsequent resolution passes.
          */
-        std::vector<Target*> resolved = {};
+        std::vector<Target *> resolved = {};
 
         /**
          * @brief The extra config (eCfg) for this dependency.
-         * 
+         *
          * Extra configs allow dependents to manually override dependencies' target config fields.
          * This creates a _new_ target for every unique eCfg node there is under the hood.
          */
@@ -237,7 +238,7 @@ namespace re
 
         /**
          * @brief Converts this dependency into a string.
-         * 
+         *
          * @return std::string The resulting string.
          */
         std::string ToString() const;
@@ -247,44 +248,44 @@ namespace re
      * @brief Parses a string into a TargetDependency object.
      *
      * The string must be in the format `[ns:]<name>[@version] [\[filters...\]]`.
-     * 
+     *
      * @param str The string to parse
      * @param pTarget The target whose dependencies are being parsed
-     * 
+     *
      * @return TargetDependency The resulting dependency
-     * 
+     *
      * @throws TargetDependencyException Thrown if the string has an invalid format
      */
-    TargetDependency ParseTargetDependency(const std::string& str, const Target* pTarget = nullptr);
-    
+    TargetDependency ParseTargetDependency(const std::string &str, const Target *pTarget = nullptr);
+
     /**
      * @brief Parses a YAML node into a TargetDependency object.
      *
      * The node's string value or first key must be in the format `[ns:]<name>[@version] [\[filters...\]]`.
      * If the node is an object, its first key's value will be used as the eCfg node for this dependency.
-     * 
+     *
      * @param node The YAML node to parse
      * @param pTarget The target whose dependencies are being parsed
-     * 
+     *
      * @return TargetDependency The resulting dependency
-     * 
+     *
      * @throws TargetDependencyException Thrown if the node's depstring has an invalid format
      */
-    TargetDependency ParseTargetDependencyNode(YAML::Node node, const Target* pTarget = nullptr);
+    TargetDependency ParseTargetDependencyNode(YAML::Node node, const Target *pTarget = nullptr);
 
     /**
      * @brief Combines two target module paths with respect to their possible emptiness.
-     * 
+     *
      * If a is empty, returns b.
      * If b is empty, returns a.
      * If both are not empty, returns "{a}.{b}".
-     * 
+     *
      * @param a The first module path (can be empty)
      * @param b The second module path (can be empty)
-     * 
+     *
      * @return std::string A module path that combines the two passed to this function.
      */
-    inline std::string ModulePathCombine(const std::string& a, const std::string& b)
+    inline std::string ModulePathCombine(const std::string &a, const std::string &b)
     {
         if (a.empty())
             return b;
@@ -304,28 +305,29 @@ namespace re
     public:
         /**
          * @brief Construct a new TargetException object.
-         * 
+         *
          * @param type The exception's category type
          * @param target The Target at fault for this exception
          * @param str The error message
          */
-        TargetException(std::string_view type, const Target* target, const std::string& str);
+        TargetException(std::string_view type, const Target *target, const std::string &str);
 
         /**
          * @brief Construct a new TargetException object and format its error message.
-         * 
+         *
          * @tparam F The format string's type (auto-deduced)
          * @tparam Args Format argument types (auto-deduced)
-         * 
+         *
          * @param type The exception's category type
          * @param target The Target at fault for this exception
          * @param format The format string
          * @param args Format arguments
          */
-        template<class F, class... Args>
-        TargetException(std::string_view type, const Target* target, const F& format, Args&&... args)
-            : TargetException{ type, target, fmt::format(format, std::forward<Args>(args)...) }
-        {}
+        template <class F, class... Args>
+        TargetException(std::string_view type, const Target *target, const F &format, Args &&...args)
+            : TargetException{type, target, fmt::format(format, std::forward<Args>(args)...)}
+        {
+        }
     };
 
     /**
@@ -336,18 +338,19 @@ namespace re
     public:
         /**
          * @brief Construct a new TargetLoadException object and format its error message.
-         * 
+         *
          * @tparam F The format string's type (auto-deduced)
          * @tparam Args Format argument types (auto-deduced)
-         * 
+         *
          * @param target The Target at fault for this exception
          * @param format The format string
          * @param args Format arguments
          */
-        template<class F, class... Args>
-        TargetLoadException(const Target* target, const F& format, Args&&... args)
-            : TargetException{ "TargetLoadException", target, format, std::forward<Args>(args)... }
-        {}
+        template <class F, class... Args>
+        TargetLoadException(const Target *target, const F &format, Args &&...args)
+            : TargetException{"TargetLoadException", target, format, std::forward<Args>(args)...}
+        {
+        }
     };
 
     /**
@@ -358,18 +361,19 @@ namespace re
     public:
         /**
          * @brief Construct a new TargetConfigException object and format its error message.
-         * 
+         *
          * @tparam F The format string's type (auto-deduced)
          * @tparam Args Format argument types (auto-deduced)
-         * 
+         *
          * @param target The Target at fault for this exception
          * @param format The format string
          * @param args Format arguments
          */
-        template<class F, class... Args>
-        TargetConfigException(const Target* target, const F& format, Args&&... args)
-            : TargetException{ "TargetConfigException", target, format, std::forward<Args>(args)... }
-        {}
+        template <class F, class... Args>
+        TargetConfigException(const Target *target, const F &format, Args &&...args)
+            : TargetException{"TargetConfigException", target, format, std::forward<Args>(args)...}
+        {
+        }
     };
 
     /**
@@ -380,18 +384,19 @@ namespace re
     public:
         /**
          * @brief Construct a new TargetDependencyException object and format its error message.
-         * 
+         *
          * @tparam F The format string's type (auto-deduced)
          * @tparam Args Format argument types (auto-deduced)
-         * 
+         *
          * @param target The Target at fault for this exception
          * @param format The format string
          * @param args Format arguments
          */
-        template<class F, class... Args>
-        TargetDependencyException(const Target* target, const F& format, Args&&... args)
-            : TargetException{ "TargetDependencyException", target, format, std::forward<Args>(args)... }
-        {}
+        template <class F, class... Args>
+        TargetDependencyException(const Target *target, const F &format, Args &&...args)
+            : TargetException{"TargetDependencyException", target, format, std::forward<Args>(args)...}
+        {
+        }
     };
 
     /**
@@ -402,18 +407,19 @@ namespace re
     public:
         /**
          * @brief Construct a new TargetBuildException object and format its error message.
-         * 
+         *
          * @tparam F The format string's type (auto-deduced)
          * @tparam Args Format argument types (auto-deduced)
-         * 
+         *
          * @param target The Target at fault for this exception
          * @param format The format string
          * @param args Format arguments
          */
-        template<class F, class... Args>
-        TargetBuildException(const Target* target, const F& format, Args&&... args)
-            : TargetException{ "TargetBuildException", target, format, std::forward<Args>(args)... }
-        {}
+        template <class F, class... Args>
+        TargetBuildException(const Target *target, const F &format, Args &&...args)
+            : TargetException{"TargetBuildException", target, format, std::forward<Args>(args)...}
+        {
+        }
     };
 
     /**
@@ -424,29 +430,30 @@ namespace re
     public:
         /**
          * @brief Construct a new TargetUncachedDependencyException object and format its error message.
-         * 
+         *
          * @tparam F The format string's type (auto-deduced)
          * @tparam Args Format argument types (auto-deduced)
-         * 
+         *
          * @param target The Target at fault for this exception
          * @param format The format string
          * @param args Format arguments
          */
-        template<class F, class... Args>
-        TargetUncachedDependencyException(const Target* target, const F& format, Args&&... args)
-            : TargetException{ "TargetUncachedDependencyException", target, format, std::forward<Args>(args)... }
-        {}
+        template <class F, class... Args>
+        TargetUncachedDependencyException(const Target *target, const F &format, Args &&...args)
+            : TargetException{"TargetUncachedDependencyException", target, format, std::forward<Args>(args)...}
+        {
+        }
     };
 
     struct ITargetFeature;
 
     /**
      * @brief A single buildable target for the Re build system.
-     * 
+     *
      * Contains various configuration fields and variable scopes.
      */
     class Target : public IVarNamespace
-	{
+    {
     public:
         /**
          * @brief The default target config filename.
@@ -462,30 +469,32 @@ namespace re
 
         /**
          * @brief Construct a new Target object from a real FS path and an optional parent.
-         * 
+         *
          * This is not to be used outside of BuildEnv as it ignores all middleware.
-         * 
+         *
          * @param dir_path The directory to load the target config from.
          * @param pParent The target's parent (null if no parent)
          */
-        Target(const fs::path& dir_path, Target* pParent = nullptr);
+        Target(const fs::path &dir_path, Target *pParent = nullptr);
 
         /**
          * @brief Construct a new Target object from a virtual FS path (which may or may not contain a real target)
          * and the target's core properties
-         * 
+         *
          * This allows you to construct a target without a re.yml file, like in vcpkg or CMake dependencies.
-         * 
-         * @param virtual_path The purported "path" of the target - this may or may not include a config file for it, as it's not loaded at all
+         *
+         * @param virtual_path The purported "path" of the target - this may or may not include a config file for it, as
+         * it's not loaded at all
          * @param name The target's name
          * @param type The target's type
          * @param config The target's initial configuration
          * @param pParent The target's parent (null if no parent)
          */
-        Target(const fs::path& virtual_path, std::string_view name, TargetType type, const TargetConfig& config, Target* pParent = nullptr);
+        Target(const fs::path &virtual_path, std::string_view name, TargetType type, const TargetConfig &config,
+               Target *pParent = nullptr);
 
-        Target(const Target&) = default;
-        Target(Target&&) = default;
+        Target(const Target &) = default;
+        Target(Target &&) = default;
 
         //////////////////////////////////////////////////////////////
 
@@ -496,7 +505,7 @@ namespace re
 
         /**
          * @brief The target's source path.
-         * 
+         *
          * This is not guaranteed to contain a target config file. Please use the Target::config field
          * or the Target::resolved_config field to access target configuration values.
          */
@@ -520,12 +529,12 @@ namespace re
         /**
          * @brief The target's parent (or nullptr).
          */
-        Target* parent = nullptr;
+        Target *parent = nullptr;
 
         /**
          * @brief The target's ultimate root target.
          */
-        Target* root = nullptr;
+        Target *root = nullptr;
 
         /**
          * @brief A list of the target's dependencies.
@@ -536,6 +545,12 @@ namespace re
          * @brief A list of the target's source files.
          */
         std::vector<SourceFile> sources;
+
+        /**
+         * @brief A list of the target's unused source files, replaced during the build
+         * by source translation or other means.
+         */
+        std::vector<SourceFile> unused_sources;
 
         /**
          * @brief A list of the target's child targets.
@@ -554,20 +569,21 @@ namespace re
 
         /**
          * @brief The target's "flat" config representation.
-         * 
-         * Resolved configs are only built once and are "flattened" with respect to their conditional sections and inheritance.
+         *
+         * Resolved configs are only built once and are "flattened" with respect to their conditional sections and
+         * inheritance.
          */
-        TargetConfig resolved_config{ YAML::NodeType::Undefined };
+        TargetConfig resolved_config{YAML::NodeType::Undefined};
 
         /**
          * @brief A set of targets that depend on this target.
          */
-        std::unordered_set<const Target*> dependents;
+        std::unordered_set<const Target *> dependents;
 
         /**
          * @brief This target's parent variable scope.
          */
-        LocalVarScope* var_parent = nullptr;
+        LocalVarScope *var_parent = nullptr;
 
         /**
          * @brief This target's local variable context.
@@ -588,33 +604,33 @@ namespace re
          * @brief This target's `uses` dependency map.
          */
         std::unordered_map<std::string, std::unique_ptr<TargetDependency>> used_mapping;
-        
+
         /**
          * @brief This target's parent with respect to dependencies.
          */
-        const Target* dep_parent = nullptr;
+        const Target *dep_parent = nullptr;
 
         /**
          * @brief A map of this target's used target features.
          */
-        std::unordered_map<std::string, ITargetFeature*> features;
+        std::unordered_map<std::string, ITargetFeature *> features;
 
-        std::optional<std::string> GetVar(const std::string& key) const;
+        std::optional<std::string> GetVar(const std::string &key) const;
 
-        std::pair<const LocalVarScope&, VarContext&> GetBuildVarScope() const;
+        std::pair<const LocalVarScope &, VarContext &> GetBuildVarScope() const;
 
-        TargetDependency* GetUsedDependency(const std::string& name) const;
+        TargetDependency *GetUsedDependency(const std::string &name) const;
 
-        Target* FindChild(std::string_view name) const;
-        
-        template<class T>
+        Target *FindChild(std::string_view name) const;
+
+        template <class T>
         bool HasFeature() const
         {
             return features.find(T::kFeatureName) != features.end();
         }
 
-        template<class T>
-        T* FindFeature() const
+        template <class T>
+        T *FindFeature() const
         {
             auto it = features.find(T::kFeatureName);
 
@@ -625,24 +641,25 @@ namespace re
         }
 
         /*
-        // Contains the entire flattened dependency cache for this target in the order {children}..{dependencies recursively}..{itself}.
-        // This is mainly a convenience for language providers so that the whole dependency cache doesn't have to be rebuilt every time.
-        std::vector<Target*> flat_deps_cache;
+        // Contains the entire flattened dependency cache for this target in the order {children}..{dependencies
+        recursively}..{itself}.
+        // This is mainly a convenience for language providers so that the whole dependency cache doesn't have to be
+        rebuilt every time. std::vector<Target*> flat_deps_cache;
         */
 
         //////////////////////////////////////////////////////////////
 
         /**
          * @brief Gets a configuration entry with respect to its kind.
-         * 
+         *
          * @tparam T The config entry's type
-         * 
+         *
          * @param key The key of this entry in the target config
          * @param kind The entry kind to use
-         * 
+         *
          * @return std::optional<T> The configuration entry's value or std::nullopt
          */
-        template<class T>
+        template <class T>
         std::optional<T> GetCfgEntry(std::string_view key, CfgEntryKind kind = CfgEntryKind::NonRecursive) const
         {
             if (auto node = config[key.data()])
@@ -660,19 +677,20 @@ namespace re
 
         /**
          * @brief Gets a configuration entry with respect to its kind.
-         * 
+         *
          * @tparam T The config entry's type
-         * 
+         *
          * @param key The key of this entry in the target config
          * @param message The error message to use if the entry is not found
          * @param kind The entry kind to use
-         * 
+         *
          * @return T The configuration entry's value
-         * 
+         *
          * @throws TargetConfigException Thrown if the config entry does not exist.
          */
-        template<class T>
-        T GetCfgEntryOrThrow(std::string_view key, std::string_view message, CfgEntryKind kind = CfgEntryKind::NonRecursive) const
+        template <class T>
+        T GetCfgEntryOrThrow(std::string_view key, std::string_view message,
+                             CfgEntryKind kind = CfgEntryKind::NonRecursive) const
         {
             if (auto value = GetCfgEntry<T>(key, kind))
                 return *value;
@@ -692,10 +710,10 @@ namespace re
          * @brief Loads the target's base data like its type and name.
          */
         void LoadBaseData();
-        
+
         /**
          * @brief Loads the target's dependency list.
-         * 
+         *
          * @param key For internal use.
          */
         void LoadDependencies(std::string_view key = "");
@@ -707,59 +725,59 @@ namespace re
 
         /**
          * @brief Loads the target's miscellaneous config.
-         * 
+         *
          * Currently does nothing.
          */
         void LoadMiscConfig();
 
         /**
          * @brief Recursively loads the target's sources from the specified directory.
-         * 
+         *
          * The recursive search stops looking further if a directory contains a file named `.re-ignore-this`.
-         * 
+         *
          * @param path The path to search.
          */
         void LoadSourceTree(fs::path path = "");
 
         /**
          * @brief Creates an empty target configuration file at the specified path.
-         * 
+         *
          * @param path The path to create the config at
          * @param type The new target's type
          * @param name The new target's name
          */
-        static void CreateEmptyTarget(const fs::path& path, TargetType type, std::string_view name);
-	};
+        static void CreateEmptyTarget(const fs::path &path, TargetType type, std::string_view name);
+    };
 
     /**
      * @brief Checks whether a directory contains a Re target config file.
-     * 
+     *
      * @param path The path to check
-     * 
+     *
      * @return true If the directory contains a `re.yml` file.
      * @return false If the directory does not contain a `re.yml` file.
      */
-    inline static bool DoesDirContainTarget(const fs::path& path)
+    inline static bool DoesDirContainTarget(const fs::path &path)
     {
         return fs::exists(path / Target::kTargetConfigFilename);
     }
 
     /**
      * @brief Resolves parent-referencing module paths like `.libhello` with a period at the beginning.
-     * 
+     *
      * @param name The parent-referencing module path
      * @param target The target to resolve the path against
-     * 
+     *
      * @return std::string The fully resolved absolute module path
      */
-    std::string ResolveTargetParentRef(std::string name, const Target* target);
+    std::string ResolveTargetParentRef(std::string name, const Target *target);
 
     /**
      * @brief Escapes the passed target's module path to not include problematic characters.
-     * 
+     *
      * @param target The target whose module path to escape
-     * 
+     *
      * @return std::string The fully escaped module path
      */
-    std::string GetEscapedModulePath(const Target& target);
-}
+    std::string GetEscapedModulePath(const Target &target);
+} // namespace re

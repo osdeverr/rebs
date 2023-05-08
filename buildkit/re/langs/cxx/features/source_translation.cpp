@@ -73,6 +73,8 @@ namespace re
 
                 // fmt::print("translating {} -> {}\n", source.path.generic_u8string(), out_path.generic_u8string());
 
+                target.unused_sources.push_back(source);
+
                 source.path = out_path;
                 source.extension = out_ext;
 
