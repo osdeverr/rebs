@@ -312,7 +312,7 @@ namespace re
 
             auto &unused_sources = (meta["unused-sources"] = nlohmann::json::array());
 
-            for (auto &src : target.unused_sources)
+            for (auto &src : dep->unused_sources)
                 unused_sources.push_back(src.path.generic_u8string());
         }
 
