@@ -37,7 +37,7 @@ for path, target in meta['targets'].items():
     for definition in cxx['definitions']:
         flags.append(f'-D{definition}')
 
-    for source in cxx['sources']:
+    for source in cxx['sources'] + (target['unused-sources'] if 'unused-sources' in target.keys() else []):
         if os.path.splitext(source)[-1].startswith('h'):
             continue
 
