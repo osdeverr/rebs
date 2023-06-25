@@ -33,9 +33,11 @@ namespace re
                 boost::process::child c(boost::process::search_path("git"), "ls-remote", "--refs", "--tags", url.data(),
                                         boost::process::std_out > is);
 
+                c.wait();
+
                 std::vector<std::string> result;
 
-                while (c.running() && !is.eof())
+                while (!is.eof())
                 {
                     std::string hash;
                     auto &tag = result.emplace_back();
@@ -43,13 +45,18 @@ namespace re
                     is >> hash;
                     is >> tag;
 
+                    if (tag.empty())
+                        continue;
+
+                    // fmt::print("test: {} {}\n", hash, tag);
+
                     constexpr char kRefsTags[] = "refs/tags/";
                     auto pos = tag.find(kRefsTags);
                     if (pos != tag.npos)
                         tag.erase(pos, sizeof kRefsTags - 1);
                 }
 
-                c.wait();
+                //  fmt::print("running: {} eof: {}\n", c.running(), is.eof());
 
                 return result;
             };

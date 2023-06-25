@@ -3,17 +3,14 @@
 namespace re
 {
     std::string DepsVersionCache::GetLatestVersionMatchingRequirements(
-        const Target& target,
-        const TargetDependency& dep,
-        std::string_view name,
-        std::function<std::vector<std::string>(const re::TargetDependency&, std::string_view)> get_available_versions
-    )
+        const Target &target, const TargetDependency &dep, std::string_view name,
+        std::function<std::vector<std::string>(const re::TargetDependency &, std::string_view)> get_available_versions)
     {
         if (dep.version_kind == DependencyVersionKind::RawTag)
             return dep.version;
 
         std::string kind_str = "@";
-            
+
         switch (dep.version_kind)
         {
         case DependencyVersionKind::Equal:
@@ -41,7 +38,7 @@ namespace re
 
         auto existing_key = fmt::format("{}:{}{}{}", dep.ns, dep.name, kind_str, dep.version);
 
-        auto& existing = mData[existing_key];
+        auto &existing = mData[existing_key];
 
         if (!existing.is_null())
             return existing.get<std::string>();
@@ -51,24 +48,29 @@ namespace re
         if (available.empty())
             RE_THROW TargetDependencyException(&target, "no versions for '{}'", dep.raw);
 
-        auto erase_cond_negated = [](auto& cont, const auto& value, const auto& pred)
-        {
-            cont.erase(std::remove_if(
-                cont.begin(),
-                cont.end(),
-                [&pred, &value] (const auto& x)
-                {
-                    try
-                    {
-                        return !(pred(semverpp::version{x}, value));
-                    }
-                    catch (semverpp::invalid_version)
-                    {
-                        return true;
-                    }
-                }
-            ), cont.end());
+        auto erase_cond_negated = [](auto &cont, const auto &value, const auto &pred) {
+            cont.erase(std::remove_if(cont.begin(), cont.end(),
+                                      [&pred, &value](const auto &x) {
+                                          try
+                                          {
+                                              return !(pred(semverpp::version{x}, value));
+                                          }
+                                          catch (semverpp::invalid_version)
+                                          {
+                                              return true;
+                                          }
+                                      }),
+                       cont.end());
         };
+
+        /*
+                fmt::print("\n # result_all: {} -> [\n", dep.raw);
+
+                for (auto &ver : available)
+                    fmt::print("    {} @ {}\n", ver, semverpp::version{ver}.string());
+
+                fmt::print("]; dep.version_sv={}\n", dep.version_sv.string());
+                */
 
         switch (dep.version_kind)
         {
@@ -88,47 +90,34 @@ namespace re
             erase_cond_negated(available, dep.version_sv, std::less_equal<semverpp::version>{});
             break;
         case DependencyVersionKind::SameMinor:
-            erase_cond_negated(
-                available,
-                dep.version_sv,
-                [] (const semverpp::version& a, const semverpp::version& b)
-                {
-                    return a >= b && a.major == b.major && a.minor == b.minor;
-                }
-            );
+            erase_cond_negated(available, dep.version_sv, [](const semverpp::version &a, const semverpp::version &b) {
+                return a >= b && a.major == b.major && a.minor == b.minor;
+            });
             break;
         case DependencyVersionKind::SameMajor:
-            erase_cond_negated(
-                available,
-                dep.version_sv,
-                [] (const semverpp::version& a, const semverpp::version& b)
-                {
-                    return a >= b && a.major == b.major;
-                }
-            );
+            erase_cond_negated(available, dep.version_sv, [](const semverpp::version &a, const semverpp::version &b) {
+                return a >= b && a.major == b.major;
+            });
             break;
         };
 
         if (available.empty())
             RE_THROW TargetDependencyException(&target, "no matching versions for '{}'", dep.raw);
 
-        std::sort(
-            available.begin(), available.end(),
-            [] (const std::string& a, const std::string& b)
-            {
-                return semverpp::version{a} > semverpp::version{b};
-            });
-        
-        const auto& version = available.at(0);
+        std::sort(available.begin(), available.end(), [](const std::string &a, const std::string &b) {
+            return semverpp::version{a} > semverpp::version{b};
+        });
+
+        const auto &version = available.at(0);
         existing = version;
 
         fmt::print("\n # result: {} -> [\n", dep.raw);
 
-        for (auto& ver : available)
+        for (auto &ver : available)
             fmt::print("    {} @ {}\n", ver, semverpp::version{ver}.string());
 
         fmt::print("]\n");
-        
+
         return version;
     }
-}
+} // namespace re
