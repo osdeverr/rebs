@@ -82,7 +82,7 @@ namespace re
         // Deps and uses are automatically recursed by Target facilities:
         // copying parent deps and uses into children would lead to a performance impact due to redundant regex parsing
         auto top_deps = Clone(leaf_cfg["deps"]);
-        auto top_uses = Clone(leaf_cfg["uses"]);
+        // auto top_uses = Clone(leaf_cfg["uses"]);
 
         auto top_actions = Clone(leaf_cfg["actions"]);
         auto top_tasks = Clone(leaf_cfg["tasks"]);
@@ -101,7 +101,7 @@ namespace re
             MergeYamlNode(result, GetFlatResolvedTargetCfg(target->config, mappings));
 
         result["deps"] = top_deps;
-        result["uses"] = top_uses;
+        // result["uses"] = top_uses;
         result["actions"] = top_actions;
         result["tasks"] = top_tasks;
 
