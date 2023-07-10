@@ -40,6 +40,8 @@ namespace re
         YAML::Node LoadCachedParams(const fs::path &path);
         void SaveCachedParams(const fs::path &path, const YAML::Node &node);
 
+        void ResolveAllTargetDependencies(Target *pRootTarget);
+
         NinjaBuildDesc GenerateBuildDescForTarget(Target &target);
         NinjaBuildDesc GenerateBuildDescForTargetInDir(const fs::path &path);
 

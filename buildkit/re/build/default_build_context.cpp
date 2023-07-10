@@ -2,6 +2,8 @@
 #include "boost/algorithm/string/replace.hpp"
 #include "ninja_gen.h"
 #include "re/error.h"
+#include "re/lang_provider.h"
+#include "re/target.h"
 #include "re/yaml_merge.h"
 #include "yaml-cpp/emitter.h"
 
@@ -35,6 +37,7 @@
 #include <fstream>
 
 #include <magic_enum.hpp>
+#include <unordered_set>
 
 namespace re
 {
@@ -183,12 +186,65 @@ namespace re
         file << emitter.c_str();
     }
 
+    void DefaultBuildContext::ResolveAllTargetDependencies(Target *pRootTarget)
+    {
+        re::PerfProfile _{fmt::format(R"({}("{}"))", __FUNCTION__, pRootTarget->module)};
+
+        while (true)
+        {
+            bool has_unresolved_deps = false;
+
+            struct WantedDependency
+            {
+                Target *target;
+                TargetDependency *dep;
+            };
+
+            std::unordered_map<std::string, std::vector<WantedDependency>> wanted_deps;
+
+            auto targets = mEnv->GetSingleTargetLocalDepSet(pRootTarget);
+
+            for (auto &target : targets)
+            {
+                for (auto &dep : target->dependencies)
+                {
+                    auto id = fmt::format("{}:{}", dep.ns.empty() ? "local" : dep.ns, dep.name);
+                    wanted_deps[id].push_back({target, &dep});
+
+                    if (dep.resolved.empty())
+                    {
+                        has_unresolved_deps = true;
+                    }
+                }
+            }
+
+            for (auto &[id, wants] : wanted_deps)
+            {
+                fmt::print(fmt::emphasis::bold, "{}:\n", id);
+
+                for (auto &want : wants)
+                {
+                    fmt::print("    wanted by {} ({}{})\n", want.target->module, want.dep->version_kind_str,
+                               want.dep->version);
+                    fmt::print("\n");
+                }
+            }
+
+            has_unresolved_deps = false;
+
+            if (!has_unresolved_deps)
+                break;
+        }
+    }
+
     NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTarget(Target &target)
     {
         re::PerfProfile _{fmt::format(R"({}("{}"))", __FUNCTION__, target.module)};
 
         NinjaBuildDesc desc;
         desc.pRootTarget = &target;
+
+        // ResolveAllTargetDependencies(desc.pRootTarget);
 
         auto version_cache_path = target.root->path / "re-deps-lock.json";
 
