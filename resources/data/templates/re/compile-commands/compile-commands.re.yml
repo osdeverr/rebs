@@ -7,13 +7,14 @@
 # Consider adding `compile_commands.json` to your .gitignore.
 #
 
-actions:
-  - run:
-      on: meta-available
-      command: python
-      args:
-        [
-          "${target-root}/compile-commands-gen.py",
-          "${build-root}/.re-cache/meta/full.json",
-          "${target-root}/compile_commands.json",
-        ]
+load-context.standalone:
+  actions:
+    - run:
+        on: meta-available
+        command: python
+        args:
+          [
+            "${root-dir}/compile-commands-gen.py",
+            "${root-dir}/.re-cache/meta/full.json",
+            "${root-dir}/compile_commands.json",
+          ]
