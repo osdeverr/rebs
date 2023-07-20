@@ -162,7 +162,12 @@ namespace re
         target.LoadConditionalDependencies();
 
         vars.SetVar("src-dir", target.path.u8string());
-        vars.SetVar("root-dir", desc.pRootTarget->path.u8string());
+
+        if (!vars.GetVar("root-dir"))
+            vars.SetVar("root-dir", desc.pRootTarget->path.u8string());
+
+        vars.SetVar("target-root", vars.GetVar("root-dir").value());
+        vars.SetVar("build-root", desc.pRootTarget->path.u8string());
 
         for (auto with : target.resolved_config["with"])
         {

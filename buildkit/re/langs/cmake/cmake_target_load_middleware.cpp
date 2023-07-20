@@ -7,7 +7,7 @@
 
 namespace re
 {
-    bool CMakeTargetLoadMiddleware::SupportsTargetLoadPath(const fs::path& path)
+    bool CMakeTargetLoadMiddleware::SupportsTargetLoadPath(const fs::path &path)
     {
         //
         // In case a re.yml exists in the directory, it can be assumed the middleware isn't needed
@@ -17,16 +17,14 @@ namespace re
         return fs::exists(path / "CMakeLists.txt") && !fs::exists(path / "re.yml");
     }
 
-    std::unique_ptr<Target> CMakeTargetLoadMiddleware::LoadTargetWithMiddleware(
-        const fs::path& path,
-        const Target* ancestor,
-        const TargetDependency* dep_source
-    )
+    std::unique_ptr<Target> CMakeTargetLoadMiddleware::LoadTargetWithMiddleware(const fs::path &path,
+                                                                                const Target *ancestor,
+                                                                                const TargetDependency *dep_source)
     {
         auto canonical_path = fs::canonical(path);
 
         std::string arch = "default", config = "Debug", platform = "host";
-        
+
         auto out_dir = canonical_path / "out";
 
         auto path_hash = std::hash<std::string>{}(canonical_path.generic_u8string());
@@ -34,22 +32,23 @@ namespace re
         std::string compiler_override = "";
         std::string link_flags = "";
         std::string cxx_std_override = "";
-        
+
         if (ancestor)
         {
-		    auto [scope, context] = ancestor->GetBuildVarScope();
+            auto [scope, context] = ancestor->GetBuildVarScope();
 
             arch = scope.ResolveLocal("arch");
             config = scope.ResolveLocal("configuration");
             platform = scope.ResolveLocal("platform");
 
-            std::string dir_name = fmt::format("{}-{}-{}-{}-{}", canonical_path.filename().generic_u8string(), arch, config, platform, path_hash);
+            std::string dir_name = fmt::format("{}-{}-{}-{}-{}", canonical_path.filename().generic_u8string(), arch,
+                                               config, platform, path_hash);
 
             if (dep_source && dep_source->extra_config_hash)
                 dir_name += fmt::format("-{}", dep_source->extra_config_hash);
 
             out_dir = ancestor->root->path / ".re-cache" / "cmake-gen" / dir_name;
-            
+
             if (auto compiler = scope.GetVar("cxx.tool.compiler"))
                 compiler_override = fs::path{*compiler}.generic_u8string();
 
@@ -59,7 +58,8 @@ namespace re
             if (auto standard = ancestor->resolved_config["cxx-standard"])
                 cxx_std_override = standard.Scalar();
 
-            config = ancestor->resolved_config["cmake-build-type"].Scalar();
+            if (auto build_type = ancestor->resolved_config["cmake-build-type"])
+                config = build_type.Scalar();
         }
 
         // HACK: PLEASE add something better later
@@ -70,10 +70,8 @@ namespace re
 
         fs::create_directories(bin_dir);
 
-        mOut->Info(
-            fg(fmt::color::cornflower_blue) | fmt::emphasis::bold,
-            "\n * CMakeTargetLoadMiddleware: Loading CMake project target from '{}'\n", path.generic_u8string()
-        );
+        mOut->Info(fg(fmt::color::cornflower_blue) | fmt::emphasis::bold,
+                   "\n * CMakeTargetLoadMiddleware: Loading CMake project target from '{}'\n", path.generic_u8string());
 
         auto meta_path = out_dir / "re-cmake-meta.yml";
 
@@ -83,7 +81,7 @@ namespace re
             should_rebuild = true;
 
         YAML::Node cmake_meta{YAML::NodeType::Undefined};
-        
+
         if (fs::exists(meta_path))
         {
             std::ifstream file{meta_path};
@@ -91,21 +89,16 @@ namespace re
 
             should_rebuild = false;
 
-            if (!should_rebuild && dep_source && cmake_meta["last-build-ecfg-hash"].as<std::size_t>() != dep_source->extra_config_data_hash)
+            if (!should_rebuild && dep_source &&
+                cmake_meta["last-build-ecfg-hash"].as<std::size_t>() != dep_source->extra_config_data_hash)
                 should_rebuild = true;
         }
 
         if (should_rebuild)
         {
-            mOut->Info(
-                fg(fmt::color::dim_gray) | fmt::emphasis::bold,
-                "     Rebuilding CMake cache...\n\n"
-            );
+            mOut->Info(fg(fmt::color::dim_gray) | fmt::emphasis::bold, "     Rebuilding CMake cache...\n\n");
 
-            std::vector<std::string> cmdline = {
-                "cmake",
-                "-G", "Ninja"
-            };
+            std::vector<std::string> cmdline = {"cmake", "-G", "Ninja"};
 
             cmdline.emplace_back("-DRE_ORIGINAL_CMAKE_DIR=" + canonical_path.generic_u8string());
             cmdline.emplace_back("-DRE_BIN_OUT_DIR=" + bin_dir.generic_u8string());
@@ -114,34 +107,30 @@ namespace re
 
             if (dep_source && dep_source->extra_config)
             {
-                auto parse_config_for_target = [&cmdline, &arch, &platform, &config](YAML::Node node, const std::vector<std::string>& targets)
-                {
+                auto parse_config_for_target = [&cmdline, &arch, &platform,
+                                                &config](YAML::Node node, const std::vector<std::string> &targets) {
                     std::string defs_private, defs_public;
 
                     for (auto kv : node["cxx-compile-definitions"])
                         defs_private.append(fmt::format("{}={};", kv.first.Scalar(), kv.second.Scalar()));
-                        
+
                     for (auto kv : node["cxx-compile-definitions-public"])
                         defs_public.append(fmt::format("{}={};", kv.first.Scalar(), kv.second.Scalar()));
 
-                    for (auto& target : targets)
+                    for (auto &target : targets)
                     {
-                        cmdline.emplace_back(fmt::format("-DRE_CUSTOM_COMPILE_DEFINITIONS_PRIVATE_{}={}", target, defs_private));
-                        cmdline.emplace_back(fmt::format("-DRE_CUSTOM_COMPILE_DEFINITIONS_PUBLIC_{}={}", target, defs_public));
+                        cmdline.emplace_back(
+                            fmt::format("-DRE_CUSTOM_COMPILE_DEFINITIONS_PRIVATE_{}={}", target, defs_private));
+                        cmdline.emplace_back(
+                            fmt::format("-DRE_CUSTOM_COMPILE_DEFINITIONS_PUBLIC_{}={}", target, defs_public));
                     }
 
                     for (auto kv : node["cmake-extra-options"])
                         cmdline.emplace_back(fmt::format("-D{}={}", kv.first.Scalar(), kv.second.Scalar()));
                 };
-                
-                auto resolved = GetFlatResolvedTargetCfg(
-                    dep_source->extra_config,
-                    {
-                        {"arch", arch},
-                        {"platform", platform},
-                        {"config", config}
-                    }
-                );
+
+                auto resolved = GetFlatResolvedTargetCfg(dep_source->extra_config,
+                                                         {{"arch", arch}, {"platform", platform}, {"config", config}});
 
                 if (dep_source->filters.empty())
                     parse_config_for_target(resolved, {"ALL"});
@@ -199,14 +188,15 @@ namespace re
         // Not built or linked using anything
         target_config["langs"].push_back("cmake");
         target_config["link-with"] = "cmake";
-        
+
         target_config["cmake-meta"] = cmake_meta;
         target_config["cmake-out-build-script"] = (out_dir / "build.ninja").generic_u8string();
 
         target_config["no-auto-include-dirs"] = true;
 
         auto target = std::make_unique<Target>(path, "_", TargetType::Project, target_config);
-        target->name = target->module = fmt::format("cmake.{}.{}", path_hash, canonical_path.filename().generic_u8string());
+        target->name = target->module =
+            fmt::format("cmake.{}.{}", path_hash, canonical_path.filename().generic_u8string());
 
         for (auto kv : cmake_meta["targets"])
         {
@@ -227,7 +217,7 @@ namespace re
 
             if (auto location = kv.second["location"])
                 child_config["cxx-link-deps"].push_back(location.Scalar());
-                
+
             for (auto dir : kv.second["include-dirs"])
             {
                 auto s = dir.Scalar();
@@ -240,7 +230,7 @@ namespace re
             child->parent = target.get();
             target->children.emplace_back(std::move(child));
         }
-        
+
         for (auto kv : cmake_meta["targets"])
         {
             if (auto child = target->FindChild(kv.first.Scalar()))
@@ -258,11 +248,10 @@ namespace re
                     }
                     else
                     {
-                        mOut->Warn(
-                            fg(fmt::color::dim_gray) | fmt::emphasis::bold,
-                            " ! CMakeTargetLoadMiddleware: Target '{}' has unknown CMake dependency '{}' - this may or may not be an error\n",
-                            child->name, dep_str.Scalar()
-                        );
+                        mOut->Warn(fg(fmt::color::dim_gray) | fmt::emphasis::bold,
+                                   " ! CMakeTargetLoadMiddleware: Target '{}' has unknown CMake dependency '{}' - this "
+                                   "may or may not be an error\n",
+                                   child->name, dep_str.Scalar());
                     }
                 }
             }
@@ -270,4 +259,4 @@ namespace re
 
         return target;
     }
-}
+} // namespace re
