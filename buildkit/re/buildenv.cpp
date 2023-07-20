@@ -724,6 +724,7 @@ namespace re
             {
                 auto result = resolver->ResolveTargetDependency(target, dep, mDepsVersionCache);
                 result->config["load-context"] = "dep";
+                result->config["root-dir"] = result->path.generic_u8string();
 
                 auto [scope, context] = target.GetBuildVarScope();
 

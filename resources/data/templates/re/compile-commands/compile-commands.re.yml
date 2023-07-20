@@ -13,7 +13,7 @@ actions:
       command: python
       args:
         [
-          "${root-dir}/compile-commands-gen.py",
-          "${root-dir}/.re-cache/meta/full.json",
-          "${root-dir}/compile_commands.json",
+          "${target-root}/compile-commands-gen.py",
+          "${build-root}/.re-cache/meta/full.json",
+          "${target-root}/compile_commands.json",
         ]
