@@ -28,10 +28,16 @@ namespace re
     {
         if (cache)
         {
-            auto git_ls_remote = [](const re::TargetDependency &, std::string_view url) -> std::vector<std::string> {
+            auto git_ls_remote = [&](const re::TargetDependency &, std::string_view url) -> std::vector<std::string> {
+
                 boost::process::ipstream is; // reading pipe-stream
                 boost::process::child c(boost::process::search_path("git"), "ls-remote", "--refs", "--tags", url.data(),
-                                        boost::process::std_out > is);
+                                        boost::process::std_out > is, boost::process::std_in < stdin);
+
+                while (c.running())
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds{100});
+                }
 
                 c.wait();
 
