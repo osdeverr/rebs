@@ -60,9 +60,33 @@ namespace re
             std::wstring args;
             for (auto &s : cmdline)
             {
-                args.append(fs::path{s}.wstring());
-                args.append(L" ");
+                std::string arg;
+                for (auto& c : s)
+                {
+                    if (c == '\"')
+                    {
+                        arg.push_back('"');
+                        arg.push_back('"');           
+                    }
+                    // else if (c == '\\')
+                    // {
+                    //     arg.push_back('\\');
+                    //     arg.push_back('\\');
+                    // }
+                    else 
+                    {
+                        arg.push_back(c);
+                    }
+                }
+
+
+
+                args.append(L"\"");
+                args.append(fs::path{arg}.wstring());
+                args.append(L"\" ");
             }
+
+            args.pop_back();
 
             STARTUPINFOW info = {sizeof(info)};
             PROCESS_INFORMATION pi;
