@@ -5,6 +5,7 @@
 **/re.user.yml
 
 buildkit/.re-last-version-info
+buildkit/re/version_impl.h
 
 **/.cache/
 **/compile_commands.json
