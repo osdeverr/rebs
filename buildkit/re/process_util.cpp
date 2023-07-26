@@ -12,8 +12,90 @@
 namespace re
 {
 
-// run_target->module, exe_path, run_args, true, false, working_dir
+    // // run_target->module, exe_path, run_args, true, false, working_dir
+    // #ifdef WIN32
+
+    //     static std::set<reproc::process *> gHandledProcesses;
+    //     static bool isCtrlHandlerAttached = false;
+
+    //     BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
+    //     {
+    //         if (fdwCtrlType == CTRL_C_EVENT)
+    //         {
+    //             for (auto proc : gHandledProcesses)
+    //             {
+    //                 proc->terminate();
+    //             }
+
+    //             gHandledProcesses.clear();
+    //         }
+
+    //         return FALSE;
+    //     }
+
+    // #endif
+
+#ifndef WIN32
+
+    int RunProcessOrThrow(std::string_view program_name, const fs::path &path, std::vector<std::string> cmdline,
+                          bool output, bool throw_on_bad_exit, std::optional<fs::path> working_directory)
+    {
+
+        std::string workdir = "";
+        if (working_directory)
+            workdir = working_directory->u8string();
+
+        reproc::options options;
+        options.redirect.parent = output;
+        options.working_directory = !workdir.empty() ? (decltype(options.working_directory))workdir.c_str() : nullptr;
+
+        if (!path.empty())
+            cmdline.insert(cmdline.begin(), path.u8string());
+
+        reproc::process process;
+        auto start_ec = process.start(cmdline, options);
+        if (start_ec)
+        {
+            RE_THROW ProcessRunException("{} failed to start: {} (ec={})", program_name, start_ec.message(),
+                                         start_ec.value());
+        }
+
+        // #ifdef WIN32
+        //         if (!isCtrlHandlerAttached)
+        //         {
+        //             SetConsoleCtrlHandler(CtrlHandler, TRUE);
+        //             isCtrlHandlerAttached = true;
+        //         }
+
+        //         gHandledProcesses.insert(&process);
+        // #endif
+
+        auto [exit_code, end_ec] = process.wait(reproc::infinite);
+
+        // #ifdef WIN32
+        //         gHandledProcesses.erase(&process);
+        // #endif
+
+        // process.read(reproc::stream::out, );
+
+        if (end_ec)
+        {
+            RE_THROW ProcessRunException("{} failed to run: {} (ec={} exit_code={})", program_name, end_ec.message(),
+                                         end_ec.value(), exit_code);
+        }
+
+        if (throw_on_bad_exit && exit_code != 0)
+        {
+            RE_THROW ProcessRunException("{} failed: exit_code={}", program_name, exit_code);
+        }
+
+        return exit_code;
+    }
+
+#endif
+
 #ifdef WIN32
+
     int RunProcessOrThrow(std::string_view program_name, const fs::path &path, std::vector<std::string> cmdline,
                           bool output, bool throw_on_bad_exit, std::optional<fs::path> working_directory)
     {
@@ -54,18 +136,40 @@ namespace re
                 RE_THROW ProcessRunException("{} failed to start: failed to set Win32 job object information",
                                              program_name);
 
-            if (!path.empty())
-                cmdline.insert(cmdline.begin(), path.u8string());
-
-            std::wstring args;
+            std::wstring args = path.wstring();
             for (auto &s : cmdline)
             {
-                args.append(fs::path{s}.wstring());
-                args.append(L" ");
+                std::string arg;
+                for (auto &c : s)
+                {
+                    if (c == '\"')
+                    {
+                        arg.push_back('"');
+                        arg.push_back('"');
+                    }
+                    else
+                    {
+                        arg.push_back(c);
+                    }
+                }
+
+                args.append(L"\"");
+                args.append(fs::path{arg}.wstring());
+                args.append(L"\" ");
             }
+
+            args.pop_back();
 
             STARTUPINFOW info = {sizeof(info)};
             PROCESS_INFORMATION pi;
+
+            fmt::print("[Process] args:\n");
+            for (auto &arg : cmdline)
+            {
+                fmt::print("[arg]: {}\n", arg);
+            }
+
+            fmt::print("[Process] command line: {}\n", fs::path{args}.u8string());
 
             if (::CreateProcessW(NULL, args.data(), nullptr, nullptr, true,
                                  CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB, nullptr,
@@ -107,46 +211,7 @@ namespace re
             throw ex;
         }
     }
-#else
-    int RunProcessOrThrow(std::string_view program_name, const fs::path &path, std::vector<std::string> cmdline,
-                          bool output, bool throw_on_bad_exit, std::optional<fs::path> working_directory)
-    {
 
-        auto working_dir = working_directory->u8string();
-
-        reproc::options options;
-        options.redirect.parent = output;
-        options.working_directory =
-            working_directory ? (decltype(options.working_directory))working_dir.c_str() : nullptr;
-
-        if (!path.empty())
-            cmdline.insert(cmdline.begin(), path.u8string());
-
-        reproc::process process;
-        auto start_ec = process.start(cmdline, options);
-        if (start_ec)
-        {
-            RE_THROW ProcessRunException("{} failed to start: {} (ec={})", program_name, start_ec.message(),
-                                         start_ec.value());
-        }
-
-        auto [exit_code, end_ec] = process.wait(reproc::infinite);
-
-        // process.read(reproc::stream::out, );
-
-        if (end_ec)
-        {
-            RE_THROW ProcessRunException("{} failed to run: {} (ec={} exit_code={})", program_name, end_ec.message(),
-                                         end_ec.value(), exit_code);
-        }
-
-        if (throw_on_bad_exit && exit_code != 0)
-        {
-            RE_THROW ProcessRunException("{} failed: exit_code={}", program_name, exit_code);
-        }
-
-        return exit_code;
-    }
 #endif
 
 } // namespace re
