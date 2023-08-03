@@ -179,7 +179,7 @@ namespace re
                 hThread = pi.hThread;
 
                 if (!AssignProcessToJobObject(hJob, pi.hProcess))
-                    RE_THROW ProcessRunException("{} failed to start: failed to assign Win32 job object", program_name);
+                    RE_THROW ProcessRunException("{} failed to start: failed to assign Win32 job object. WinError: 0x{:X}", program_name, (uint32_t)GetLastError());
 
                 ::ResumeThread(hThread);
                 ::WaitForSingleObject(hProcess, INFINITE);
@@ -197,7 +197,7 @@ namespace re
             }
             else
             {
-                RE_THROW ProcessRunException("{} failed to start: CreateProcessW failed", program_name);
+                RE_THROW ProcessRunException("{} failed to start: CreateProcessW failed. WinError: 0x{:X}", program_name, (uint32_t)GetLastError());
             }
         }
         catch (const ProcessRunException &ex)
