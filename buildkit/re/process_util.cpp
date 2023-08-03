@@ -154,7 +154,7 @@ namespace re
 
         try
         {
-            bool useJob = !detail::IsAutokillByJobEnabled();
+            bool useJob = !detail::IsInJob();
 
             if (useJob)
             {
