@@ -95,6 +95,35 @@ namespace re
 #endif
 
 #ifdef WIN32
+    namespace detail
+    {
+        bool IsInJob()
+        {
+            BOOL result;
+            if (!IsProcessInJob(GetCurrentProcess(), NULL, &result))
+                throw ProcessRunException("IsProcessInJob failed. WinError: 0x{:X}", (uint32_t)GetLastError());
+
+            return result;
+        }
+
+        bool CheckIsAutokillByJobEnabled()
+        {
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {};
+            DWORD len = 0;
+            if (!QueryInformationJobObject(NULL, JobObjectExtendedLimitInformation, &jeli, sizeof(jeli), &len))
+                return false;
+
+            return jeli.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        }
+
+        bool IsAutokillByJobEnabled()
+        {
+            if (!IsInJob())
+                return false;
+
+            return CheckIsAutokillByJobEnabled();
+        }
+    } // namespace detail
 
     int RunProcessOrThrow(std::string_view program_name, const fs::path &path, std::vector<std::string> cmdline,
                           bool output, bool throw_on_bad_exit, std::optional<fs::path> working_directory)
@@ -125,16 +154,21 @@ namespace re
 
         try
         {
-            hJob = CreateJobObjectW(NULL, NULL);
-            if (!hJob)
-                RE_THROW ProcessRunException("{} failed to start: failed to create Win32 job object", program_name);
+            bool useJob = !detail::IsAutokillByJobEnabled();
 
-            JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {0};
-            jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            if (useJob)
+            {
+                hJob = CreateJobObjectW(NULL, NULL);
+                if (!hJob)
+                    RE_THROW ProcessRunException("{} failed to start: failed to create Win32 job object", program_name);
 
-            if (!SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &jeli, sizeof(jeli)))
-                RE_THROW ProcessRunException("{} failed to start: failed to set Win32 job object information",
-                                             program_name);
+                JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {0};
+                jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+                if (!SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &jeli, sizeof(jeli)))
+                    RE_THROW ProcessRunException("{} failed to start: failed to set Win32 job object information",
+                                                 program_name);
+            }
 
             std::wstring args = path.wstring();
             for (auto &s : cmdline)
@@ -171,17 +205,24 @@ namespace re
 
             fmt::print("[Process] command line: {}\n", fs::path{args}.u8string());
 
-            if (::CreateProcessW(NULL, args.data(), nullptr, nullptr, true,
-                                 CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB, nullptr,
+            DWORD dwFlags = useJob ? CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB : NULL;
+
+            if (::CreateProcessW(NULL, args.data(), nullptr, nullptr, true, dwFlags, nullptr,
                                  working_directory ? working_directory->wstring().c_str() : nullptr, &info, &pi))
             {
                 hProcess = pi.hProcess;
                 hThread = pi.hThread;
 
-                if (!AssignProcessToJobObject(hJob, pi.hProcess))
-                    RE_THROW ProcessRunException("{} failed to start: failed to assign Win32 job object. WinError: 0x{:X}", program_name, (uint32_t)GetLastError());
+                if (useJob)
+                {
+                    if (!AssignProcessToJobObject(hJob, pi.hProcess))
+                        RE_THROW ProcessRunException(
+                            "{} failed to start: failed to assign Win32 job object. WinError: 0x{:X}", program_name,
+                            (uint32_t)GetLastError());
 
-                ::ResumeThread(hThread);
+                    ::ResumeThread(hThread);
+                }
+
                 ::WaitForSingleObject(hProcess, INFINITE);
 
                 DWORD exit_code = 0;
@@ -197,7 +238,8 @@ namespace re
             }
             else
             {
-                RE_THROW ProcessRunException("{} failed to start: CreateProcessW failed. WinError: 0x{:X}", program_name, (uint32_t)GetLastError());
+                RE_THROW ProcessRunException("{} failed to start: CreateProcessW failed. WinError: 0x{:X}",
+                                             program_name, (uint32_t)GetLastError());
             }
         }
         catch (const ProcessRunException &ex)
