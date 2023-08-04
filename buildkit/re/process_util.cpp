@@ -154,7 +154,7 @@ namespace re
 
         try
         {
-            bool useJob = !detail::IsInJob();
+            bool useJob = false;
 
             if (useJob)
             {
@@ -205,7 +205,7 @@ namespace re
 
             fmt::print("[Process] command line: {}\n", fs::path{args}.u8string());
 
-            DWORD dwFlags = useJob ? CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB : NULL;
+            DWORD dwFlags = useJob ? (CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB) : NULL;
 
             if (::CreateProcessW(NULL, args.data(), nullptr, nullptr, true, dwFlags, nullptr,
                                  working_directory ? working_directory->wstring().c_str() : nullptr, &info, &pi))
