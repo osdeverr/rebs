@@ -29,17 +29,37 @@ namespace re
         if (cache)
         {
             auto git_ls_remote = [&](const re::TargetDependency &, std::string_view url) -> std::vector<std::string> {
-
                 boost::process::ipstream is; // reading pipe-stream
                 boost::process::child c(boost::process::search_path("git"), "ls-remote", "--refs", "--tags", url.data(),
                                         boost::process::std_out > is, boost::process::std_in < stdin);
 
+                // fmt::print("url: {}\n", url);
+                // fmt::print("while (c.running()) \n");
+
+                bool cwait = true;
+                std::time_t tt = std::time(0);
                 while (c.running())
                 {
-                    std::this_thread::sleep_for(std::chrono::milliseconds{100});
+                    if (std::time(0) - tt >= 3)
+                    {
+                        cwait = false;
+                        // fmt::print("c.running() timeout \n");
+                        break;
+                    }
+
+                    std::this_thread::sleep_for(std::chrono::milliseconds{200});
                 }
 
-                c.wait();
+                
+
+                if (cwait)
+                {
+                    // fmt::print("started c.wait(); \n");
+                    c.wait();
+                    // fmt::print("finished c.wait(); \n");
+                }
+
+                
 
                 std::vector<std::string> result;
 
