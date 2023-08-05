@@ -11,31 +11,30 @@
 
 namespace re
 {
-
     // // run_target->module, exe_path, run_args, true, false, working_dir
-    // #ifdef WIN32
+    #ifdef WIN32
 
-    //     static std::set<reproc::process *> gHandledProcesses;
-    //     static bool isCtrlHandlerAttached = false;
+        static std::set<reproc::process *> gHandledProcesses;
+        static bool isCtrlHandlerAttached = false;
 
-    //     BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
-    //     {
-    //         if (fdwCtrlType == CTRL_C_EVENT)
-    //         {
-    //             for (auto proc : gHandledProcesses)
-    //             {
-    //                 proc->terminate();
-    //             }
+        BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
+        {
+            if (fdwCtrlType == CTRL_C_EVENT)
+            {
+                for (auto proc : gHandledProcesses)
+                {
+                    proc->terminate();
+                }
 
-    //             gHandledProcesses.clear();
-    //         }
+                gHandledProcesses.clear();
+            }
 
-    //         return FALSE;
-    //     }
+            return FALSE;
+        }
 
-    // #endif
+    #endif
 
-#ifndef WIN32
+#if TRUE
 
     int RunProcessOrThrow(std::string_view program_name, const fs::path &path, std::vector<std::string> cmdline,
                           bool output, bool throw_on_bad_exit, std::optional<fs::path> working_directory)
@@ -60,21 +59,21 @@ namespace re
                                          start_ec.value());
         }
 
-        // #ifdef WIN32
-        //         if (!isCtrlHandlerAttached)
-        //         {
-        //             SetConsoleCtrlHandler(CtrlHandler, TRUE);
-        //             isCtrlHandlerAttached = true;
-        //         }
+        #ifdef WIN32
+                if (!isCtrlHandlerAttached)
+                {
+                    SetConsoleCtrlHandler(CtrlHandler, TRUE);
+                    isCtrlHandlerAttached = true;
+                }
 
-        //         gHandledProcesses.insert(&process);
-        // #endif
+                gHandledProcesses.insert(&process);
+        #endif
 
         auto [exit_code, end_ec] = process.wait(reproc::infinite);
 
-        // #ifdef WIN32
-        //         gHandledProcesses.erase(&process);
-        // #endif
+        #ifdef WIN32
+                gHandledProcesses.erase(&process);
+        #endif
 
         // process.read(reproc::stream::out, );
 
@@ -94,7 +93,7 @@ namespace re
 
 #endif
 
-#ifdef WIN32
+#ifdef WIN32_FALSE
     namespace detail
     {
         bool IsInJob()
