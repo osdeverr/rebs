@@ -31,10 +31,7 @@ namespace re
 
             return FALSE;
         }
-
     #endif
-
-#if TRUE
 
     int RunProcessOrThrow(std::string_view program_name, const fs::path &path, std::vector<std::string> cmdline,
                           bool output, bool throw_on_bad_exit, std::optional<fs::path> working_directory)
@@ -75,8 +72,6 @@ namespace re
                 gHandledProcesses.erase(&process);
         #endif
 
-        // process.read(reproc::stream::out, );
-
         if (end_ec)
         {
             RE_THROW ProcessRunException("{} failed to run: {} (ec={} exit_code={})", program_name, end_ec.message(),
@@ -91,168 +86,163 @@ namespace re
         return exit_code;
     }
 
-#endif
+    // namespace detail
+    // {
+    //     bool IsInJob()
+    //     {
+    //         BOOL result;
+    //         if (!IsProcessInJob(GetCurrentProcess(), NULL, &result))
+    //             throw ProcessRunException("IsProcessInJob failed. WinError: 0x{:X}", (uint32_t)GetLastError());
 
-#ifdef WIN32_FALSE
-    namespace detail
-    {
-        bool IsInJob()
-        {
-            BOOL result;
-            if (!IsProcessInJob(GetCurrentProcess(), NULL, &result))
-                throw ProcessRunException("IsProcessInJob failed. WinError: 0x{:X}", (uint32_t)GetLastError());
+    //         return result;
+    //     }
 
-            return result;
-        }
+    //     bool CheckIsAutokillByJobEnabled()
+    //     {
+    //         JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {};
+    //         DWORD len = 0;
+    //         if (!QueryInformationJobObject(NULL, JobObjectExtendedLimitInformation, &jeli, sizeof(jeli), &len))
+    //             return false;
 
-        bool CheckIsAutokillByJobEnabled()
-        {
-            JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {};
-            DWORD len = 0;
-            if (!QueryInformationJobObject(NULL, JobObjectExtendedLimitInformation, &jeli, sizeof(jeli), &len))
-                return false;
+    //         return jeli.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    //     }
 
-            return jeli.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-        }
+    //     bool IsAutokillByJobEnabled()
+    //     {
+    //         if (!IsInJob())
+    //             return false;
 
-        bool IsAutokillByJobEnabled()
-        {
-            if (!IsInJob())
-                return false;
+    //         return CheckIsAutokillByJobEnabled();
+    //     }
+    // } // namespace detail
 
-            return CheckIsAutokillByJobEnabled();
-        }
-    } // namespace detail
+    // int RunProcessOrThrow(std::string_view program_name, const fs::path &path, std::vector<std::string> cmdline,
+    //                       bool output, bool throw_on_bad_exit, std::optional<fs::path> working_directory)
+    // {
+    //     HANDLE hJob = NULL;
+    //     HANDLE hProcess = NULL;
+    //     HANDLE hThread = NULL;
 
-    int RunProcessOrThrow(std::string_view program_name, const fs::path &path, std::vector<std::string> cmdline,
-                          bool output, bool throw_on_bad_exit, std::optional<fs::path> working_directory)
-    {
-        HANDLE hJob = NULL;
-        HANDLE hProcess = NULL;
-        HANDLE hThread = NULL;
+    //     auto finish = [&]() {
+    //         if (hJob)
+    //         {
+    //             ::CloseHandle(hJob);
+    //             hJob = NULL;
+    //         }
 
-        auto finish = [&]() {
-            if (hJob)
-            {
-                ::CloseHandle(hJob);
-                hJob = NULL;
-            }
+    //         if (hProcess)
+    //         {
+    //             ::CloseHandle(hProcess);
+    //             hProcess = NULL;
+    //         }
 
-            if (hProcess)
-            {
-                ::CloseHandle(hProcess);
-                hProcess = NULL;
-            }
+    //         if (hThread)
+    //         {
+    //             ::CloseHandle(hThread);
+    //             hThread = NULL;
+    //         }
+    //     };
 
-            if (hThread)
-            {
-                ::CloseHandle(hThread);
-                hThread = NULL;
-            }
-        };
+    //     try
+    //     {
+    //         bool useJob = false;
 
-        try
-        {
-            bool useJob = false;
+    //         if (useJob)
+    //         {
+    //             hJob = CreateJobObjectW(NULL, NULL);
+    //             if (!hJob)
+    //                 RE_THROW ProcessRunException("{} failed to start: failed to create Win32 job object", program_name);
 
-            if (useJob)
-            {
-                hJob = CreateJobObjectW(NULL, NULL);
-                if (!hJob)
-                    RE_THROW ProcessRunException("{} failed to start: failed to create Win32 job object", program_name);
+    //             JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {0};
+    //             jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 
-                JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {0};
-                jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    //             if (!SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &jeli, sizeof(jeli)))
+    //                 RE_THROW ProcessRunException("{} failed to start: failed to set Win32 job object information",
+    //                                              program_name);
+    //         }
 
-                if (!SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &jeli, sizeof(jeli)))
-                    RE_THROW ProcessRunException("{} failed to start: failed to set Win32 job object information",
-                                                 program_name);
-            }
+    //         std::wstring args = path.wstring();
+    //         for (auto &s : cmdline)
+    //         {
+    //             std::string arg;
+    //             for (auto &c : s)
+    //             {
+    //                 if (c == '\"')
+    //                 {
+    //                     arg.push_back('"');
+    //                     arg.push_back('"');
+    //                 }
+    //                 else
+    //                 {
+    //                     arg.push_back(c);
+    //                 }
+    //             }
 
-            std::wstring args = path.wstring();
-            for (auto &s : cmdline)
-            {
-                std::string arg;
-                for (auto &c : s)
-                {
-                    if (c == '\"')
-                    {
-                        arg.push_back('"');
-                        arg.push_back('"');
-                    }
-                    else
-                    {
-                        arg.push_back(c);
-                    }
-                }
+    //             args.append(L"\"");
+    //             args.append(fs::path{arg}.wstring());
+    //             args.append(L"\" ");
+    //         }
 
-                args.append(L"\"");
-                args.append(fs::path{arg}.wstring());
-                args.append(L"\" ");
-            }
+    //         args.pop_back();
 
-            args.pop_back();
+    //         STARTUPINFOW info = {sizeof(info)};
+    //         PROCESS_INFORMATION pi;
 
-            STARTUPINFOW info = {sizeof(info)};
-            PROCESS_INFORMATION pi;
+    //         fmt::print("[Process] args:\n");
+    //         for (auto &arg : cmdline)
+    //         {
+    //             fmt::print("[arg]: {}\n", arg);
+    //         }
 
-            fmt::print("[Process] args:\n");
-            for (auto &arg : cmdline)
-            {
-                fmt::print("[arg]: {}\n", arg);
-            }
+    //         fmt::print("[Process] command line: {}\n", fs::path{args}.u8string());
 
-            fmt::print("[Process] command line: {}\n", fs::path{args}.u8string());
+    //         DWORD dwFlags = useJob ? (CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB) : NULL;
 
-            DWORD dwFlags = useJob ? (CREATE_SUSPENDED | CREATE_BREAKAWAY_FROM_JOB) : NULL;
+    //         if (::CreateProcessW(NULL, args.data(), nullptr, nullptr, true, dwFlags, nullptr,
+    //                              working_directory ? working_directory->wstring().c_str() : nullptr, &info, &pi))
+    //         {
+    //             hProcess = pi.hProcess;
+    //             hThread = pi.hThread;
 
-            if (::CreateProcessW(NULL, args.data(), nullptr, nullptr, true, dwFlags, nullptr,
-                                 working_directory ? working_directory->wstring().c_str() : nullptr, &info, &pi))
-            {
-                hProcess = pi.hProcess;
-                hThread = pi.hThread;
+    //             if (useJob)
+    //             {
+    //                 if (!AssignProcessToJobObject(hJob, pi.hProcess))
+    //                     RE_THROW ProcessRunException(
+    //                         "{} failed to start: failed to assign Win32 job object. WinError: 0x{:X}", program_name,
+    //                         (uint32_t)GetLastError());
 
-                if (useJob)
-                {
-                    if (!AssignProcessToJobObject(hJob, pi.hProcess))
-                        RE_THROW ProcessRunException(
-                            "{} failed to start: failed to assign Win32 job object. WinError: 0x{:X}", program_name,
-                            (uint32_t)GetLastError());
+    //                 ::ResumeThread(hThread);
+    //             }
 
-                    ::ResumeThread(hThread);
-                }
+    //             ::WaitForSingleObject(hProcess, INFINITE);
 
-                ::WaitForSingleObject(hProcess, INFINITE);
+    //             DWORD exit_code = 0;
+    //             ::GetExitCodeProcess(hProcess, &exit_code);
 
-                DWORD exit_code = 0;
-                ::GetExitCodeProcess(hProcess, &exit_code);
+    //             if (throw_on_bad_exit && exit_code != 0)
+    //             {
+    //                 RE_THROW ProcessRunException("{} failed: exit_code={}", program_name, exit_code);
+    //             }
 
-                if (throw_on_bad_exit && exit_code != 0)
-                {
-                    RE_THROW ProcessRunException("{} failed: exit_code={}", program_name, exit_code);
-                }
-
-                finish();
-                return (int)exit_code;
-            }
-            else
-            {
-                RE_THROW ProcessRunException("{} failed to start: CreateProcessW failed. WinError: 0x{:X}",
-                                             program_name, (uint32_t)GetLastError());
-            }
-        }
-        catch (const ProcessRunException &ex)
-        {
-            finish();
-            throw ex;
-        }
-        catch (const std::exception &ex)
-        {
-            finish();
-            throw ex;
-        }
-    }
-
-#endif
+    //             finish();
+    //             return (int)exit_code;
+    //         }
+    //         else
+    //         {
+    //             RE_THROW ProcessRunException("{} failed to start: CreateProcessW failed. WinError: 0x{:X}",
+    //                                          program_name, (uint32_t)GetLastError());
+    //         }
+    //     }
+    //     catch (const ProcessRunException &ex)
+    //     {
+    //         finish();
+    //         throw ex;
+    //     }
+    //     catch (const std::exception &ex)
+    //     {
+    //         finish();
+    //         throw ex;
+    //     }
+    // }
 
 } // namespace re
