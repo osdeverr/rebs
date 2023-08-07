@@ -39,3 +39,8 @@ platform.linux|osx:
   cxx-global-link-deps:
     - dl
     - pthread
+
+cxxenv.clang-cl:
+  cxx-build-flags:
+    compiler:
+      - "-Wno-enum-constexpr-conversion"
