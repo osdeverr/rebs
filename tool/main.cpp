@@ -19,13 +19,25 @@
 #include <iostream>
 
 #include <boost/algorithm/string.hpp>
+// #include <filesystem>
 
 int main(int argc, const char **argv)
 {
 #ifdef WIN32
+    std::setlocale(LC_ALL, "en-US.utf8");
+    
+    SetConsoleCP(65001);
     SetConsoleOutputCP(65001);
     SetThreadUILanguage(LANG_ENGLISH);
+    SetThreadLocale(MAKELCID(LANG_ENGLISH, SORT_DEFAULT));
+
 #endif
+
+    // auto code = __std_fs_code_page();
+    // __std_fs_code_page();
+    // sizeof(code);
+
+    // printf("codepage: %d\n", code);
 
     re::DefaultBuildContext context;
 
@@ -716,28 +728,38 @@ int main(int argc, const char **argv)
     }
     catch (const std::exception &e)
     {
-        std::string message = "";
-
-        const re::ExceptionCallStack *st = boost::get_error_info<re::TracedError>(e);
-        if (st)
+        try
         {
-            int i = 0;
+            std::string message = "";
 
-            for (auto &f : *st)
+            const re::ExceptionCallStack *st = boost::get_error_info<re::TracedError>(e);
+            if (st)
             {
-                auto name = f.function_name();
-                auto path = re::fs::path{f.file_name()};
+                int i = 0;
 
-                // if (name.find("re::") != name.npos)
-                message.append(fmt::format("  at {} @ {}:{}\n", name, path.filename().u8string(), f.line()));
+                for (auto &f : *st)
+                {
+                    auto name = f.function_name();
+                    auto path = re::fs::path{f.file_name()};
+
+                    // if (name.find("re::") != name.npos)
+                    message.append(fmt::format("  at {} @ {}:{}\n", name, path.filename().u8string(), f.line()));
+                }
             }
+
+            const auto kErrorStyle = fmt::emphasis::bold | fg(fmt::color::crimson); // bg(fmt::color::orange_red);
+
+            context.Error({}, "\n");
+            context.Error(kErrorStyle, "error: {}\n(type: {})\n{}", e.what(), typeid(e).name(), message);
+            context.Error({}, "\n\n");
         }
-
-        const auto kErrorStyle = fmt::emphasis::bold | fg(fmt::color::crimson); // bg(fmt::color::orange_red);
-
-        context.Error({}, "\n");
-        context.Error(kErrorStyle, "error: {}\n(type: {})\n{}", e.what(), typeid(e).name(), message);
-        context.Error({}, "\n\n");
+        catch (const std::exception &ie)
+        {
+            std::string str = e.what();
+            printf("ex: %s\n\n", str.c_str());
+            context.Error({}, "Exception occurred while logging exception: {}\n", ie.what());
+            context.Error({}, "type: {}\n\n", typeid(e).name());
+        }
 
         /*
                 fmt::print(

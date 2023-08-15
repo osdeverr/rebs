@@ -1,0 +1,16 @@
+#
+# FROM TEMPLATE: k2/vscode-launch
+#
+# This template will add launch.json generation to your Re target.
+# This lets tools such as clangd pick up the target and learn its properties.
+#
+
+load-context.standalone:
+  actions:
+    - run:
+        on: meta-available
+        command: python
+        args:
+          [
+            "${root-dir}/re-vscode-launch.py",
+          ]
