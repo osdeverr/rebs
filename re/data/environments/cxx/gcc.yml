@@ -54,6 +54,7 @@ platform-definitions:
 #
 templates:
     cxx-standard: "-std=c++{version}"
+    c-standard: "-std=c{version}"
 
     compiler-cmdline: "{flags} -c {input} -o {output}"
     linker-cmdline: "{flags} -o {output} {input} {link_deps} {global_link_deps}"
