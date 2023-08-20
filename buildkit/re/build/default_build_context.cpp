@@ -7,7 +7,7 @@
 #include "re/yaml_merge.h"
 #include "yaml-cpp/emitter.h"
 
-#include <filesystem>
+#include <re/fs.h>
 #include <re/langs/cxx/cxx_lang_provider.h>
 
 #include <re/langs/cxx/features/cpp2_translation.h>
