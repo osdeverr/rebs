@@ -2,10 +2,10 @@
 #include "re/buildenv.h"
 #include "re/vars.h"
 
-#include <filesystem>
 #include <fmt/color.h>
 #include <fmt/format.h>
 
+#include <re/fs.h>
 #include <re/debug.h>
 #include <re/error.h>
 #include <re/process_util.h>
