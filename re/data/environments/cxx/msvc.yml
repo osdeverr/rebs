@@ -73,6 +73,9 @@ templates:
     compile-as-c: "/TC"
     compile-as-cpp: "/TP"
 
+static-lib-prefix: ""
+force-unix-link-behavior: false
+
 #
 # Default file extensions for build outputs.
 # Can be overridden using the 'output-extension' property in targets.

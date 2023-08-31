@@ -63,7 +63,7 @@ templates:
     cxx-module-output: "" # "/ifcOutput {directory}"
     cxx-module-lookup-dir: "" # "/ifcSearchDir {directory}"
     cxx-include-dir: "-I\"{directory}\""
-    cxx-lib-dir: "-D\"{directory}\""
+    cxx-lib-dir: "-L\"{directory}\""
 
     cxx-compile-definition: "-D{name}={value}"
     cxx-compile-definition-no-value: "-D{name}"
@@ -72,6 +72,9 @@ templates:
     
     compile-as-c: "-x c"
     compile-as-cpp: "-x cpp"
+
+static-lib-prefix: lib
+force-unix-link-behavior: true
 
 #
 # Default file extensions for build outputs.
