@@ -62,7 +62,7 @@ namespace re
 			}
 		}
 
-		inline void AppendLinkFlags(const Target& target, const TargetConfig& cfg, const std::string& cxx_lib_dir_tpl, std::vector<std::string>& out_flags, std::vector<std::string>& out_deps, const LocalVarScope& vars)
+		inline void AppendLinkFlags(const Target& target, const TargetConfig& cfg, const std::string& cxx_lib_dir_tpl, std::vector<std::string>& out_flags, std::vector<std::string>& out_deps, const LocalVarScope& vars, bool is_unix_link, std::vector<std::string>& out_unix_deps)
 		{
 			auto link_lib_dirs = cfg["cxx-lib-dirs"];
 
@@ -79,7 +79,27 @@ namespace re
 			auto extra_link_deps = cfg["cxx-link-deps"];
 
 			for (const auto& dep : extra_link_deps)
-				out_deps.push_back(fmt::format("\"{}\"", vars.Resolve(dep.as<std::string>())));
+            {
+                auto path = vars.Resolve(dep.as<std::string>());
+                auto fspath = fs::path{path};
+                
+                fmt::print("{} {} {}\n", fspath.filename().u8string().substr(0, 3), is_unix_link, TargetTypeToString(target.type));
+                
+                if (fspath.filename().u8string().substr(0, 3) == "lib" && is_unix_link)
+                {
+                    
+                    out_flags.push_back(fmt::format(
+                                                           cxx_lib_dir_tpl,
+                                                           fmt::arg("directory", fspath.parent_path().u8string())
+                                                           ));
+                    
+                    out_unix_deps.push_back(fmt::format("-l{}", fspath.filename().stem().u8string().substr(3)));
+                }
+                else
+                {
+                    out_deps.push_back(fmt::format("\"{}\"", vars.Resolve(dep.as<std::string>())));
+                }
+            }
 		}
 
 	}
@@ -240,6 +260,8 @@ namespace re
 		std::unordered_set<std::string> include_dirs;
 
 		std::vector<std::string> global_link_deps;
+        
+        bool is_unix_link = target.type != TargetType::StaticLibrary && env["force-unix-link-behavior"] && env["force-unix-link-behavior"].as<bool>() == true;
 
 		for (auto& dep : include_deps)
 		{
@@ -273,11 +295,23 @@ namespace re
 
 			if (dep->type == TargetType::StaticLibrary && has_any_eligible_sources)
 			{
-				deps_list.push_back("\"$cxx_artifact_" + res_path + "\"");
+                if (is_unix_link)
+                {
+                    extra_link_flags.push_back(fmt::format(
+                                                    cxx_lib_dir,
+                                                    fmt::arg("directory", "$cxx_artifact_dir_" + res_path)
+                                                    ));
+                    
+                    global_link_deps.push_back(fmt::format("-l{}", dep->module));
+                }
+                else
+                {
+                    deps_list.push_back("\"$cxx_artifact_" + res_path + "\"");
+                }
 				// fmt::print(" * DEP for {} - {}\n", target.module, dep->module);
 			}
 
-			AppendLinkFlags(*dep, config, cxx_lib_dir, extra_link_flags, deps_list, vars);
+			AppendLinkFlags(*dep, config, cxx_lib_dir, extra_link_flags, deps_list, vars, is_unix_link, global_link_deps);
 
 			for (const auto &dep : config["cxx-global-link-deps"])
 				global_link_deps.push_back(fmt::format("-l{}", vars.Resolve(dep.as<std::string>())));
@@ -544,12 +578,17 @@ namespace re
 		const auto& default_extensions = env["default-extensions"];
 
 		auto artifact_name = target.GetCfgEntry<std::string>("artifact-name").value_or(target.module);
+        
+        if (target.type == TargetType::StaticLibrary && env["force-unix-link-behavior"] && env["force-unix-link-behavior"].as<bool>() == true)
+            artifact_name = env["static-lib-prefix"].Scalar() + artifact_name;
+        
+        auto artifact_dir = "$builddir/" + fmt::format("$re_target_artifact_directory_{}", path);
 
 		BuildTarget link_target;
 
 		link_target.type = BuildTargetType::Artifact;
 		link_target.pSourceTarget = &target;
-		link_target.out = "$builddir/" + fmt::format("$re_target_artifact_directory_{}", path) + "/" + artifact_name;
+		link_target.out = artifact_dir + "/" + artifact_name;
 		link_target.rule = "cxx_link_" + path;
 
 		std::string extension = "";
@@ -612,8 +651,9 @@ namespace re
 		alias_target.out = target.module;
 		alias_target.rule = "phony";
 
-		desc.vars["cxx_artifact_" + path] = link_target.out;
-
+        desc.vars["cxx_artifact_" + path] = link_target.out;
+        desc.vars["cxx_artifact_dir_" + path] = artifact_dir;
+        
 		desc.targets.emplace_back(std::move(link_target));
 		desc.targets.emplace_back(std::move(alias_target));
 	}
