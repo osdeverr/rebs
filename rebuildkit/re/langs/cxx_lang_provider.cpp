@@ -293,25 +293,28 @@ namespace re
 			auto res_path = GetEscapedModulePath(*dep);
 			bool has_any_eligible_sources = (desc.state["re_cxx_target_has_objects_" + res_path] == "1");
 
-			if (dep->type == TargetType::StaticLibrary && has_any_eligible_sources)
-			{
-                if (is_unix_link)
+            if (target.type != TargetType::StaticLibrary)
+            {
+                if (dep->type == TargetType::StaticLibrary && has_any_eligible_sources)
                 {
-                    extra_link_flags.push_back(fmt::format(
-                                                    cxx_lib_dir,
-                                                    fmt::arg("directory", "$cxx_artifact_dir_" + res_path)
-                                                    ));
+                    if (is_unix_link)
+                    {
+                        extra_link_flags.push_back(fmt::format(
+                                                               cxx_lib_dir,
+                                                               fmt::arg("directory", "$cxx_artifact_dir_" + res_path)
+                                                               ));
                     
-                    global_link_deps.push_back(fmt::format("-l{}", dep->module));
+                        global_link_deps.push_back(fmt::format("-l{}", dep->module));
+                    }
+                    else
+                    {
+                        deps_list.push_back("\"$cxx_artifact_" + res_path + "\"");
+                    }
+                    // fmt::print(" * DEP for {} - {}\n", target.module, dep->module);
                 }
-                else
-                {
-                    deps_list.push_back("\"$cxx_artifact_" + res_path + "\"");
-                }
-				// fmt::print(" * DEP for {} - {}\n", target.module, dep->module);
-			}
 
-			AppendLinkFlags(*dep, config, cxx_lib_dir, extra_link_flags, deps_list, vars, is_unix_link, global_link_deps);
+                AppendLinkFlags(*dep, config, cxx_lib_dir, extra_link_flags, deps_list, vars, is_unix_link, global_link_deps);
+            }
 
 			for (const auto &dep : config["cxx-global-link-deps"])
 				global_link_deps.push_back(fmt::format("-l{}", vars.Resolve(dep.as<std::string>())));
