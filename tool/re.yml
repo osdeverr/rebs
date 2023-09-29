@@ -26,3 +26,9 @@ platform.windows:
         to-file:
           - ${re-dev-deploy-path}/re-dev.exe
 
+  tasks:
+    attach-tool-main-manifest:
+      run: always
+      post-build:
+        - shell-run:
+            command: "mt.exe -nologo -manifest \"${root-dir}/tool/main.manifest\" -outputresource:\"${artifact-dir}/${build-artifact};#1\""

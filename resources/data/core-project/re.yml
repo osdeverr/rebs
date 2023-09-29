@@ -57,10 +57,10 @@ cxx-build-flags:
     archiver:
         - ${platform-default-flags-archiver}
 
-cxxenv.msvc:
-    cxx-standard: latest
 cxxenv.gcc|clang:
     cxx-standard: 2a
+cxxenv.msvc|clang-cl:
+    cxx-standard: latest
 
 cxxenv.clang.msvc:
     arch.x86:
@@ -113,7 +113,7 @@ config.release.debinfo:
     cmake-build-type: RelWithDebInfo
 
 # Thanks K2Re8 for the right flags!
-cxxenv.msvc:
+cxxenv.msvc|clang-cl:
     config.release:
         cxx-build-options:
             optimization: max-speed
