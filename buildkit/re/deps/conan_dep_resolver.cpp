@@ -166,6 +166,16 @@ namespace re
             for (auto lib_path : data["lib_paths"])
                 config["cxx-lib-dirs"].push_back(lib_path.Scalar());
 
+            for (auto bin_path : data["bin_paths"])
+            {
+                YAML::Node entry{YAML::NodeType::Map};
+
+                entry["copy-to-deps"]["from"] = bin_path.Scalar();
+                entry["copy-to-deps"]["to"] = ".";
+
+                config["actions"].push_back(entry);
+            }
+
             for (auto lib : data["libs"])
                 config["cxx-link-deps"].push_back(lib.Scalar() + conan_lib_suffix);
 
