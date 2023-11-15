@@ -69,8 +69,12 @@ namespace re
 
                 fs::create_directories(out_path.parent_path());
 
-                re::RunProcessOrThrow(step_name ? step_name.Scalar() : step_suffix.substr(1), {}, command, true, true);
-
+                if (target.build_var_scope->GetVar("building-sources").value_or("false") == "true" ||
+                    target.build_var_scope->GetVar("do-source-translation").value_or("false") == "true")
+                {
+                    re::RunProcessOrThrow(step_name ? step_name.Scalar() : step_suffix.substr(1), {}, command, true, true);
+                }
+                    
                 // fmt::print("translating {} -> {}\n", source.path.generic_u8string(), out_path.generic_u8string());
 
                 target.unused_sources.push_back(source);
