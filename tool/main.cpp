@@ -106,6 +106,8 @@ int main(int argc, const char **argv)
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
 
+            context.SetVar("building-sources", "true");
+
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
 
@@ -198,6 +200,8 @@ int main(int argc, const char **argv)
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
+
+                        context.SetVar("building-sources", "true");
 
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
@@ -414,6 +418,8 @@ int main(int argc, const char **argv)
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
 
+                        context.SetVar("building-sources", "true");
+
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
 
@@ -601,6 +607,8 @@ int main(int argc, const char **argv)
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
+
+            context.SetVar("building-sources", "true");
 
             auto root = &context.LoadTarget(path);
             apply_cfg_overrides(root);
