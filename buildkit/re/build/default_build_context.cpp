@@ -366,6 +366,8 @@ namespace re
             if (auto artifact = dep->build_var_scope->GetVarNoRecurse("build-artifact"))
                 meta["main-artifact"] = (full_artifact_dir / *artifact).u8string();
 
+            meta["is-external-dep"] = module_name_scope.GetVar("is-external-dep").value_or("false") == "true";
+
             auto &unused_sources = (meta["unused-sources"] = nlohmann::json::array());
 
             for (auto &src : dep->unused_sources)

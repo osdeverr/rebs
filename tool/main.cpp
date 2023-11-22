@@ -25,7 +25,7 @@ int main(int argc, const char **argv)
 {
 #ifdef WIN32
     std::setlocale(LC_ALL, "en-US.utf8");
-    
+
     SetConsoleCP(65001);
     SetConsoleOutputCP(65001);
     SetThreadUILanguage(LANG_ENGLISH);
@@ -201,7 +201,7 @@ int main(int argc, const char **argv)
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
 
-                        context.SetVar("building-sources", "true");
+            context.SetVar("building-sources", "true");
 
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
@@ -409,6 +409,46 @@ int main(int argc, const char **argv)
 
             context.GetBuildEnv()->DebugShowVisualBuildInfo();
         }
+        else if (args[1] == "list" || args[1] == "ls")
+        {
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
+
+            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
+            context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
+
+            auto &target = context.LoadTarget(path);
+            apply_cfg_overrides(&target);
+
+            context.GenerateBuildDescForTarget(target);
+
+            const auto kStyleTargetName = fg(fmt::color::sky_blue);
+            const auto kStyleTargetType = fg(fmt::color::dim_gray);
+
+            auto targets = context.GetBuildEnv()->GetTargetsInDependencyOrder();
+
+            if (context.GetVar("list-deps").value_or("false") != "true")
+            {
+                targets.erase(std::remove_if(targets.begin(), targets.end(),
+                                             [&context](auto pTarget) {
+                                                 return !pTarget->build_var_scope ||
+                                                        pTarget->resolved_config["is-external-dep"].Scalar() == "true";
+                                             }),
+                              targets.end());
+            }
+
+            context.Info(fmt::emphasis::bold, "\nTargets loaded ({}):\n", targets.size());
+
+            for (auto &pTarget : targets)
+            {
+                context.Info({}, " - ");
+                context.Info(kStyleTargetName | fmt::emphasis::bold, "{}", pTarget->module);
+                context.Info(kStyleTargetType, " {}\n", TargetTypeToString(pTarget->type));
+            }
+
+            context.Info(kStyleTargetType, "\n");
+        }
         else if (args[1] == "run")
         {
             auto path = context.GetVar(kBuildPathVar).value_or(".");
@@ -418,7 +458,7 @@ int main(int argc, const char **argv)
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
 
-                        context.SetVar("building-sources", "true");
+            context.SetVar("building-sources", "true");
 
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
