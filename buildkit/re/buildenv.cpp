@@ -5,9 +5,9 @@
 #include <fmt/color.h>
 #include <fmt/format.h>
 
-#include <re/fs.h>
 #include <re/debug.h>
 #include <re/error.h>
+#include <re/fs.h>
 #include <re/process_util.h>
 #include <re/target_cfg_utils.h>
 #include <re/target_feature.h>
@@ -725,6 +725,10 @@ namespace re
                 auto result = resolver->ResolveTargetDependency(target, dep, mDepsVersionCache);
                 result->config["load-context"] = "dep";
                 result->config["root-dir"] = result->path.generic_u8string();
+                result->config["is-external-dep"] = "true";
+
+                if (result->resolved_config)
+                    result->resolved_config["is-external-dep"] = "true";
 
                 auto [scope, context] = target.GetBuildVarScope();
 

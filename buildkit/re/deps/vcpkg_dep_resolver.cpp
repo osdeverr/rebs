@@ -118,6 +118,8 @@ namespace re
             config["cxx-include-dirs"].push_back((path / "include").u8string());
         }
 
+        config["is-external-dep"] = "true";
+
         // Support custom configurations
         if (fs::exists(path / re_config))
             path /= re_config;

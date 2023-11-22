@@ -159,6 +159,7 @@ namespace re
 
             config["name"] = name;
             config["version"] = version;
+            config["is-external-dep"] = "true";
 
             for (auto inc_path : data["include_paths"])
                 config["cxx-include-dirs"].push_back(inc_path.Scalar());
@@ -207,6 +208,8 @@ namespace re
         };
 
         YAML::Node config{YAML::NodeType::Map};
+
+        config["is-external-dep"] = "true";
 
         auto package_target = std::make_unique<Target>(pkg_cached, "conan." + dep.name + "." + dep.version,
                                                        TargetType::StaticLibrary, config);
