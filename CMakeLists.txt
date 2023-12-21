@@ -6,7 +6,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(FetchContent)
 FetchContent_Declare(vcpkg
     GIT_REPOSITORY https://github.com/microsoft/vcpkg/
-    GIT_TAG 2022.11.14
+    GIT_TAG 2023.12.12
 )
 FetchContent_MakeAvailable(vcpkg)
 
