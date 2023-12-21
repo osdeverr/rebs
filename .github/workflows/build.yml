@@ -40,7 +40,7 @@ jobs:
         with:
           path: |
             ./re-bootstrap-source/out/_deps
-          key: ${{ runner.os }}-vcpkg-v1
+          key: ${{ runner.os }}-vcpkg-v2
 
       - name: Set up Ninja
         uses: seanmiddleditch/gha-setup-ninja@master
