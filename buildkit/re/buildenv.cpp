@@ -896,7 +896,7 @@ namespace re
             {
                 if (desc)
                 {
-                    for (auto &dep : GetSingleTargetDepSet(desc->pRootTarget))
+                    for (auto &dep : GetSingleTargetDepSet(desc->pBuildTarget))
                         RunStructuredTask(dep, desc, dep_task.Scalar(), stage);
                 }
                 else

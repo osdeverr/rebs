@@ -209,7 +209,7 @@ int main(int argc, const char **argv)
             auto desc = context.GenerateBuildDescForTarget(target);
             auto env = context.GetBuildEnv();
 
-            auto deps = env->GetSingleTargetDepSet(desc.pRootTarget);
+            auto deps = env->GetSingleTargetDepSet(desc.pBuildTarget);
 
             auto action_type = args[2];
 
@@ -523,7 +523,7 @@ int main(int argc, const char **argv)
 
                 if (choices.empty())
                 {
-                    throw re::TargetException("TargetRunException", desc.pRootTarget, "Nothing to run");
+                    throw re::TargetException("TargetRunException", desc.pBuildTarget, "Nothing to run");
                 }
                 else if (choices.size() == 1)
                 {
@@ -532,7 +532,7 @@ int main(int argc, const char **argv)
                 else
                 {
                     if (context.GetVar("no-run-choice").value_or("false") == "true")
-                        throw re::TargetException("TargetRunException", desc.pRootTarget,
+                        throw re::TargetException("TargetRunException", desc.pBuildTarget,
                                                   "Artifact not specified and can't be interactively selected");
 
                     context.Info(style, "\n * This project has {} executable targets to run. Please choose one:\n\n",
@@ -560,7 +560,7 @@ int main(int argc, const char **argv)
             if (run_target->type != re::TargetType::Executable)
                 throw re::TargetException("TargetRunException", nullptr, "Only executable targets can be run");
 
-            auto desc = context.GenerateBuildDescForTarget(*run_target);
+            auto desc = context.GenerateBuildDescForTarget(target, run_target);
             context.BuildTarget(desc);
 
             auto it = desc.artifacts.find(run_target);
@@ -689,7 +689,7 @@ int main(int argc, const char **argv)
                     context.Info(fg(fmt::color::blue_violet) | fmt::emphasis::bold,
                                  "\n ! Partial build - Processing target '{}'\n\n", temp->module);
 
-                    auto desc = context.GenerateBuildDescForTarget(*temp);
+                    auto desc = context.GenerateBuildDescForTarget(*root, temp);
                     context.BuildTarget(desc);
 
                     // context.Info({}, "\n");

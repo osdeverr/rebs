@@ -237,14 +237,15 @@ namespace re
         }
     }
 
-    NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTarget(Target &target)
+    NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTarget(Target &target, Target *build_target)
     {
         re::PerfProfile _{fmt::format(R"({}("{}"))", __FUNCTION__, target.module)};
 
         NinjaBuildDesc desc;
         desc.pRootTarget = &target;
+        desc.pBuildTarget = build_target ? build_target : desc.pRootTarget;
 
-        // ResolveAllTargetDependencies(desc.pRootTarget);
+        // ResolveAllTargetDependencies(desc.pBuildTarget);
 
         auto version_cache_path = target.root->path / "re-deps-lock.json";
 
@@ -273,7 +274,7 @@ namespace re
             mEnv->InitializeTargetLinkEnvWithDeps(dep, desc);
         }
 
-        auto deps = mEnv->GetSingleTargetDepSet(desc.pRootTarget);
+        auto deps = mEnv->GetSingleTargetDepSet(desc.pBuildTarget);
 
         for (auto dep : deps)
         {
@@ -291,7 +292,7 @@ namespace re
             }
         }
 
-        deps = mEnv->GetSingleTargetDepSet(desc.pRootTarget);
+        deps = mEnv->GetSingleTargetDepSet(desc.pBuildTarget);
 
         mEnv->PopulateBuildDescWithDeps(&target, desc);
 
@@ -426,7 +427,7 @@ namespace re
         file << desc.meta.dump();
         file.close();
 
-        for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+        for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pBuildTarget))
         {
             mEnv->RunActionsCategorized(dep, &desc, "meta-available");
             mEnv->RunAutomaticStructuredTasks(dep, &desc, "meta-available");
@@ -450,7 +451,7 @@ namespace re
 
         Info(style, " - Running pre-build actions\n");
 
-        for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+        for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pBuildTarget))
         {
             for (auto &[key, object] : dep->features)
                 object->ProcessTargetPreBuild(*dep);
@@ -462,14 +463,14 @@ namespace re
         Info(style, " - Building...\n\n");
 
         for (auto &subninja : desc.subninjas)
-            RunNinjaBuild(subninja, desc.pRootTarget);
+            RunNinjaBuild(subninja, desc.pBuildTarget);
 
-        auto result = RunNinjaBuild(desc.out_dir / "build.ninja", desc.pRootTarget);
+        auto result = RunNinjaBuild(desc.out_dir / "build.ninja", desc.pBuildTarget);
 
         Info(style, "\n - Running post-build actions\n\n");
 
         // Running post-build actions
-        for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pRootTarget))
+        for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pBuildTarget))
         {
             mEnv->RunActionsCategorized(dep, &desc, "post-build");
             mEnv->RunAutomaticStructuredTasks(dep, &desc, "post-build");
@@ -644,7 +645,7 @@ namespace re
 
     void DefaultBuildContext::InstallTarget(const NinjaBuildDesc &desc)
     {
-        mEnv->RunInstallActions(desc.pRootTarget, desc);
+        mEnv->RunInstallActions(desc.pBuildTarget, desc);
     }
 
     void DefaultBuildContext::DoPrint(UserOutputLevel level, fmt::text_style style, std::string_view text)
