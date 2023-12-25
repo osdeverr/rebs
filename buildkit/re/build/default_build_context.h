@@ -42,7 +42,7 @@ namespace re
 
         void ResolveAllTargetDependencies(Target *pRootTarget);
 
-        NinjaBuildDesc GenerateBuildDescForTarget(Target &target, Target *build_target = nullptr);
+        NinjaBuildDesc GenerateBuildDescForTarget(Target &root_target, Target *build_target = nullptr);
         NinjaBuildDesc GenerateBuildDescForTargetInDir(const fs::path &path);
 
         void SaveTargetMeta(const NinjaBuildDesc &desc);
