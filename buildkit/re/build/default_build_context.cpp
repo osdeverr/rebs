@@ -237,13 +237,16 @@ namespace re
         }
     }
 
-    NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTarget(Target &target, Target *build_target)
+    NinjaBuildDesc DefaultBuildContext::GenerateBuildDescForTarget(Target &root_target, Target *build_target)
     {
-        re::PerfProfile _{fmt::format(R"({}("{}"))", __FUNCTION__, target.module)};
+        re::PerfProfile _{fmt::format(R"({}("{}", "{}"))", __FUNCTION__, root_target.module,
+                                      build_target ? build_target->module : root_target.module)};
 
         NinjaBuildDesc desc;
-        desc.pRootTarget = &target;
+        desc.pRootTarget = &root_target;
         desc.pBuildTarget = build_target ? build_target : desc.pRootTarget;
+
+        auto &target = *desc.pBuildTarget;
 
         // ResolveAllTargetDependencies(desc.pBuildTarget);
 
