@@ -268,7 +268,7 @@ namespace re
 
         fs::remove_all(target.root->path / ".re-cache" / "header-projection");
 
-        for (auto dep : mEnv->GetSingleTargetLocalDepSet(&target))
+        for (auto dep : mEnv->GetSingleTargetLocalDepSet(desc.pBuildTarget))
         {
             dep->var_parent = &mVars;
             mEnv->InitializeTargetLinkEnvWithDeps(dep, desc);
@@ -294,7 +294,7 @@ namespace re
 
         deps = mEnv->GetSingleTargetDepSet(desc.pBuildTarget);
 
-        mEnv->PopulateBuildDescWithDeps(&target, desc);
+        mEnv->PopulateBuildDescWithDeps(desc.pBuildTarget, desc);
 
         auto &vars = target.build_var_scope.value();
 
