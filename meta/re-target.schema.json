@@ -1,361 +1,477 @@
 {
-    "$schema": "http://json-schema.org/draft-04/hyper-schema",
-    "id": "https://raw.githubusercontent.com/osdeverr/rebs/main/meta/re-target.schema.json",
-    "title": "Re Config",
-    "description": "A build target config file for ReBS",
-
-    "definitions": {
-      "base_config": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["project", "executable", "static-library", "shared-library", "custom"],
-            "title": "Target Type",
-            "description": "Specifies the target's build type. (project|executable|static-library|shared-library|custom)"
-          },
-          "name": {
-            "type": "string",
-            "title": "Target Name",
-            "description": "Specifies the target's name."
-          }
+  "$schema": "http://json-schema.org/draft-04/hyper-schema",
+  "id": "https://raw.githubusercontent.com/osdeverr/rebs/main/meta/re-target.schema.json",
+  "title": "Re Config",
+  "description": "A build target config file for ReBS",
+  "definitions": {
+    "base_config": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "project",
+            "executable",
+            "static-library",
+            "shared-library",
+            "custom"
+          ],
+          "title": "Target Type",
+          "description": "Specifies the target's build type. (project|executable|static-library|shared-library|custom)"
         },
-
-        "required": ["type", "name"]
+        "name": {
+          "type": "string",
+          "title": "Target Name",
+          "description": "Specifies the target's name."
+        }
       },
-      "dependency_entry": {
-        "anyOf": [
-          {
-            "type": "string",
-            "title": "Target Dependency",
-            "description": "Format: (namespace:)<name>(@tag) ([partial dep list...])"
-          },
-          {
-            "type": "object",
-            "title": "Target Dependency (eCfg)",
-            "description": "Format: (namespace:)<name>(@tag) ([partial dep list...]): {custom config entires...}",
-            "allOf": [
-              { "$ref": "#/definitions/extended_fields" },
-              { "$ref": "#/definitions/cxx_config_options" },
-              { "$ref": "#/definitions/dynamic_section" }
-            ]
-          }
-        ]
-      },
-      "string_or_string_array": {
-        "anyOf": [
-          {"type": "string"},
-          {"type": "array", "items": {"type": "string"}}
-        ]
-      },
-      "action_category_definition": {
-        "anyOf": [{ "$ref": "#/definitions/string_or_string_array" }],
-        "title": "Action Category",
-        "description": "Determines when the action is supposed to run. (string or string array)"
-      },
-      "action_entry": {
-        "type": "object",
-        "title": "Target Action",
-        "properties": {
-          "install": {
-            "type": "object",
-            "title": "Install Action",
-            "description": "Installs the specified files from the target's output directory.",
-            "properties": {
-              "on": {
-                "$ref": "#/definitions/action_category_definition"
-              },
-              "from": {
-                "anyOf": [{ "$ref": "#/definitions/string_or_string_array" }],
-                "title": "Install From",
-                "description": "The file or directory to install\nThe path is relative to the current target's artifact output directory."
-              },
-              "to": {
-                "anyOf": [{ "$ref": "#/definitions/string_or_string_array" }],
-                "title": "Install To",
-                "description": "The destination **directory** to install the resource specified in 'from' to."
-              },
-              "to-file": {
-                "anyOf": [{ "$ref": "#/definitions/string_or_string_array" }],
-                "title": "Install To (File)",
-                "description": "The destination **file** to install the resource specified in 'from' to. Will fail if 'from' specifies a directory."
-              }
+      "required": [
+        "type",
+        "name"
+      ]
+    },
+    "dependency_entry": {
+      "anyOf": [
+        {
+          "type": "string",
+          "title": "Target Dependency",
+          "description": "Format: (namespace:)<name>(@tag) ([partial dep list...])"
+        },
+        {
+          "type": "object",
+          "title": "Target Dependency (eCfg)",
+          "description": "Format: (namespace:)<name>(@tag) ([partial dep list...]): {custom config entires...}",
+          "allOf": [
+            {
+              "$ref": "#/definitions/extended_fields"
             },
-            "additionalProperties": false
+            {
+              "$ref": "#/definitions/cxx_config_options"
+            },
+            {
+              "$ref": "#/definitions/dynamic_section"
+            }
+          ]
+        }
+      ]
+    },
+    "string_or_string_array": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
-      },
-      "cxx_build_options_generic": {
-        "type": "object",
-        "properties": {
-          "optimization": {
-            "oneOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "off",
-                  "min-size",
-                  "max-speed"
-                ]
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ],
-            "title": "Optimization Level",
-            "description": "Tells the compiler which optimization level/mode to use.\nValues: off|min-size|max-speed|[custom value]"
-          },
-          "optimization-favor": {
-            "type": "string",
-            "enum": [
-              "speed", "size"
-            ],
-            "title": "Optimization Favor",
-            "description": "Tells the compiler what to favor when optimizing code.\nValues: speed|size"
-          },
-          "warning-level": {
-            "oneOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "off",
-                  "min",
-                  "max",
-                  "all"
-                ]
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ],
-            "title": "Warning Level",
-            "description": "Tells the compiler which warning level to use.\nValues: off|min|max|all|[custom value]"
-          },
-          "warnings-as-errors": {
-            "type": "boolean",
-            "title": "Treat Warnings as Errors",
-            "description": "Treat all compiler warnings as errors.\nValues: true|false"
-          },
-          "build-debug-info": {
-            "type": "boolean",
-            "title": "Build Debug Info",
-            "description": "Build platform-specific debugging info for the target.\nValues: true|false"
-          },
-          "permissive": {
-            "type": "boolean",
-            "title": "Permissive Standard Conformance",
-            "description": "Allows non-standard behavior that could potentially fail to build on other platforms.\nValues: true|false"
-          },
-          "entry-point": {
-            "type": "string",
-            "title": "Target Entry Point",
-            "description": "Specifies this target's entry point as a C function name."
-          }
+      ]
+    },
+    "action_category_definition": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/string_or_string_array"
         }
-      },
-      "cxx_config_options": {
-        "type": "object",
-        "properties": {
-          "cxx-env": {
-            "type": "object",
-            "title": "C++ Environment Settings",
-            "description": "Determines the correct C++ environment to use while building this target.\nIt is not advised to modify this property."
-          },
-          "cxx-standard": {
-            "oneOf": [
-              { "type": "string" },
-              { "type": "number" }
-            ],
-            "title": "C++ Standard Version",
-            "description": "The version of the C++ Standard to use when building this target."
-          },
-          "cxx-compile-definitions": {
-            "type": "object",
-            "title": "C++ Compile Definitions (Private)",
-            "description": "The C++ compile definitions to use when building this target.\nDefinitions specified in this section are not visible to targets that depend on this target.",
-            "additionalProperties": {
-              "oneOf": [
-                { "type": "string" },
-                { "type": "number" },
-                { "type": "null" }
-              ]
+      ],
+      "title": "Action Category",
+      "description": "Determines when the action is supposed to run. (string or string array)"
+    },
+    "action_entry": {
+      "type": "object",
+      "title": "Target Action",
+      "properties": {
+        "install": {
+          "type": "object",
+          "title": "Install Action",
+          "description": "Installs the specified files from the target's output directory.",
+          "properties": {
+            "on": {
+              "$ref": "#/definitions/action_category_definition"
+            },
+            "from": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/string_or_string_array"
+                }
+              ],
+              "title": "Install From",
+              "description": "The file or directory to install\nThe path is relative to the current target's artifact output directory."
+            },
+            "to": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/string_or_string_array"
+                }
+              ],
+              "title": "Install To",
+              "description": "The destination **directory** to install the resource specified in 'from' to."
+            },
+            "to-file": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/string_or_string_array"
+                }
+              ],
+              "title": "Install To (File)",
+              "description": "The destination **file** to install the resource specified in 'from' to. Will fail if 'from' specifies a directory."
             }
           },
-          "cxx-compile-definitions-public": {
-            "type": "object",
-            "title": "C++ Compile Definitions (Public)",
-            "description": "The C++ compile definitions to use when building this target.\nDefinitions specified in this section are visible to targets that depend on this target.",
-            "additionalProperties": {
-              "oneOf": [
-                { "type": "string" },
-                { "type": "number" },
-                { "type": "null" }
-              ]
-            }
-          },
-          "cxx-include-dirs": {
-            "type": "array",
-            "items": { "type": "string" },
-            "title": "C++ Include Directories",
-            "description": "The C++ include directories to use when building this target.\nInclude directories specified in this section will be inherited by targets that depend on this target."
-          },
-          "cxx-lib-dirs": {
-            "type": "array",
-            "items": { "type": "string" },
-            "title": "C++ Library Search Directories",
-            "description": "Specifies additional paths to search for libraries defined in `cxx-link-deps`."
-          },
-          "cxx-build-flags": {
-            "type": "object",
-            "properties": {
-              "compiler": {
-                "anyOf": [{ "$ref": "#/definitions/string_or_string_array" }],
-                "title": "C++ Build Flags - Compiler"
-              },
-              "linker": {
-                "anyOf": [{ "$ref": "#/definitions/string_or_string_array" }],
-                "title": "C++ Build Flags - Linker"
-              },
-              "linker.nostatic": {
-                "anyOf": [{ "$ref": "#/definitions/string_or_string_array" }],
-                "title": "C++ Build Flags - Linker (No Static Library)",
-                "description": "Static libraries are built with a different tool than other artifacts on most platforms."
-              }
-            },
-            "title": "C++ Build Flags",
-            "description": "The C++ build flags to use when building this target."
-          },
-          "cxx-build-options": {
-            "type": "object",
-            "anyOf": [
-              { "$ref": "#/definitions/cxx_build_options_generic" }
-            ],
-            "title": "C++ Build Options",
-            "description": "The C++ build options to use when building this target."
-          },
-          "cxx-link-deps": {
-            "type": "array",
-            "items": { "type": "string" },
-            "title": "C++ Link Dependencies",
-            "description": "The files specified in this array will get linked to this target when building it.\nThis is useful for, say, Windows standard libraries like User32.lib."
-          },
-          "cxx-global-link-deps": {
-            "type": "array",
-            "items": { "type": "string" },
-            "title": "C++ Global Link Dependencies",
-            "description": "The libraries specified in this array will get linked to this target when building it.\nThis is useful for Unix -l<libname> libraries."
-          },
-          "cxx-header-projection": {
-            "type": "boolean",
-            "title": "C++ Header Projection",
-            "description": "Enables the 'projection' of this target's include files onto a virtual path. This is implemented via symlinks inside of the .re-cache directory.\nHeader projection allows you to avoid duplicate paths and organize your build tree more organically."
-          },
-          "cxx-header-projection-path": {
-            "type": "string",
-            "title": "C++ Header Projection Path",
-            "description": "Defines the path by which this target's headers will be available when using C++ header projection.\nBy default, this will be your target's full module path (so, say, `thing.hpp` in `foo.bar.baz.utils` will be includeable as `#include <foo/bar/bar/utils/thing.hpp>`)."
-          }
-        }
-      },
-      "extended_fields": {
-        "type": "object",
-        "properties": {
-          "deps": {
-            "type": "array",
-            "items": { "$ref": "#/definitions/dependency_entry" },
-            "title": "Target Dependencies",
-            "description": "Specifies a list of the target's build dependencies."
-          },
-          "actions": {
-            "type": "array",
-            "items": { "$ref": "#/definitions/action_entry" },
-            "title": "Target Actions",
-            "description": "Specifies a list of the target's custom actions."
-          },
-          "enabled": {
-            "type": "boolean",
-            "title": "Target Enabled",
-            "description": "Determines whether to load and build the target.\nDisabled targets for all intents and purposes do not exist for Re."
-          },
-          "langs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "title": "Languages",
-            "description": "Languages used in this target.\nIt is not advised to modify this property."
-          },
-          "link-with": {
-            "type": "object",
-            "title": "Link Environment Settings",
-            "description": "Determines the correct link language to use while building this target.\nIt is not advised to modify this property."
-          },
-          "inherit-caller-in-deps": {
-            "type": "boolean",
-            "title": "Inherit Caller Target in Dependencies",
-            "description": "Enabling this option makes your topmost target the parent of all external dependency targets you add.\nThis lets dependencies inherit options such as compile flags from your root target file."
-          }
-        }
-      },
-      "dynamic_section": {
-        "type": "object",
-        "patternProperties": {
-          "^platform\\..*$": {
-            "type": "object",
-            "allOf": [
-              { "$ref": "#/definitions/extended_fields" },
-              { "$ref": "#/definitions/cxx_config_options" },
-              { "$ref": "#/definitions/dynamic_section" }
-            ],
-            "title": "Dynamic Section: Platform",
-            "description": "Configuration entries inside this object will only apply when building for the platform specified in the key.\nExamples: platform.windows, platform.linux|osx, platform.!windows"
-          },
-          "^arch\\..*$": {
-            "type": "object",
-            "allOf": [
-              { "$ref": "#/definitions/extended_fields" },
-              { "$ref": "#/definitions/cxx_config_options" },
-              { "$ref": "#/definitions/dynamic_section" }
-            ],
-            "title": "Dynamic Section: Build Arch",
-            "description": "Configuration entries inside this object will only apply when building for the architecture specified in the key.\nExamples: arch.x86, arch.x86|x64, platform.!arm"
-          },
-          "^config\\..*$": {
-            "type": "object",
-            "allOf": [
-              { "$ref": "#/definitions/extended_fields" },
-              { "$ref": "#/definitions/cxx_config_options" },
-              { "$ref": "#/definitions/dynamic_section" }
-            ],
-            "title": "Dynamic Section: Build Configuration",
-            "description": "Configuration entries inside this object will only apply when building using the build configuration specified in the key.\nExamples: config.debug, config.debug|release, config.!release"
-          },
-          "^cxxenv\\..*$": {
-            "type": "object",
-            "allOf": [
-              { "$ref": "#/definitions/extended_fields" },
-              { "$ref": "#/definitions/cxx_config_options" },
-              { "$ref": "#/definitions/dynamic_section" }
-            ],
-            "title": "Dynamic Section: C++ Environment",
-            "description": "Configuration entries inside this object will only apply when building with the C++ environment specified in the key.\nExamples: cxxenv.msvc, cxxenv.!gcc, cxxenv.clang"
-          }
+          "additionalProperties": false
         }
       }
     },
-    
-    "allOf": [
-      { "$ref": "#/definitions/base_config" },
-      { "$ref": "#/definitions/extended_fields" },
-      { "$ref": "#/definitions/cxx_config_options" },
-      { "$ref": "#/definitions/dynamic_section" }
-    ],
-    
-    "unevaluatedProperties": false
-  }
+    "cxx_build_options_generic": {
+      "type": "object",
+      "properties": {
+        "optimization": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "off",
+                "min-size",
+                "max-speed"
+              ]
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Optimization Level",
+          "description": "Tells the compiler which optimization level/mode to use.\nValues: off|min-size|max-speed|[custom value]"
+        },
+        "optimization-favor": {
+          "type": "string",
+          "enum": [
+            "speed",
+            "size"
+          ],
+          "title": "Optimization Favor",
+          "description": "Tells the compiler what to favor when optimizing code.\nValues: speed|size"
+        },
+        "warning-level": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "off",
+                "min",
+                "max",
+                "all"
+              ]
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Warning Level",
+          "description": "Tells the compiler which warning level to use.\nValues: off|min|max|all|[custom value]"
+        },
+        "warnings-as-errors": {
+          "type": "boolean",
+          "title": "Treat Warnings as Errors",
+          "description": "Treat all compiler warnings as errors.\nValues: true|false"
+        },
+        "build-debug-info": {
+          "type": "boolean",
+          "title": "Build Debug Info",
+          "description": "Build platform-specific debugging info for the target.\nValues: true|false"
+        },
+        "permissive": {
+          "type": "boolean",
+          "title": "Permissive Standard Conformance",
+          "description": "Allows non-standard behavior that could potentially fail to build on other platforms.\nValues: true|false"
+        },
+        "entry-point": {
+          "type": "string",
+          "title": "Target Entry Point",
+          "description": "Specifies this target's entry point as a C function name."
+        }
+      }
+    },
+    "cxx_config_options": {
+      "type": "object",
+      "properties": {
+        "cxx-env": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object"
+            }
+          ],
+          "title": "C++ Environment Settings",
+          "description": "Determines the correct C++ environment to use while building this target.\nIt is not advised to modify this property."
+        },
+        "cxx-standard": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "C++ Standard Version",
+          "description": "The version of the C++ Standard to use when building this target."
+        },
+        "cxx-compile-definitions": {
+          "type": "object",
+          "title": "C++ Compile Definitions (Private)",
+          "description": "The C++ compile definitions to use when building this target.\nDefinitions specified in this section are not visible to targets that depend on this target.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "cxx-compile-definitions-public": {
+          "type": "object",
+          "title": "C++ Compile Definitions (Public)",
+          "description": "The C++ compile definitions to use when building this target.\nDefinitions specified in this section are visible to targets that depend on this target.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "cxx-include-dirs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "C++ Include Directories",
+          "description": "The C++ include directories to use when building this target.\nInclude directories specified in this section will be inherited by targets that depend on this target."
+        },
+        "cxx-lib-dirs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "C++ Library Search Directories",
+          "description": "Specifies additional paths to search for libraries defined in `cxx-link-deps`."
+        },
+        "cxx-build-flags": {
+          "type": "object",
+          "properties": {
+            "compiler": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/string_or_string_array"
+                }
+              ],
+              "title": "C++ Build Flags - Compiler"
+            },
+            "linker": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/string_or_string_array"
+                }
+              ],
+              "title": "C++ Build Flags - Linker"
+            },
+            "linker.nostatic": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/string_or_string_array"
+                }
+              ],
+              "title": "C++ Build Flags - Linker (No Static Library)",
+              "description": "Static libraries are built with a different tool than other artifacts on most platforms."
+            }
+          },
+          "title": "C++ Build Flags",
+          "description": "The C++ build flags to use when building this target."
+        },
+        "cxx-build-options": {
+          "type": "object",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/cxx_build_options_generic"
+            }
+          ],
+          "title": "C++ Build Options",
+          "description": "The C++ build options to use when building this target."
+        },
+        "cxx-link-deps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "C++ Link Dependencies",
+          "description": "The files specified in this array will get linked to this target when building it.\nThis is useful for, say, Windows standard libraries like User32.lib."
+        },
+        "cxx-global-link-deps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "C++ Global Link Dependencies",
+          "description": "The libraries specified in this array will get linked to this target when building it.\nThis is useful for Unix -l<libname> libraries."
+        },
+        "cxx-header-projection": {
+          "type": "boolean",
+          "title": "C++ Header Projection",
+          "description": "Enables the 'projection' of this target's include files onto a virtual path. This is implemented via symlinks inside of the .re-cache directory.\nHeader projection allows you to avoid duplicate paths and organize your build tree more organically."
+        },
+        "cxx-header-projection-path": {
+          "type": "string",
+          "title": "C++ Header Projection Path",
+          "description": "Defines the path by which this target's headers will be available when using C++ header projection.\nBy default, this will be your target's full module path (so, say, `thing.hpp` in `foo.bar.baz.utils` will be includeable as `#include <foo/bar/bar/utils/thing.hpp>`)."
+        }
+      }
+    },
+    "extended_fields": {
+      "type": "object",
+      "properties": {
+        "deps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/dependency_entry"
+          },
+          "title": "Target Dependencies",
+          "description": "Specifies a list of the target's build dependencies."
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/action_entry"
+          },
+          "title": "Target Actions",
+          "description": "Specifies a list of the target's custom actions."
+        },
+        "enabled": {
+          "type": "boolean",
+          "title": "Target Enabled",
+          "description": "Determines whether to load and build the target.\nDisabled targets for all intents and purposes do not exist for Re."
+        },
+        "langs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Languages",
+          "description": "Languages used in this target.\nIt is not advised to modify this property."
+        },
+        "link-with": {
+          "type": "object",
+          "title": "Link Environment Settings",
+          "description": "Determines the correct link language to use while building this target.\nIt is not advised to modify this property."
+        },
+        "inherit-caller-in-deps": {
+          "type": "boolean",
+          "title": "Inherit Caller Target in Dependencies",
+          "description": "Enabling this option makes your topmost target the parent of all external dependency targets you add.\nThis lets dependencies inherit options such as compile flags from your root target file."
+        }
+      }
+    },
+    "dynamic_section": {
+      "type": "object",
+      "patternProperties": {
+        "^platform\\..*$": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/definitions/extended_fields"
+            },
+            {
+              "$ref": "#/definitions/cxx_config_options"
+            },
+            {
+              "$ref": "#/definitions/dynamic_section"
+            }
+          ],
+          "title": "Dynamic Section: Platform",
+          "description": "Configuration entries inside this object will only apply when building for the platform specified in the key.\nExamples: platform.windows, platform.linux|osx, platform.!windows"
+        },
+        "^arch\\..*$": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/definitions/extended_fields"
+            },
+            {
+              "$ref": "#/definitions/cxx_config_options"
+            },
+            {
+              "$ref": "#/definitions/dynamic_section"
+            }
+          ],
+          "title": "Dynamic Section: Build Arch",
+          "description": "Configuration entries inside this object will only apply when building for the architecture specified in the key.\nExamples: arch.x86, arch.x86|x64, platform.!arm"
+        },
+        "^config\\..*$": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/definitions/extended_fields"
+            },
+            {
+              "$ref": "#/definitions/cxx_config_options"
+            },
+            {
+              "$ref": "#/definitions/dynamic_section"
+            }
+          ],
+          "title": "Dynamic Section: Build Configuration",
+          "description": "Configuration entries inside this object will only apply when building using the build configuration specified in the key.\nExamples: config.debug, config.debug|release, config.!release"
+        },
+        "^cxxenv\\..*$": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/definitions/extended_fields"
+            },
+            {
+              "$ref": "#/definitions/cxx_config_options"
+            },
+            {
+              "$ref": "#/definitions/dynamic_section"
+            }
+          ],
+          "title": "Dynamic Section: C++ Environment",
+          "description": "Configuration entries inside this object will only apply when building with the C++ environment specified in the key.\nExamples: cxxenv.msvc, cxxenv.!gcc, cxxenv.clang"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "#/definitions/base_config"
+    },
+    {
+      "$ref": "#/definitions/extended_fields"
+    },
+    {
+      "$ref": "#/definitions/cxx_config_options"
+    },
+    {
+      "$ref": "#/definitions/dynamic_section"
+    }
+  ],
+  "unevaluatedProperties": false
+}
