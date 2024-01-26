@@ -39,7 +39,7 @@ tools:
 # Default tool invoke flags. Can be overridden in targets using the 'build-flags' map property.
 #
 default-flags:
-    compiler: "/nologo /showIncludes /EHsc /Zc:__cplusplus"
+    compiler: "/nologo /showIncludes /Zc:__cplusplus"
     linker: "/nologo /ignore:4006"
 
 #
@@ -56,7 +56,7 @@ templates:
     cxx-standard: "/std:c++{version}"
     c-standard: "/std:c{version}"
 
-    compiler-cmdline: "{flags} /c {input} /Fo\"{output}\""
+    compiler-cmdline: '{flags} /c {input} /Fo"{output}"'
     linker-cmdline: "/MACHINE:${arch} ${platform-link-paths} {flags} {link_deps} {input} /OUT:{output}"
     archiver-cmdline: "/MACHINE:${arch} ${platform-link-paths} {flags} {link_deps} {input} /OUT:{output}"
 
@@ -125,6 +125,11 @@ build-options:
     build-link-debug-info:
         true:
             linker.nostatic: [/DEBUG]
+
+    cxx-exceptions:
+        on:
+            compiler: [/EHsc]
+        off: {}
 
     msvc.whole-program-optimization:
         true:
