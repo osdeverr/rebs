@@ -118,6 +118,9 @@ config.release:
 config.release.debinfo:
     cmake-build-type: RelWithDebInfo
 
+cxx-build-options:
+    cxx-exceptions: on
+
 # Thanks K2Re8 for the right flags!
 cxxenv.msvc|clang-cl:
     config.release:
