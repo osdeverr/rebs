@@ -62,11 +62,17 @@ cxxenv.gcc|clang:
 cxxenv.msvc|clang-cl:
     cxx-standard: latest
 
-cxxenv.clang.msvc:
+cxxenv.clang-cl:
     arch.x86:
+        cxx-build-flags:
+          compiler:
+            - "-m32"
         vars:
             clang-arch-type: i686
     arch.x64:
+        cxx-build-flags:
+          compiler:
+            - "-m64"
         vars:
             clang-arch-type: x86_64
             
