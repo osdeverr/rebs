@@ -183,7 +183,7 @@ namespace re
 
         // features.clear();
 
-        for (auto v : config["features"])
+        for (auto v : resolved_config["features"])
             if (!features[v.Scalar()])
                 features[v.Scalar()] = nullptr;
     }
