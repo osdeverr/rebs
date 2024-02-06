@@ -171,3 +171,6 @@ cxxenv.emscripten:
         emscripten-tools-archiver: sh emar
 
 c-standard: 11
+
+features:
+    - source-translation
