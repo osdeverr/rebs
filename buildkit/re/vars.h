@@ -75,7 +75,9 @@ namespace re
             if (auto var = GetVar(key))
                 return Resolve(*var);
             else
-                RE_THROW VarSubstitutionException("local variable '{}' not found", key);
+                RE_THROW VarSubstitutionException(
+                    "local variable '{}' not found [mLocalName='{}' mAlias='{}' mParentAlias='{}']", key, mLocalName,
+                    mAlias, mParentAlias);
         }
 
         inline LocalVarScope Subscope(const std::string &alias = "")

@@ -295,6 +295,12 @@ namespace re
             }
         }
 
+        if (build_target)
+        {
+            root_target.var_parent = &mVars;
+            mEnv->InitializeTargetLinkEnv(&root_target, desc);
+        }
+
         deps = mEnv->GetSingleTargetDepSet(desc.pBuildTarget);
 
         mEnv->PopulateBuildDescWithDeps(desc.pBuildTarget, desc);
@@ -314,8 +320,9 @@ namespace re
         }
 
         constexpr auto kDefaultDirTriplet = "${arch}-${platform}-${configuration}";
-        out_dir /= vars.Resolve(
-            target.GetCfgEntry<std::string>("out-dir-triplet", CfgEntryKind::Recursive).value_or(kDefaultDirTriplet));
+        out_dir /= root_target.build_var_scope->Resolve(
+            root_target.GetCfgEntry<std::string>("out-dir-triplet", CfgEntryKind::Recursive)
+                .value_or(kDefaultDirTriplet));
 
         fs::create_directories(out_dir);
         out_dir = fs::canonical(out_dir);
