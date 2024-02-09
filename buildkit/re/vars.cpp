@@ -9,8 +9,8 @@ namespace re
         // \$\{(?:(\w+?):\s*)?([A-Za-z\-\_0-9]*)(?:\s*\|\s*\s*(?:\$(\w+?):\s*)?(.+?)?)?\}
 
         const auto kOuterVarRegex = boost::xpressive::sregex::compile(R"(\$\{(.*?)\})");
-        const auto kVarRegex =
-            boost::xpressive::sregex::compile(R"((?:([\w\./]+?):\s*)?([A-Za-z\-\_0-9]*)(?:\s*\|\s*(.*))?)");
+        const auto kVarRegex = boost::xpressive::sregex::compile(
+            R"((?:([A-Za-z\-\_0-9\w\./]+?):\s*)?([A-Za-z\-\_0-9\./]*)(?:\s*\|\s*(.*))?)");
 
         std::string GetVarValue(const VarContext &ctx, const std::string &original, const std::string &var,
                                 const std::string &default_namespace)
