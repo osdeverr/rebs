@@ -19,6 +19,7 @@ langs:
 platform.windows: 
     vars:
         default-cxx-env: msvc
+        shell: cmd /c
 
     out-ext:
         target-type.executable: exe
@@ -33,6 +34,10 @@ platform.linux|osx:
         target-type.executable: ""
         target-type.static-library: a
         target-type.shared-library: so
+
+platform.!windows:
+    vars:
+        shell: sh -c
 
 cxx-env: ${override-cxx-env | $default-cxx-env}
 
