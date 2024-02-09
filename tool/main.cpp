@@ -54,6 +54,13 @@ int main(int argc, const char **argv)
             constexpr char kVarPrefix[] = "--var.";
             constexpr char kTargetPrefix[] = "--target.";
 
+            // NPM-style -- parameter breaker handling
+            if (*it == kDefaultPrefix)
+            {
+                args.erase(it, it + 1);
+                break;
+            }
+
             if (it->find(kTargetPrefix) == 0)
             {
                 auto key = it->substr(sizeof kTargetPrefix - 1);
@@ -84,6 +91,22 @@ int main(int argc, const char **argv)
             else
                 it++;
         }
+
+        auto setup_re_argv = [&context, &args](std::size_t begin_offset) {
+            // Setting up the ${re:argv} variable containing the full command line minus the options Re utilizes
+
+            std::string re_argv = "";
+
+            for (auto it = args.begin() + begin_offset; it != args.end(); it++)
+            {
+                if (!re_argv.empty())
+                    re_argv.append(" ");
+
+                re_argv.append(*it);
+            }
+
+            context.SetVar("argv", re_argv);
+        };
 
         auto apply_cfg_overrides = [&target_cfg_overrides](re::Target *pTarget) {
             for (auto &[k, v] : target_cfg_overrides)
@@ -194,6 +217,8 @@ int main(int argc, const char **argv)
             if (args.size() < 3)
                 throw re::Exception("re do: invalid command line\n\tusage: re do <action-category> [path | .]");
 
+            setup_re_argv(3);
+
             auto path = context.GetVar(kBuildPathVar).value_or(".");
 
             context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
@@ -219,7 +244,7 @@ int main(int argc, const char **argv)
             context.BuildTarget(desc);
 
             auto style = fmt::emphasis::bold | fg(fmt::color::aquamarine);
-            fmt::print(style, " - Running custom actions for '{}'\n\n", action_type);
+            context.Info(style, " - Running custom actions for '{}'\n\n", action_type);
 
             for (auto &dep : deps)
             {
@@ -559,6 +584,8 @@ int main(int argc, const char **argv)
 
             if (run_target->type != re::TargetType::Executable)
                 throw re::TargetException("TargetRunException", nullptr, "Only executable targets can be run");
+
+            setup_re_argv(2);
 
             auto desc = context.GenerateBuildDescForTarget(target, run_target);
             context.BuildTarget(desc);
