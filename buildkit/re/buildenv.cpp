@@ -435,21 +435,42 @@ namespace re
         }
         else if (type == "run")
         {
-            auto command = data["command"].as<std::string>();
+            if (data.IsMap())
+            {
+                auto command = data["command"].as<std::string>();
 
-            std::vector<std::string> args;
+                std::vector<std::string> args;
 
-            args.push_back(target.build_var_scope->Resolve(command));
+                args.push_back(target.build_var_scope->Resolve(command));
 
-            for (auto &arg : data["args"])
-                args.push_back(target.build_var_scope->Resolve(arg.Scalar()));
+                for (auto &arg : data["args"])
+                    args.push_back(target.build_var_scope->Resolve(arg.Scalar()));
 
-            RunProcessOrThrow("command", {}, args, true, true, target.path.u8string());
+                RunProcessOrThrow(args.front(), {}, args, true, true, target.path.u8string());
+            }
+            else
+            {
+                auto command = target.build_var_scope->Resolve(data.as<std::string>());
+
+                std::vector<std::string> args;
+                std::istringstream iss{command};
+                std::string temp;
+
+                while (iss >> std::quoted(temp, '"', '^'))
+                    args.push_back(temp);
+
+                RunProcessOrThrow(args.front(), {}, args, true, true, target.path.u8string());
+            }
         }
         else if (type == "shell-run")
         {
             auto command = target.build_var_scope->Resolve(data["command"].as<std::string>());
 
+            std::system(command.data());
+        }
+        else if (type == "command")
+        {
+            auto command = target.build_var_scope->Resolve(data.as<std::string>());
             std::system(command.data());
         }
         else if (type == "install")
@@ -812,19 +833,22 @@ namespace re
 
                 bool should_run = (run_type == default_run_type);
 
-                if (auto run_val = data["on"])
+                if (data.IsMap())
                 {
-                    should_run = false;
+                    if (auto run_val = data["on"])
+                    {
+                        should_run = false;
 
-                    if (run_val.IsScalar())
-                        should_run = (run_type == run_val.as<std::string>());
-                    else
-                        for (const auto &v : run_val)
-                            if (run_type == v.as<std::string>())
-                            {
-                                should_run = true;
-                                break;
-                            }
+                        if (run_val.IsScalar())
+                            should_run = (run_type == run_val.as<std::string>());
+                        else
+                            for (const auto &v : run_val)
+                                if (run_type == v.as<std::string>())
+                                {
+                                    should_run = true;
+                                    break;
+                                }
+                    }
                 }
 
                 if (should_run)
