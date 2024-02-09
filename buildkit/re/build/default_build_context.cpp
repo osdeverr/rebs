@@ -382,6 +382,8 @@ namespace re
                 meta["main-artifact"] = main_artifact;
 
                 dep->build_var_scope->SetVar("main-artifact", main_artifact);
+                dep->build_var_scope->SetVar("this", main_artifact);
+
                 artifact_scope.SetVar(dep->module, main_artifact);
             }
 
@@ -405,6 +407,8 @@ namespace re
 
                 dep->build_var_scope->AddNamespace("target/" + other_dep->module, &*other_dep->build_var_scope);
             }
+
+            dep->build_var_scope->AddNamespace("this", &*dep->build_var_scope);
         }
 
         // Resolve all the paths
