@@ -4,6 +4,7 @@
 #include "re/error.h"
 #include "re/lang_provider.h"
 #include "re/target.h"
+#include "re/vars.h"
 #include "re/yaml_merge.h"
 #include "yaml-cpp/emitter.h"
 
@@ -331,10 +332,14 @@ namespace re
 
         desc.out_dir = out_dir;
 
+        LocalVarScope artifact_scope{nullptr, "artifact", nullptr, ""};
+
         for (auto &dep : deps)
         {
             if (!dep->build_var_scope)
                 continue;
+
+            dep->build_var_scope->AddNamespace("artifact", &artifact_scope);
 
             LocalVarScope module_name_scope{&dep->build_var_scope.value(), dep->module};
 
@@ -362,9 +367,6 @@ namespace re
             dep->build_var_scope->SetVar("artifact-dir", full_artifact_dir.u8string());
             dep->build_var_scope->SetVar("object-dir", full_object_dir.u8string());
 
-            if (auto artifact = dep->build_var_scope->GetVarNoRecurse("build-artifact"))
-                dep->build_var_scope->SetVar("main-artifact", (full_artifact_dir / *artifact).u8string());
-
             // dep->build_var_scope->SetVar("root-out-dir", out_dir.u8string());
             // dep->build_var_scope->SetVar("root-dir", desc.pRootTarget->path.u8string());
 
@@ -375,7 +377,13 @@ namespace re
             meta["object-dir"] = full_object_dir.u8string();
 
             if (auto artifact = dep->build_var_scope->GetVarNoRecurse("build-artifact"))
-                meta["main-artifact"] = (full_artifact_dir / *artifact).u8string();
+            {
+                auto main_artifact = (full_artifact_dir / *artifact).u8string();
+                meta["main-artifact"] = main_artifact;
+
+                dep->build_var_scope->SetVar("main-artifact", main_artifact);
+                artifact_scope.SetVar(dep->module, main_artifact);
+            }
 
             meta["is-external-dep"] = module_name_scope.GetVar("is-external-dep").value_or("false") == "true";
 
