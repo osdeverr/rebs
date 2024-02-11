@@ -51,7 +51,7 @@ jobs:
           python-version: '3.10' 
 
       - name: Run the bootstrap script
-        run: re do deploy --configuration release --arch ${{ matrix.arch }} --re-dev-deploy-path re-latest-build --vcpkg-root-path ./re-vcpkg-cache
+        run: re do deploy --configuration release --arch ${{ matrix.arch }} --re-dev-deploy-path re-latest-build --vcpkg-root-path re-vcpkg-cache
         #env:
         #  RE_GITHUB_FORCE_SSH: 1
 
