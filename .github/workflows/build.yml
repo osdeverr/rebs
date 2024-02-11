@@ -26,30 +26,19 @@ jobs:
       - name: Checkout latest sources
         uses: actions/checkout@v3
         with:
-          path: re-latest-source
-      
-      - name: Checkout bootstrap sources
-        uses: actions/checkout@v3
-        with:
-          ref: bootstrap
-          path: re-bootstrap-source
-          submodules: 'recursive'
+          path: .
           
       - name: Cache vcpkg packages
         uses: actions/cache@v3
         with:
-          path: |
-            ./re-bootstrap-source/out/_deps
+          path: re-vcpkg-cache
           key: ${{ runner.os }}-vcpkg-v2
 
-      - name: Set up Ninja
-        uses: seanmiddleditch/gha-setup-ninja@master
-        if: runner.os != 'Windows'
-          
-      - name: Set up CMake
-        if: runner.os != 'Windows'
-        uses: jwlawson/actions-setup-cmake@v1.13
-
+      - name: Setup Re
+        uses: osdeverr/actions-setup-re@v3
+        with:
+          re-version: '0.6.9' # The latest stable Re release available for all major platforms
+      
       - name: Set up VsDevCmd
         if: runner.os == 'Windows'
         uses: egor-tensin/vs-shell@v2
@@ -62,8 +51,7 @@ jobs:
           python-version: '3.10' 
 
       - name: Run the bootstrap script
-        shell: pwsh
-        run: python ./re-latest-source/setup/bootstrap-re.py --auto --arch ${{ matrix.arch }} --main_src_dir ./re-latest-source
+        run: re do deploy --configuration release --arch ${{ matrix.arch }} --re-dev-deploy-path re-latest-build --vcpkg-root-path ./re-vcpkg-cache
         #env:
         #  RE_GITHUB_FORCE_SSH: 1
 
