@@ -9,7 +9,7 @@
 inherits:
     - generic
 
-use-rspfiles: false
+use-rspfiles: true
 
 vars:
     arch: ${target:arch | $re:arch | $re:host-arch}
