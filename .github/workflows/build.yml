@@ -37,7 +37,7 @@ jobs:
       - name: Setup Re
         uses: osdeverr/actions-setup-re@v3
         with:
-          re-version: '0.6.9' # The latest stable Re release available for all major platforms
+          re-version: '0.6.8' # The latest stable Re release available for all major platforms
       
       - name: Set up VsDevCmd
         if: runner.os == 'Windows'
