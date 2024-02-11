@@ -95,3 +95,8 @@ option-rules:
 
         linker-append-cmdline: /MACHINE:${arch}
         archiver-append-cmdline: /MACHINE:${arch}
+
+build-options:
+    cxx-exceptions:
+        on: {}
+        off: {}

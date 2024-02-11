@@ -101,3 +101,7 @@ build-options:
     emscripten.s:
         $value:
             compiler: ["-s {value}"]
+
+    cxx-exceptions:
+        on: {}
+        off: {}
