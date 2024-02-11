@@ -41,6 +41,10 @@ jobs:
 
       - name: Check Re version
         run: re version
+
+      - name: Check argmax
+        if: runner.os == 'Linux'
+        run: getconf ARG_MAX
       
       - name: Set up VsDevCmd
         if: runner.os == 'Windows'
