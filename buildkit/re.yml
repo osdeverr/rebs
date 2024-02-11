@@ -5,7 +5,6 @@ cxx-compile-definitions-public:
   FMT_HEADER_ONLY: 1
 
 deps:
-  - vcpkg:fmt
   - vcpkg:nlohmann-json
   - vcpkg:boost-algorithm
   - vcpkg:boost-exception
@@ -15,9 +14,10 @@ deps:
   - vcpkg:ghc-filesystem
   - vcpkg:yaml-cpp
   - vcpkg:magic-enum
+  - github:osdeverr/fmt @re-9.1.0-1
   - github:osdeverr/re-ninja@v1.7 [.libtool]
   - github:osdeverr/semverpp@v1.1.8-no-tests [semverpp]
-  - github:osdeverr/reproc@v1.0.1-rebs
+  - github:k2rate/ulib-process@v1.0.2
 
 actions:
   - run:

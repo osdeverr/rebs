@@ -1,1 +1,4 @@
-{}
+{
+    "github:k2rate/ulib-fmt^5.0.0": "v5.0.4",
+    "github:k2rate/ulib^5.0.0": "v5.5.0"
+}
