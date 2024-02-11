@@ -58,7 +58,7 @@ jobs:
           python-version: '3.10' 
 
       - name: Run the bootstrap script
-        run: re do deploy --configuration release --arch ${{ matrix.arch }} --re-dev-deploy-path re-latest-build
+        run: re do deploy --configuration release --arch ${{ matrix.arch }} --re-dev-deploy-path ${{ runner.temp }}/re-latest-build
         #env:
         #  RE_GITHUB_FORCE_SSH: 1
 
@@ -66,14 +66,14 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: re-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}-${{ github.run_id }}
-          path: ./re-latest-build/
+          path: ${{ runner.temp }}/re-latest-build/
           
       - name: Archive release files
         uses: thedoctor0/zip-release@0.6.2
         with:
           type: zip
           filename: '../re-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}.zip'
-          directory: ./re-latest-build/
+          directory: ${{ runner.temp }}/re-latest-build/
           
       - name: Create release
         uses: softprops/action-gh-release@v1
@@ -87,7 +87,7 @@ jobs:
           mkdir -p .debpkg/usr/local/bin
           mkdir -p .debpkg/debian
 
-          cp -p -R ./re-latest-build/* .debpkg/usr/local/lib/re/${{ github.ref_name }}/bin
+          cp -p -R ${{ runner.temp }}/re-latest-build/* .debpkg/usr/local/lib/re/${{ github.ref_name }}/bin
           echo "/usr/local/lib/re/${{ github.ref_name }}/bin/re /usr/local/bin/re-${{ github.ref_name }}" > .debpkg/debian/rebs.links
 
       - id: create-debian-package
