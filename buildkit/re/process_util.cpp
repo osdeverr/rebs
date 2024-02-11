@@ -1,89 +1,61 @@
 #include "process_util.h"
 #include "target.h"
+#include "ulib/encodings/utf8/string.h"
+#include "ulib/impl/win32/process.h"
+#include "ulib/process_exceptions.h"
 
 #include <fmt/format.h>
 
-#include <reproc++/reproc.hpp>
-
-#ifdef WIN32
-#include <Windows.h>
-#endif
+#include <ulib/process.h>
 
 namespace re
 {
-    // // run_target->module, exe_path, run_args, true, false, working_dir
-    #ifdef WIN32
-
-        static std::set<reproc::process *> gHandledProcesses;
-        static bool isCtrlHandlerAttached = false;
-
-        BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
-        {
-            if (fdwCtrlType == CTRL_C_EVENT)
-            {
-                for (auto proc : gHandledProcesses)
-                {
-                    proc->terminate();
-                }
-
-                gHandledProcesses.clear();
-            }
-
-            return FALSE;
-        }
-    #endif
-
     int RunProcessOrThrow(std::string_view program_name, const fs::path &path, std::vector<std::string> cmdline,
                           bool output, bool throw_on_bad_exit, std::optional<fs::path> working_directory)
     {
-
         std::string workdir = "";
         if (working_directory)
             workdir = working_directory->u8string();
 
-        reproc::options options;
-        options.redirect.parent = output;
-        options.working_directory = !workdir.empty() ? (decltype(options.working_directory))workdir.c_str() : nullptr;
+        ulib::list<ulib::u8string> cmdline_u8;
+        for (auto &s : cmdline)
+            cmdline_u8.push_back(s);
 
-        if (!path.empty())
-            cmdline.insert(cmdline.begin(), path.u8string());
-
-        reproc::process process;
-        auto start_ec = process.start(cmdline, options);
-        if (start_ec)
+        auto path_proc = path;
+        if (path_proc.empty())
         {
-            RE_THROW ProcessRunException("{} failed to start: {} (ec={})", program_name, start_ec.message(),
-                                         start_ec.value());
+            path_proc = fs::path{cmdline.front()};
+            cmdline_u8.erase(0);
         }
 
-        #ifdef WIN32
-                if (!isCtrlHandlerAttached)
-                {
-                    SetConsoleCtrlHandler(CtrlHandler, TRUE);
-                    isCtrlHandlerAttached = true;
-                }
+        ulib::process process;
 
-                gHandledProcesses.insert(&process);
-        #endif
-
-        auto [exit_code, end_ec] = process.wait(reproc::infinite);
-
-        #ifdef WIN32
-                gHandledProcesses.erase(&process);
-        #endif
-
-        if (end_ec)
+        try
         {
-            RE_THROW ProcessRunException("{} failed to run: {} (ec={} exit_code={})", program_name, end_ec.message(),
-                                         end_ec.value(), exit_code);
+            process.run(path_proc, cmdline_u8, ulib::process::die_with_parent, working_directory);
+        }
+        catch (const ulib::process_error &ex)
+        {
+            RE_THROW ProcessRunException("{} failed to start: [{}] {}", program_name, typeid(ex).name(), ex.what());
         }
 
-        if (throw_on_bad_exit && exit_code != 0)
+        try
         {
-            RE_THROW ProcessRunException("{} failed: exit_code={}", program_name, exit_code);
+            auto exit_code = process.wait();
+
+            if (throw_on_bad_exit && exit_code != 0)
+            {
+                RE_THROW ProcessRunException("{} failed: exit_code={}", program_name, exit_code);
+            }
+
+            return exit_code;
+        }
+        catch (const ulib::process_error &ex)
+        {
+            RE_THROW ProcessRunException("{} failed to run: [{}] {}", program_name, typeid(ex).name(), ex.what());
         }
 
-        return exit_code;
+        return -1;
     }
 
     // namespace detail
@@ -151,7 +123,8 @@ namespace re
     //         {
     //             hJob = CreateJobObjectW(NULL, NULL);
     //             if (!hJob)
-    //                 RE_THROW ProcessRunException("{} failed to start: failed to create Win32 job object", program_name);
+    //                 RE_THROW ProcessRunException("{} failed to start: failed to create Win32 job object",
+    //                 program_name);
 
     //             JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {0};
     //             jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;

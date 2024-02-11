@@ -21,6 +21,75 @@
 #include <boost/algorithm/string.hpp>
 // #include <filesystem>
 
+#ifdef WIN32
+#include <ulib/process.h>
+
+namespace re
+{
+    void SetupMsvcEnv(re::DefaultBuildContext &context)
+    {
+        try
+        {
+            const auto kVcInfoStyle = fg(fmt::color::dim_gray); // bg(fmt::color::orange_red);
+
+            auto existing_vc_tools = std::getenv("VCToolsVersion");
+
+            if (existing_vc_tools != nullptr || context.GetVar("no-auto-msvc-env") == "true")
+            {
+                if (existing_vc_tools)
+                    context.Debug(kVcInfoStyle, "\n- Using existing MSVC toolchain (version: {})\n", existing_vc_tools);
+                else
+                    context.Debug(kVcInfoStyle, "\n- MSVC toolchain not defined! This might cause errors.\n");
+
+                return;
+            }
+
+            ulib::process find_msvc{re::GetCurrentExecutablePath() / "win32-helpers" / "find-msvc.exe",
+                                    {},
+                                    ulib::process::pipe_stdout | ulib::process::pipe_stderr};
+
+            if (find_msvc.wait() != 0)
+            {
+                auto result = nlohmann::json::parse(find_msvc.err().read_all());
+                RE_THROW re::Exception("Failed to set up MSVC environment:\n  [{}] {}",
+                                       result["error_code"].get<std::string>(),
+                                       result["error_message"].get<std::string>());
+            }
+
+            auto result = nlohmann::json::parse(find_msvc.out().read_all());
+
+            for (auto &[key, value] : result["environment"].items())
+            {
+                // fmt::print("{} -> {}\n", key, value.get<std::string>());
+
+                context.SetVar(key, value.get<std::string>());
+
+                _putenv_s(key.c_str(), value.get<std::string>().c_str());
+
+                SetEnvironmentVariableW(ulib::swstr(ulib::u16(ulib::u8(key))).c_str(),
+                                        ulib::swstr(ulib::u16(ulib::u8(value.get<std::string>()))).c_str());
+            }
+
+            context.Debug(kVcInfoStyle, "\n- Using MSVC toolchain (version: {})\n",
+                          result["vc_tools_version"].get<std::string>());
+        }
+        catch (const std::exception &e)
+        {
+            const auto kWarnStyle = fmt::emphasis::bold | fg(fmt::color::yellow); // bg(fmt::color::orange_red);
+
+            context.Warn({}, "\n");
+            context.Warn(kWarnStyle,
+                         " ! Failed to automatically set up the MSVC environment:\n"
+                         "     {}\n"
+                         "     (type: {})\n\n"
+                         "   The build may fail unless you manually initialize MSVC!\n",
+                         e.what(), typeid(e).name());
+            context.Warn({}, "\n");
+        }
+    }
+} // namespace re
+#endif
+
 int main(int argc, const char **argv)
 {
 #ifdef WIN32
@@ -117,6 +186,10 @@ int main(int argc, const char **argv)
         // context.LoadDefaultEnvironment(L"D:/Programs/ReBS/bin");
 
         context.SetVar("configuration", "release");
+
+#ifdef WIN32
+        SetupMsvcEnv(context);
+#endif
 
         constexpr auto kBuildPathVar = "path";
 

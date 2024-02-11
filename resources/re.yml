@@ -9,3 +9,9 @@ actions:
   - copy-to-deps:
       from: data
       to: data
+
+platform.windows:
+  actions:
+    - copy-to-deps:
+        from: win32-helpers
+        to: win32-helpers

@@ -1,1 +1,4 @@
-{}
+{
+    "github:zwalloc/ulib-fmt^5.0.0": "v5.0.4",
+    "github:zwalloc/ulib^5.0.0": "v5.5.0"
+}
