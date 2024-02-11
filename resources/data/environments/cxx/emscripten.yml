@@ -9,7 +9,7 @@
 inherits:
     - generic
 
-use-rspfiles: true
+use-rspfiles: false
 
 vars:
     arch: wasm32
