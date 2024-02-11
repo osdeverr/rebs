@@ -72,13 +72,13 @@ jobs:
         uses: thedoctor0/zip-release@0.6.2
         with:
           type: zip
-          filename: '../re-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}.zip'
+          filename: '${{ runner.temp }}/re-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}.zip'
           directory: ${{ runner.temp }}/re-latest-build/
           
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
-          files: 're-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}.zip'
+          files: '${{ runner.temp }}/re-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}.zip'
       
       - name: Create package definition
         if: runner.os == 'Linux'
