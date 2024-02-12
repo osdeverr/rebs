@@ -3,7 +3,9 @@
 
 #include <re/debug.h>
 
-#include <boost/algorithm/string.hpp>
+// #include <boost/algorithm/string.hpp>
+#include <ulib/string.h>
+#include <ulib/format.h>
 
 namespace re
 {
@@ -23,10 +25,9 @@ namespace re
                 {
                     if (key.find(category + ".") == 0)
                     {
-                        auto raw = key.substr(category.size() + 1);
+                        ulib::string raw = key.substr(category.size() + 1);
 
-                        std::vector<std::string> categories;
-                        boost::algorithm::split(categories, raw, boost::is_any_of("|"));
+                        ulib::list<ulib::string> categories = raw.split("|");
 
                         bool supported = (raw == "any");
 
@@ -38,7 +39,7 @@ namespace re
                                 break;
 
                             supported |= (value == supported_category ||
-                                          boost::algorithm::starts_with(value, supported_category + "."));
+                                          ulib::string{value}.starts_with(supported_category + "."));
 
                             if (supported_category.front() == '!')
                             {

@@ -1,5 +1,3 @@
-#include <boost/process.hpp>
-
 #include "git_dep_resolver.h"
 
 #include <fmt/color.h>
@@ -14,6 +12,9 @@
 #include <re/deps_version_cache.h>
 
 #include <fstream>
+// #include <ulib/chrono.h>
+#include <ulib/format.h>
+#include <ulib/process.h>
 
 namespace re
 {
@@ -28,53 +29,40 @@ namespace re
     {
         if (cache)
         {
-            auto git_ls_remote = [&](const re::TargetDependency &, std::string_view url) -> std::vector<std::string> {
-                boost::process::ipstream is; // reading pipe-stream
-                boost::process::child c(boost::process::search_path("git"), "ls-remote", "--refs", "--tags", url.data(),
-                                        boost::process::std_out > is, boost::process::std_in < stdin);
-
-                // fmt::print("url: {}\n", url);
-                // fmt::print("while (c.running()) \n");
-
-                bool cwait = true;
-                std::time_t tt = std::time(0);
-                while (c.running())
-                {
-                    if (std::time(0) - tt >= 3)
-                    {
-                        cwait = false;
-                        // fmt::print("c.running() timeout \n");
-                        break;
-                    }
-
-                    std::this_thread::sleep_for(std::chrono::milliseconds{200});
-                }
-
-                
-
-                if (cwait)
-                {
-                    // fmt::print("started c.wait(); \n");
-                    c.wait();
-                    // fmt::print("finished c.wait(); \n");
-                }
-
-                
-
+            auto git_ls_remote = [&](const re::TargetDependency &target_dep,
+                                     std::string_view url) -> std::vector<std::string> {
                 std::vector<std::string> result;
+                fmt::print("exec: git ls-remote --refs --tags {}\n", url);
+                ulib::process process("git", {"ls-remote", "--refs", "--tags", url},
+                                      ulib::process::pipe_output | ulib::process::die_with_parent);
 
-                while (!is.eof())
+                std::optional<int> code = process.wait(std::chrono::seconds(5));
+                if (code.has_value())
                 {
-                    std::string hash;
+                    // fmt::print("exit code: {}", *code);
+                    if (*code != 0)
+                        RE_THROW TargetDependencyException(&target, "git ls-remote failed with code: {}", *code);
+                }
+                else
+                {
+                    fmt::print(" - Using terminate process bypass for git ls-remote for {}\n", url);
+                }
+
+                ulib::string data = process.out().read_all();
+                ulib::list<ulib::string> lines = data.split("\n");
+                for (auto &line : lines)
+                {
+                    ulib::list<ulib::string> keys = line.split("\t");
+                    if (keys.size() == 1)
+                        keys = line.split(" ");
+                    if (keys.size() != 2)
+                        RE_THROW TargetDependencyException(
+                            &target, "Invalid line in git ls-remote output: {}, size: {}", line, keys.size());
+
                     auto &tag = result.emplace_back();
 
-                    is >> hash;
-                    is >> tag;
-
-                    if (tag.empty())
-                        continue;
-
-                    // fmt::print("test: {} {}\n", hash, tag);
+                    auto hash = keys[0];
+                    tag = keys[1];
 
                     constexpr char kRefsTags[] = "refs/tags/";
                     auto pos = tag.find(kRefsTags);
@@ -82,7 +70,17 @@ namespace re
                         tag.erase(pos, sizeof kRefsTags - 1);
                 }
 
-                //  fmt::print("running: {} eof: {}\n", c.running(), is.eof());
+                if (!code.has_value())
+                {
+                    try
+                    {
+                        process.terminate();
+                    }
+                    catch (...)
+                    {
+                        process.detach();
+                    }
+                }
 
                 return result;
             };

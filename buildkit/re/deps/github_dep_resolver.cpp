@@ -1,14 +1,17 @@
 #include "github_dep_resolver.h"
 
-#include <boost/algorithm/string/predicate.hpp>
+// #include <boost/algorithm/string/predicate.hpp>
+
+#include <ulib/string.h>
+#include <ulib/format.h>
 
 namespace re
 {
 	Target* GithubDepResolver::ResolveTargetDependency(const Target& target, const TargetDependency& dep, DepsVersionCache* cache)
 	{
-		auto url = dep.name;
+		ulib::string url = dep.name;
 
-		if (!boost::ends_with(url, ".git"))
+		if (!url.ends_with(".git"))
 			url.append(".git");
 
 		auto temp = std::getenv("RE_GITHUB_FORCE_SSH");
@@ -24,9 +27,9 @@ namespace re
 	{
         fs::create_directories(path);
 
-		auto url = dep.name;
+		ulib::string url = dep.name;
 
-		if (!boost::ends_with(url, ".git"))
+		if (!url.ends_with(".git"))
 			url.append(".git");
 
 		auto temp = std::getenv("RE_GITHUB_FORCE_SSH");

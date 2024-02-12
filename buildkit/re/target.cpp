@@ -3,11 +3,12 @@
 #include <ghc/filesystem.hpp>
 #include <magic_enum.hpp>
 
-#include <boost/algorithm/string.hpp>
 #include <regex>
 
 #include <re/debug.h>
 #include <re/yaml_merge.h>
+
+#include <ulib/string.h>
 
 namespace re
 {
@@ -68,9 +69,9 @@ namespace re
 
         for (auto &entry : fs::directory_iterator{path})
         {
-            auto name = entry.path().filename().u8string();
+            ulib::string name = entry.path().filename().u8string();
 
-            if (boost::algorithm::ends_with(name, ".re.yml"))
+            if (name.ends_with(".re.yml"))
             {
                 std::ifstream merge_f{entry.path()};
                 auto merge_c = YAML::Load(merge_f);
@@ -409,10 +410,13 @@ namespace re
 
         if (match[5].matched)
         {
-            auto raw = match[5].str();
+            ulib::string raw = match[5].str();
+            raw = raw.replace(" ", "");
 
-            boost::algorithm::erase_all(raw, " ");
-            boost::split(dep.filters, raw, boost::is_any_of(","));
+            dep.filters.clear();
+            auto spl = raw.split(",");
+            for (auto filter : spl)
+                dep.filters.push_back(filter);
         }
 
         if (dep.name.empty())

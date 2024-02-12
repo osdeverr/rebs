@@ -12,7 +12,10 @@
 #include <re/target_cfg_utils.h>
 #include <re/target_feature.h>
 
-#include <boost/algorithm/string.hpp>
+// #include <boost/algorithm/string.hpp>
+#include <ulib/string.h>
+#include <ulib/split.h>
+#include <ulib/format.h>
 
 namespace re
 {
@@ -647,10 +650,9 @@ namespace re
                 {
                     if (filter.front() == '/')
                         continue;
-
-                    std::vector<std::string> parts;
-                    boost::algorithm::split(parts, filter, boost::is_any_of("."));
-
+                    
+                    
+                    ulib::list<ulib::string> parts = ulib::split(filter, ".");
                     auto temp = result;
 
                     for (auto &part : parts)

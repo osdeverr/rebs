@@ -2,9 +2,18 @@ type: project
 name: re
 
 platform.windows:
+  # cxx-env: clang-cl
   cxx-build-flags:
     compiler:
       - "/EHsc /Zi /wd4251 /wd4275 /wd4996 /sdl- /utf-8"
+  
+  config.release:
+    cxxenv.msvc|clang-cl:
+      cxx-build-flags:
+        compiler:
+          - "/GS- /O2 /Oi /Ot"
+        linker:
+          - "/OPT:REF /OPT:ICF"
 
   # This will fail to do anything in bootstrap builds but will SERIOUSLY improve link speeds in ordinary ones.
   # TODO: Get rid of this in production!
@@ -12,5 +21,4 @@ platform.windows:
     msvc.whole-program-optimization: false
 
 inherit-caller-in-deps: true
-
 cxx-standard: 17

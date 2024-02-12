@@ -1,5 +1,5 @@
 #include "default_build_context.h"
-#include "boost/algorithm/string/replace.hpp"
+// #include "boost/algorithm/string/replace.hpp"
 #include "ninja_gen.h"
 #include "re/error.h"
 #include "re/lang_provider.h"
@@ -39,6 +39,10 @@
 
 #include <magic_enum.hpp>
 #include <unordered_set>
+
+#include <ulib/string.h>
+#include <ulib/format.h>
+#include <futile/futile.h>
 
 namespace re
 {
@@ -755,15 +759,8 @@ namespace re
 
         CopyTemplateToDirectory(out_path, template_dir);
 
-        std::ifstream t{out_path / "re.yml"};
-        std::string content{(std::istreambuf_iterator<char>(t)), (std::istreambuf_iterator<char>())};
-        t.close();
-
-        boost::replace_all(content, "{{template-target-name}}", target_name);
-
-        std::ofstream out{out_path / "re.yml"};
-        out << content;
-        out.close();
+        ulib::string content = futile::open(out_path / "re.yml").read();
+        futile::open(out_path / "re.yml", "w").write(content.replace("{{template-target-name}}", target_name));
 
         Info(fg(fmt::color::blue_violet), "Created new target '{}' from template '{}' in directory '{}'\n", target_name,
              template_name, out_path.generic_u8string());
