@@ -65,15 +65,15 @@ jobs:
       - name: Create CI artifact
         uses: actions/upload-artifact@v3
         with:
-          name: re-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/re-latest-build/
+          name: '${{ runner.temp }}/re-latest-build/re-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}-${{ github.run_id }}'
+          path: '${{ runner.temp }}/re-latest-build/'
           
       - name: Archive release files
         uses: thedoctor0/zip-release@0.6.2
         with:
           type: zip
-          filename: 're-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}.zip'
-          directory: ${{ runner.temp }}/re-latest-build/
+          filename: '${{ runner.temp }}/re-latest-build/re-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}.zip'
+          directory: '${{ runner.temp }}/re-latest-build/'
           
       - name: Create release
         uses: softprops/action-gh-release@v1
