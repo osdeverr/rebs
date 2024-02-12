@@ -35,16 +35,12 @@ jobs:
           key: ${{ runner.os }}-vcpkg-v3
 
       - name: Setup Re
-        uses: osdeverr/actions-setup-re@v5.0.1
+        uses: osdeverr/actions-setup-re@v4
         with:
           re-version: <=0.6.8 # The latest stable Re release available for all major platforms
 
       - name: Check Re version
         run: re version
-
-      - name: Check argmax
-        if: runner.os == 'Linux'
-        run: getconf ARG_MAX
       
       - name: Set up VsDevCmd
         if: runner.os == 'Windows'
