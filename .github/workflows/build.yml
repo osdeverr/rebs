@@ -76,7 +76,7 @@ jobs:
           directory: '${{ runner.temp }}/re-latest-build/'
           
       - name: Create release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v0.1.13
         with:
           files: '${{ runner.temp }}/re-latest-build/re-${{ github.ref_name }}-${{ runner.os }}-${{ matrix.arch }}.zip'
       
