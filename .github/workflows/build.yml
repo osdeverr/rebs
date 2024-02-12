@@ -35,7 +35,7 @@ jobs:
           key: ${{ runner.os }}-vcpkg-v3
 
       - name: Setup Re
-        uses: osdeverr/actions-setup-re@v4
+        uses: osdeverr/actions-setup-re@v5
         with:
           re-version: <=0.6.8 # The latest stable Re release available for all major platforms
 
