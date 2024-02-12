@@ -9,7 +9,6 @@ deps:
   - vcpkg:boost-exception
   - vcpkg:boost-stacktrace
   - vcpkg:boost-xpressive
-  - vcpkg:ghc-filesystem
   - vcpkg:yaml-cpp
   - vcpkg:magic-enum
   - github:osdeverr/fmt @re-9.1.0-1
