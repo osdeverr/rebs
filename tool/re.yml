@@ -31,4 +31,4 @@ platform.windows:
       run: always
       post-build:
         - shell-run:
-            command: "mt.exe -nologo -manifest \"${root-dir}/tool/main.manifest\" -outputresource:\"${artifact-dir}/${build-artifact};#1\""
+            command: 'mt.exe -nologo -manifest "${root-dir}/tool/main.manifest" -outputresource:"${artifact-dir}/${build-artifact};#1"'

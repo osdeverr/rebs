@@ -12,8 +12,6 @@ platform.windows:
       cxx-build-flags:
         compiler:
           - "/GS- /O2 /Oi /Ot"
-        linker:
-          - "/OPT:REF /OPT:ICF"
 
 inherit-caller-in-deps: true
 cxx-standard: 17
