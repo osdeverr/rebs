@@ -20,7 +20,15 @@ platform.windows:
     vars:
         default-cxx-env: msvc
         shell: cmd /c
-        vctools: ${env:WindowsSdkVerBinPath}/${re:host-arch}/
+        sdk-tools-bin: ${env:WindowsSdkVerBinPath}/${re:host-arch}/
+        vs-cmake-bin: ${env:VSINSTALLDIR}/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin
+        vs-ninja-bin: ${env:VSINSTALLDIR}/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja
+
+    env-path:
+        - ${vc-tools-bin}
+        - ${sdk-tools-bin}
+        - ${vs-cmake-bin}
+        - ${vs-ninja-bin}
 
     out-ext:
         target-type.executable: exe

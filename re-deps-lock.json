@@ -3,5 +3,6 @@
     "github:k2rate/ulib-process^v1.0.2": "v1.0.3",
     "github:k2rate/ulib^5.0.0": "v5.6.1",
     "github:k2rate/ulib^5.0.1": "v5.6.1",
-    "github:osdeverr/futile^3.0.0": "v3.1.2"
+    "github:osdeverr/futile^3.0.0": "v3.1.2",
+    "github:osdeverr/ulib-env^1.0.0": "v1.0.0"
 }
