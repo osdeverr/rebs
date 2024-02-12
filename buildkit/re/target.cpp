@@ -1,7 +1,9 @@
 #include "target.h"
 
-#include <ghc/filesystem.hpp>
 #include <magic_enum.hpp>
+
+#include <fstream>
+#include <re/fs.h>
 
 #include <regex>
 
