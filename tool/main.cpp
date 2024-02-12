@@ -19,11 +19,12 @@
 // #include <boost/algorithm/string.hpp>
 // #include <filesystem>
 
-#include <ulib/string.h>
-#include <ulib/split.h>
 #include <ulib/format.h>
+#include <ulib/split.h>
+#include <ulib/string.h>
 
 #ifdef WIN32
+#include <ulib/env.h>
 #include <ulib/process.h>
 
 namespace re
@@ -65,12 +66,18 @@ namespace re
                 // fmt::print("{} -> {}\n", key, value.get<std::string>());
 
                 context.SetVar(key, value.get<std::string>());
-
-                _putenv_s(key.c_str(), value.get<std::string>().c_str());
-
-                SetEnvironmentVariableW(ulib::swstr(ulib::u16(ulib::u8(key))).c_str(),
-                                        ulib::swstr(ulib::u16(ulib::u8(value.get<std::string>()))).c_str());
+                ulib::setenv(key, value.get<std::string>());
             }
+
+            /*
+            ulib::add_path(context.GetVars().Resolve("${env:WindowsSdkVerBinPath}/${re:host-arch}"));
+            ulib::add_path(context.GetVars().Resolve(
+                "${env:VSINSTALLDIR}/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin"));
+            ulib::add_path(
+                context.GetVars().Resolve("${env:VSINSTALLDIR}/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja"));
+            ulib::add_path(
+                context.GetVars().Resolve("${env:VCToolsInstallDir}/bin/Host${re:host-arch}/${re:host-arch}"));
+            */
 
             context.Debug(kVcInfoStyle, "\n- Using MSVC toolchain (version: {})\n",
                           result["vc_tools_version"].get<std::string>());

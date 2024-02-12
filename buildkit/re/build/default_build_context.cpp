@@ -40,15 +40,19 @@
 #include <magic_enum.hpp>
 #include <unordered_set>
 
-#include <ulib/string.h>
-#include <ulib/format.h>
 #include <futile/futile.h>
+
+#include <ulib/format.h>
+#include <ulib/string.h>
+
+#include <ulib/env.h>
 
 namespace re
 {
     DefaultBuildContext::DefaultBuildContext() : mVars{&mVarContext, "re"}
     {
         mVars.AddNamespace("env", &mSystemEnvVars);
+        mVars.AddNamespace("re", &mVars);
 
         mVars.SetVar("version", "1.0");
 
@@ -413,6 +417,7 @@ namespace re
             }
 
             dep->build_var_scope->AddNamespace("this", &*dep->build_var_scope);
+            dep->build_var_scope->AddNamespace("re", &mVars);
         }
 
         // Resolve all the paths
@@ -432,6 +437,14 @@ namespace re
                 std::ofstream file(version_cache_path);
                 file << data.dump(4);
             }
+        }
+
+        auto path_cfg = desc.pRootTarget->resolved_config["env-path"];
+
+        for (const auto &path : path_cfg)
+        {
+            auto final_path = desc.pRootTarget->build_var_scope->Resolve(path.Scalar());
+            ulib::add_path(final_path);
         }
 
         return desc;

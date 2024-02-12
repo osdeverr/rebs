@@ -13,9 +13,11 @@
 #include <re/target_feature.h>
 
 // #include <boost/algorithm/string.hpp>
-#include <ulib/string.h>
-#include <ulib/split.h>
 #include <ulib/format.h>
+#include <ulib/split.h>
+#include <ulib/string.h>
+
+#include <ulib/env.h>
 
 namespace re
 {
@@ -650,8 +652,7 @@ namespace re
                 {
                     if (filter.front() == '/')
                         continue;
-                    
-                    
+
                     ulib::list<ulib::string> parts = ulib::split(filter, ".");
                     auto temp = result;
 
@@ -823,6 +824,16 @@ namespace re
     void BuildEnv::RunActionList(const NinjaBuildDesc *desc, Target *target, const TargetConfig &list,
                                  std::string_view run_type, const std::string &default_run_type)
     {
+        auto old_path = ulib::getpath();
+
+        auto path_cfg = target->resolved_config["env-path"];
+
+        for (const auto &path : path_cfg)
+        {
+            auto final_path = target->build_var_scope->Resolve(path.Scalar());
+            ulib::add_path(final_path);
+        }
+
         for (const auto &v : list)
         {
             for (const auto &kv : v)
@@ -857,6 +868,8 @@ namespace re
                     RunTargetAction(desc, *target, type, data);
             }
         }
+
+        ulib::setpath(old_path);
     }
 
     void BuildEnv::RunActionsCategorized(Target *target, const NinjaBuildDesc *desc, std::string_view run_type)
