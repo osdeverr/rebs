@@ -13,10 +13,6 @@ namespace re
     int RunProcessOrThrow(std::string_view program_name, const fs::path &path, std::vector<std::string> cmdline,
                           bool output, bool throw_on_bad_exit, std::optional<fs::path> working_directory)
     {
-        std::string workdir = "";
-        if (working_directory)
-            workdir = working_directory->u8string();
-
         ulib::list<ulib::u8string> cmdline_u8;
         for (auto &s : cmdline)
             cmdline_u8.push_back(s);

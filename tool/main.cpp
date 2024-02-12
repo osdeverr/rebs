@@ -1,5 +1,3 @@
-#include <boost/process.hpp>
-
 #include <re/build/default_build_context.h>
 #include <re/build/ninja_gen.h>
 
@@ -18,8 +16,12 @@
 #include <fstream>
 #include <iostream>
 
-#include <boost/algorithm/string.hpp>
+// #include <boost/algorithm/string.hpp>
 // #include <filesystem>
+
+#include <ulib/string.h>
+#include <ulib/split.h>
+#include <ulib/format.h>
 
 #ifdef WIN32
 #include <ulib/process.h>
@@ -570,9 +572,7 @@ int main(int argc, const char **argv)
                 }
                 else
                 {
-                    std::vector<std::string> parts;
-                    boost::algorithm::split(parts, str, boost::is_any_of("."));
-
+                    ulib::list<ulib::string> parts = ulib::split(str, ".");
                     auto temp = &target;
 
                     for (auto &part : parts)
@@ -767,8 +767,7 @@ int main(int argc, const char **argv)
 
                 for (auto i = partial_paths_offset; i < args.size(); i++)
                 {
-                    std::vector<std::string> parts;
-                    boost::algorithm::split(parts, filter, boost::is_any_of("."));
+                    ulib::list<ulib::string> parts = ulib::split(filter, ".");
 
                     auto temp = root;
 

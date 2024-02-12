@@ -2,7 +2,9 @@
 
 #include <re/process_util.h>
 
-#include <boost/algorithm/string.hpp>
+// #include <boost/algorithm/string.hpp>
+#include <ulib/string.h>
+#include <ulib/format.h>
 
 namespace re
 {
@@ -14,7 +16,7 @@ namespace re
 
         for (auto &source : target.sources)
         {
-            if (boost::algorithm::starts_with(source.path, out_root))
+            if (ulib::string{source.path.u8string()}.starts_with(out_root.u8string()))
                 continue;
 
             auto in_path = source.path;
@@ -61,8 +63,8 @@ namespace re
                 if (!supported)
                     continue;
 
-                std::vector<std::string> command;
-                boost::algorithm::split(command, step["command"].Scalar(), boost::is_any_of(" "));
+                ulib::string sc = step["command"].Scalar();
+                ulib::list<ulib::string> command = sc.split(" ");
 
                 for (auto &part : command)
                     part = vars.Resolve(part);
@@ -72,7 +74,11 @@ namespace re
                 if (target.build_var_scope->GetVar("building-sources").value_or("false") == "true" ||
                     target.build_var_scope->GetVar("do-source-translation").value_or("false") == "true")
                 {
-                    re::RunProcessOrThrow(step_name ? step_name.Scalar() : step_suffix.substr(1), {}, command, true, true);
+                    std::vector<std::string> ccommand;
+                    for (auto& str : command)
+                        ccommand.push_back(str);
+
+                    re::RunProcessOrThrow(step_name ? step_name.Scalar() : step_suffix.substr(1), {}, ccommand, true, true);
                 }
                     
                 // fmt::print("translating {} -> {}\n", source.path.generic_u8string(), out_path.generic_u8string());
