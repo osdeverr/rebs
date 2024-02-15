@@ -3,8 +3,6 @@
 #include <re/target_feature.h>
 #include <re/user_output.h>
 
-#include <re/deps/global_dep_resolver.h>
-
 #include "environment_var_namespace.h"
 
 namespace re
@@ -60,10 +58,6 @@ namespace re
         {
             return mEnv.get();
         }
-        GlobalDepResolver *GetGlobalDepResolver() const
-        {
-            return mGlobalDepResolver.get();
-        }
 
         virtual void DoPrint(UserOutputLevel level, fmt::text_style style, std::string_view text) override;
 
@@ -91,7 +85,6 @@ namespace re
         UserOutputLevel mOutLevel = UserOutputLevel::Info;
         bool mOutColors = true;
 
-        std::unique_ptr<GlobalDepResolver> mGlobalDepResolver;
         std::unique_ptr<DepsVersionCache> mDepsVersionCache;
 
         int RunNinjaBuild(const fs::path &script, const Target *root);

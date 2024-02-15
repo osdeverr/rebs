@@ -129,9 +129,6 @@ namespace re
         auto global_deps_path = dynamic_data_path / "deps" / "installed";
         fs::create_directories(global_deps_path);
 
-        mGlobalDepResolver = std::make_unique<GlobalDepResolver>(global_deps_path, mEnv.get(), this);
-        mEnv->AddDepResolver("global", mGlobalDepResolver.get());
-
         constexpr auto kHeaderProjRoot = ".re-cache/header-projection";
 
         auto cxx_header_projection = std::make_unique<CxxHeaderProjection>();
