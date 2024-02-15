@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <re/build/default_build_context.h>
 #include <re/build/ninja_gen.h>
 
@@ -202,11 +203,46 @@ int main(int argc, const char **argv)
 
         constexpr auto kBuildPathVar = "path";
 
+        auto init_re_env = [&context, &args] {
+            if (!context.GetVar(kBuildPathVar))
+            {
+                // Go down the directory tree until we hit the root, then use the most distant re.yml.
+
+                auto path = re::fs::current_path();
+                auto target_path = path;
+
+                while (path.has_relative_path())
+                {
+                    if (context.GetBuildEnv()->CanLoadTargetFrom(path))
+                    {
+                        target_path = path;
+                    }
+
+                    if (re::fs::exists(path / ".re-root"))
+                        break;
+
+                    path = path.parent_path();
+                }
+
+                if (!context.GetBuildEnv()->CanLoadTargetFrom(target_path))
+                {
+                    context.Error(fmt::emphasis::bold | fmt::fg(fmt::color::crimson),
+                                  "\nYou are not in a Re target tree!\n"
+                                  "Please change your directory or create a new Re project: 're new'\n\n");
+                    std::exit(-1);
+                }
+
+                re::fs::current_path(target_path);
+            }
+        };
+
+        context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
         if (args.size() == 1)
         {
-            auto path = context.GetVar(kBuildPathVar).value_or(".");
+            init_re_env();
 
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
@@ -233,7 +269,6 @@ int main(int argc, const char **argv)
             if (path.front() == '.')
                 path = path.substr(1);
 
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
             context.UpdateOutputSettings();
 
             path = context.GetVar(kBuildPathVar).value_or(path);
@@ -275,8 +310,6 @@ int main(int argc, const char **argv)
 
                 auto path = context.GetVar(kBuildPathVar).value_or(".");
 
-                context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
-
                 fmt::print("\n");
 
                 for (auto it = args.begin() + 3; it != args.end(); it++)
@@ -296,14 +329,14 @@ int main(int argc, const char **argv)
         }
         else if (args[1] == "do")
         {
+            init_re_env();
+
             if (args.size() < 3)
                 throw re::Exception("re do: invalid command line\n\tusage: re do <action-category> [path | .]");
 
             setup_re_argv(3);
 
             auto path = context.GetVar(kBuildPathVar).value_or(".");
-
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
@@ -338,6 +371,8 @@ int main(int argc, const char **argv)
         }
         else if (args[1] == "config" || args[1] == "conf" || args[1] == "cfg")
         {
+            init_re_env();
+
             auto path = context.GetVar(kBuildPathVar).value_or(".");
             auto yaml = context.LoadCachedParams(path);
 
@@ -367,9 +402,9 @@ int main(int argc, const char **argv)
         }
         else if (args[1] == "meta")
         {
-            auto path = args.size() > 2 && args[2].front() != '.' ? args[2] : ".";
+            init_re_env();
 
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+            auto path = args.size() > 2 && args[2].front() != '.' ? args[2] : ".";
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
@@ -394,7 +429,6 @@ int main(int argc, const char **argv)
             if (args.size() < 3)
                 throw re::Exception("re pkg: invalid command line\n\tusage: re pkg <operation> [args]");
 
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
             context.UpdateOutputSettings();
 
             auto resolver = context.GetGlobalDepResolver();
@@ -502,9 +536,9 @@ int main(int argc, const char **argv)
         }
         else if (args[1] == "summary")
         {
-            auto path = context.GetVar(kBuildPathVar).value_or(".");
+            init_re_env();
 
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
@@ -519,8 +553,6 @@ int main(int argc, const char **argv)
         else if (args[1] == "list" || args[1] == "ls")
         {
             auto path = context.GetVar(kBuildPathVar).value_or(".");
-
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
@@ -558,9 +590,9 @@ int main(int argc, const char **argv)
         }
         else if (args[1] == "run")
         {
-            auto path = context.GetVar(kBuildPathVar).value_or(".");
+            init_re_env();
 
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
@@ -698,9 +730,9 @@ int main(int argc, const char **argv)
         }
         else if (args[1] == "upgrade")
         {
-            auto path = context.GetVar(kBuildPathVar).value_or(".");
+            init_re_env();
 
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
@@ -717,9 +749,9 @@ int main(int argc, const char **argv)
         }
         else if (args[1] == "test-lock")
         {
-            auto path = context.GetVar(kBuildPathVar).value_or(".");
+            init_re_env();
 
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
@@ -748,9 +780,9 @@ int main(int argc, const char **argv)
         }
         else
         {
-            auto path = context.GetVar(kBuildPathVar).value_or(".");
+            init_re_env();
 
-            context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+            auto path = context.GetVar(kBuildPathVar).value_or(".");
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
