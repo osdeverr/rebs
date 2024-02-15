@@ -1,3 +1,4 @@
+#include "re/error.h"
 #include <filesystem>
 #include <re/build/default_build_context.h>
 #include <re/build/ninja_gen.h>
@@ -617,6 +618,28 @@ int main(int argc, const char **argv)
             context.Info(fg(fmt::color::yellow), "{}\n", re::GetBuildVersionTag());
             context.Info({}, "  Re build revision: ");
             context.Info(fg(fmt::color::yellow), "{}\n\n", re::GetBuildRevision());
+        }
+        else if (args[1] == "tool")
+        {
+            init_re_env();
+
+            if (args.size() < 3)
+                throw re::Exception("re tool requires at least two arguments: re tool <tool> [args...]");
+
+            auto path = ".";
+
+            context.LoadCachedParams(path);
+            context.UpdateOutputSettings();
+
+            auto &target = context.LoadTarget(path);
+            apply_cfg_overrides(&target);
+
+            auto desc = context.GenerateBuildDescForTarget(target);
+
+            std::vector<std::string> run_args(args.begin() + 2, args.end());
+
+            auto working_dir = context.GetVar("working-dir").value_or(".");
+            return re::RunProcessOrThrow(args[3], "", run_args, true, false, working_dir);
         }
         else if (args[1] == "upgrade")
         {
