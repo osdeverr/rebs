@@ -4,8 +4,8 @@
 #include <re/debug.h>
 
 // #include <boost/algorithm/string.hpp>
-#include <ulib/string.h>
 #include <ulib/format.h>
+#include <ulib/string.h>
 
 namespace re
 {
@@ -101,10 +101,17 @@ namespace re
         for (auto &target : genealogy)
             MergeYamlNode(result, GetFlatResolvedTargetCfg(target->config, mappings));
 
-        result["deps"] = top_deps;
-        // result["uses"] = top_uses;
-        result["actions"] = top_actions;
-        result["tasks"] = top_tasks;
+        // Everything is always inherited from the core config target in the root target
+        if (leaf.parent &&
+            (!leaf.parent->config["is-core-config"] || leaf.parent->config["is-core-config"].as<bool>() != true))
+        {
+            result["deps"] = top_deps;
+            // result["uses"] = top_uses;
+            result["actions"] = top_actions;
+            result["tasks"] = top_tasks;
+        }
+
+        result["is-core-config"] = false;
 
         /*
                 YAML::Emitter emitter;
