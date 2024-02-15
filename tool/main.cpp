@@ -639,7 +639,7 @@ int main(int argc, const char **argv)
             std::vector<std::string> run_args(args.begin() + 2, args.end());
 
             auto working_dir = context.GetVar("working-dir").value_or(".");
-            return re::RunProcessOrThrow(args[3], "", run_args, true, false, working_dir);
+            return re::RunProcessOrThrow("tool", "", run_args, true, false, working_dir);
         }
         else if (args[1] == "upgrade")
         {
