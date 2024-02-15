@@ -195,6 +195,17 @@ namespace re
         PopulateTargetMap(pTarget);
     }
 
+    bool BuildEnv::CanLoadTargetFrom(const fs::path &path)
+    {
+        // Check middlewares first - they may load non-Re targets just fine
+        for (auto &middleware : mTargetLoadMiddlewares)
+            if (middleware->SupportsTargetLoadPath(path))
+                return true;
+
+        // If no middlewares picked up the path along the way, check if there's a re.yml there.
+        return (fs::exists(path / "re.yml"));
+    }
+
     Target &BuildEnv::LoadCoreProjectTarget(const fs::path &path)
     {
         mTheCoreProjectTarget = LoadFreeTarget(path);

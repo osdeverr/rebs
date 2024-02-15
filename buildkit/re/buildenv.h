@@ -113,6 +113,16 @@ namespace re
          */
         void RegisterLocalTarget(Target *pTarget);
 
+        /**
+         * @brief Checks if the specified path contains a loadable Re target, taking into account all the registered
+         * target load middlewares.
+         *
+         * @param path The path to check against
+         * @return true A Re target can be loaded from this location.
+         * @return false A Re target cannot be loaded from this location.
+         */
+        bool CanLoadTargetFrom(const fs::path &path);
+
         std::vector<Target *> GetSingleTargetDepSet(Target *pTarget);
         std::vector<Target *> GetSingleTargetLocalDepSet(Target *pTarget);
         std::vector<Target *> GetTargetsInDependencyOrder();
