@@ -188,3 +188,6 @@ c-standard: 11
 
 features:
     - source-translation
+
+# Make the host arch the default arch when building stuff
+arch: ${host-arch}
