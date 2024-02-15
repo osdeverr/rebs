@@ -158,6 +158,8 @@ namespace re
         mTargetLoadMiddlewares.emplace_back(std::move(cmake_middleware));
 
         mEnv->LoadCoreProjectTarget(mDataPath / "data" / "core-project");
+
+        mVars.SetVar("re-data-path", mDataPath.generic_u8string());
     }
 
     Target &DefaultBuildContext::LoadTarget(const fs::path &path)
@@ -773,6 +775,10 @@ namespace re
         CopyTemplateToDirectory(out_path, template_dir);
 
         ulib::string content = futile::open(out_path / "re.yml").read();
+
+        // Fix weird double \0\0
+        content.resize(content.size() - 2);
+
         futile::open(out_path / "re.yml", "w").write(content.replace("{{template-target-name}}", target_name));
 
         Info(fg(fmt::color::blue_violet), "Created new target '{}' from template '{}' in directory '{}'\n", target_name,
