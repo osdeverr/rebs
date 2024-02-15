@@ -194,3 +194,19 @@ arch: ${host-arch}
 
 # Important for default config inheritance. This will not spill over to user targets.
 is-core-config: true
+
+# Always generate compile_commands.json
+load-context.standalone:
+    tasks:
+      generate-compile-commands-json:
+        run: always
+        silent: true
+        meta-available:
+          - run:
+                command: python
+                args:
+                  [
+                    "${re:re-data-path}/data/util-scripts/compile-commands-gen.py",
+                    "${root-dir}/.re-cache/meta/full.json",
+                    "${root-dir}/compile_commands.json",
+                  ]
