@@ -954,8 +954,11 @@ namespace re
 
             const auto kStyle = fg(fmt::color::blue_violet) | fmt::emphasis::bold;
 
-            mOut->Info(kStyle, " - Running task ");
-            mOut->Info(kStyle | fmt::emphasis::underline, "{}\n\n", completion_key);
+            if (!task["silent"] || task["silent"].as<bool>() != true)
+            {
+                mOut->Info(kStyle, " - Running task ");
+                mOut->Info(kStyle | fmt::emphasis::underline, "{}\n\n", completion_key);
+            }
 
             RunActionList(desc, target, stage_actions, stage, stage.data());
 
