@@ -29,6 +29,7 @@ platform.windows:
         - ${sdk-tools-bin}
         - ${vs-cmake-bin}
         - ${vs-ninja-bin}
+        - ${re:re-data-path}/win32-helpers
 
     out-ext:
         target-type.executable: exe
