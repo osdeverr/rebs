@@ -191,3 +191,6 @@ features:
 
 # Make the host arch the default arch when building stuff
 arch: ${host-arch}
+
+# Important for default config inheritance. This will not spill over to user targets.
+is-core-config: true
