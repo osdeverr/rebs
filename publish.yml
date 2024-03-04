@@ -1,0 +1,8 @@
+name: re
+description: The build system for C++
+
+author: osdeverr
+license: MIT
+
+publish-type: external
+hosted-at: github:osdeverr/rebs

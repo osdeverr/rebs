@@ -211,3 +211,6 @@ load-context.standalone:
                     "${root-dir}/.re-cache/meta/full.json",
                     "${root-dir}/compile_commands.json",
                   ]
+
+package-sources:
+    re: https://re.plakmp.com
