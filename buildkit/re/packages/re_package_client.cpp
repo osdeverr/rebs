@@ -93,8 +93,8 @@ namespace re
         // Throw on bad status
         if (response->status < 200 || response->status > 299)
         {
-            RE_THROW RePackageClientException("Failed to find package '{}': {} {} {}", package, response->status,
-                                              response->reason, response->body);
+            RE_THROW RePackageClientException("Failed to find package '{}': {} {} {}", version.package,
+                                              response->status, response->reason, response->body);
         }
     }
 } // namespace re
