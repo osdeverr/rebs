@@ -1,3 +1,5 @@
+#include <re/packages/re_package_client.h>
+
 #include "re/error.h"
 #include <filesystem>
 #include <re/build/default_build_context.h>
@@ -659,37 +661,6 @@ int main(int argc, const char **argv)
                 re::fs::remove(lock_path);
 
             context.GenerateBuildDescForTarget(target);
-        }
-        else if (args[1] == "test-lock")
-        {
-            init_re_env();
-
-            auto path = context.GetVar(kBuildPathVar).value_or(".");
-
-            context.LoadCachedParams(path);
-            context.UpdateOutputSettings();
-
-            auto &target = context.LoadTarget(path);
-
-            re::DepsVersionCache cache;
-
-            auto get_available_versions = [](const re::TargetDependency &,
-                                             std::string_view) -> std::vector<std::string> {
-                return {"v1.2", "0.3.5", "1.5.2", "ver0.3.3", "1.5.3", "1.7.10"};
-            };
-
-            auto deps = {"re:test-dep ==0.3.5", "re:test-dep ^0.3.3", "re:test-dep >1.2",  "re:test-dep @ver0.3.3",
-                         "re:test-dep <1.5.2",  "re:test-dep ^1.5.2", "re:test-dep ~1.5.2"};
-
-            for (auto &dep : deps)
-            {
-                auto tag = cache.GetLatestVersionMatchingRequirements(target, re::ParseTargetDependency(dep, &target),
-                                                                      "", get_available_versions);
-
-                context.Info(fg(fmt::color::crimson), "{} - {}\n", dep, tag);
-            }
-
-            fmt::print("\n{}\n\n", cache.GetData().dump(4));
         }
         else
         {

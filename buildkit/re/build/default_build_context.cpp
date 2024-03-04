@@ -1,4 +1,7 @@
+#include <re/deps/re_package_dep_resolver.h>
+
 #include "default_build_context.h"
+
 // #include "boost/algorithm/string/replace.hpp"
 #include "ninja_gen.h"
 #include "re/error.h"
@@ -283,6 +286,37 @@ namespace re
         {
             dep->var_parent = &mVars;
             mEnv->InitializeTargetLinkEnvWithDeps(dep, desc);
+        }
+
+        // Setting up the package sources for this target
+        for (const auto &kv : desc.pRootTarget->resolved_config["package-sources"])
+        {
+            auto repo_id = kv.first.Scalar();
+
+            if (kv.second.IsScalar())
+            {
+                auto client = RePackageClient{kv.second.Scalar()};
+                auto resolver = std::make_unique<RePackageDepResolver>(mEnv.get(), this, repo_id, std::move(client));
+
+                mEnv->AddDepResolver(repo_id, resolver.get());
+                mDepResolvers.emplace_back(std::move(resolver));
+            }
+            else
+            {
+                auto &settings = kv.second;
+
+                auto client = RePackageClient{settings["url"].Scalar()};
+
+                for (const auto &kv : settings["headers"])
+                {
+                    client.AddRequestHeader(kv.first.Scalar(), kv.second.Scalar());
+                }
+
+                auto resolver = std::make_unique<RePackageDepResolver>(mEnv.get(), this, repo_id, std::move(client));
+
+                mEnv->AddDepResolver(repo_id, resolver.get());
+                mDepResolvers.emplace_back(std::move(resolver));
+            }
         }
 
         auto deps = mEnv->GetSingleTargetDepSet(desc.pBuildTarget);
