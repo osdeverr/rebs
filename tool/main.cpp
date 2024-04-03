@@ -655,7 +655,9 @@ int main(int argc, const char **argv)
             context.Info({}, "\n  Re version: ");
             context.Info(fg(fmt::color::yellow), "{}\n", re::GetBuildVersionTag());
             context.Info({}, "  Re build revision: ");
-            context.Info(fg(fmt::color::yellow), "{}\n\n", re::GetBuildRevision());
+            context.Info(fg(fmt::color::yellow), "{}\n", re::GetBuildRevision());
+            context.Info({}, "  Built at: ");
+            context.Info(fg(fmt::color::yellow), "{} {}\n\n", __DATE__, __TIME__);
         }
         else if (args[1] == "tool")
         {
