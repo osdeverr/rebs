@@ -24,7 +24,7 @@ platform.windows:
         on: deploy
         from: ${build-artifact}
         to-file:
-          - ${re-dev-deploy-path}/re-dev.exe
+          - ${re-dev-deploy-path}/${re-dev-executable | re-dev}.exe
 
   tasks:
     attach-tool-main-manifest:
