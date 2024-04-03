@@ -239,7 +239,37 @@ int main(int argc, const char **argv)
             }
         };
 
+        auto handle_partial_build = [&context](re::Target *root, std::optional<std::string> filter) -> re::Target * {
+            if (!filter)
+                return nullptr;
+
+            ulib::list<ulib::string> parts = ulib::split(*filter, ".");
+
+            auto temp = root;
+
+            for (auto &part : parts)
+            {
+                if (!part.empty())
+                    temp = temp->FindChild(part);
+
+                if (!temp)
+                    throw re::TargetBuildException(root, "unresolved partial build filter '{}' for '{}'", *filter,
+                                                   root->module);
+            }
+
+            if (!temp)
+                throw re::TargetBuildException(root, "unresolved partial dependency filter '{}' for '{}'", *filter,
+                                               root->module);
+
+            context.Info(fg(fmt::color::blue_violet) | fmt::emphasis::bold,
+                         "\n ! Partial build - Processing target '{}'\n\n", temp->module);
+
+            return temp;
+        };
+
         context.LoadDefaultEnvironment(re::GetReDataPath(), re::GetReDynamicDataPath());
+
+        auto partial_build_filter = context.GetVar("target");
 
         if (args.size() == 1)
         {
@@ -255,7 +285,9 @@ int main(int argc, const char **argv)
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
 
-            return context.BuildTarget(context.GenerateBuildDescForTarget(target));
+            auto maybe_partial_build = handle_partial_build(&target, partial_build_filter);
+
+            return context.BuildTarget(context.GenerateBuildDescForTarget(target, maybe_partial_build));
             // return context.BuildTargetInDir(L"D:/PlakSystemsSW/NetUnitCollection");
         }
         else if (args[1] == "new")
@@ -349,7 +381,9 @@ int main(int argc, const char **argv)
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
 
-            auto desc = context.GenerateBuildDescForTarget(target);
+            auto maybe_partial_build = handle_partial_build(&target, partial_build_filter);
+
+            auto desc = context.GenerateBuildDescForTarget(target, maybe_partial_build);
             auto env = context.GetBuildEnv();
 
             auto deps = env->GetSingleTargetDepSet(desc.pBuildTarget);
@@ -439,7 +473,8 @@ int main(int argc, const char **argv)
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
 
-            context.GenerateBuildDescForTarget(target);
+            auto maybe_partial_build = handle_partial_build(&target, partial_build_filter);
+            context.GenerateBuildDescForTarget(target, maybe_partial_build);
 
             context.GetBuildEnv()->DebugShowVisualBuildInfo();
         }
@@ -453,7 +488,8 @@ int main(int argc, const char **argv)
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
 
-            context.GenerateBuildDescForTarget(target);
+            auto maybe_partial_build = handle_partial_build(&target, partial_build_filter);
+            context.GenerateBuildDescForTarget(target, maybe_partial_build);
 
             const auto kStyleTargetName = fg(fmt::color::sky_blue);
             const auto kStyleTargetType = fg(fmt::color::dim_gray);
@@ -636,7 +672,8 @@ int main(int argc, const char **argv)
             auto &target = context.LoadTarget(path);
             apply_cfg_overrides(&target);
 
-            auto desc = context.GenerateBuildDescForTarget(target);
+            auto maybe_partial_build = handle_partial_build(&target, partial_build_filter);
+            auto desc = context.GenerateBuildDescForTarget(target, maybe_partial_build);
 
             std::vector<std::string> run_args(args.begin() + 2, args.end());
 
@@ -660,7 +697,8 @@ int main(int argc, const char **argv)
             if (re::fs::exists(lock_path))
                 re::fs::remove(lock_path);
 
-            context.GenerateBuildDescForTarget(target);
+            auto maybe_partial_build = handle_partial_build(&target, partial_build_filter);
+            context.GenerateBuildDescForTarget(target, maybe_partial_build);
         }
         else
         {
@@ -686,32 +724,12 @@ int main(int argc, const char **argv)
                 if (!context.GetVar("no-meta"))
                     context.SetVar("no-meta", "true");
 
-                auto &filter = args[partial_paths_offset];
-
                 for (auto i = partial_paths_offset; i < args.size(); i++)
                 {
-                    ulib::list<ulib::string> parts = ulib::split(filter, ".");
+                    auto &filter = args[i];
 
-                    auto temp = root;
-
-                    for (auto &part : parts)
-                    {
-                        if (!part.empty())
-                            temp = temp->FindChild(part);
-
-                        if (!temp)
-                            throw re::TargetBuildException(root, "unresolved partial build filter '{}' for '{}'",
-                                                           filter, root->module);
-                    }
-
-                    if (!temp)
-                        throw re::TargetBuildException(root, "unresolved partial dependency filter '{}' for '{}'",
-                                                       filter, root->module);
-
-                    context.Info(fg(fmt::color::blue_violet) | fmt::emphasis::bold,
-                                 "\n ! Partial build - Processing target '{}'\n\n", temp->module);
-
-                    auto desc = context.GenerateBuildDescForTarget(*root, temp);
+                    auto desc =
+                        context.GenerateBuildDescForTarget(*root, handle_partial_build(root, std::string{filter}));
                     context.BuildTarget(desc);
 
                     // context.Info({}, "\n");
@@ -719,7 +737,9 @@ int main(int argc, const char **argv)
             }
             else
             {
-                auto desc = context.GenerateBuildDescForTarget(*root);
+                auto maybe_partial_build = handle_partial_build(root, partial_build_filter);
+
+                auto desc = context.GenerateBuildDescForTarget(*root, maybe_partial_build);
                 context.BuildTarget(desc);
             }
 
