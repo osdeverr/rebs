@@ -439,9 +439,10 @@ int main(int argc, const char **argv)
         }
         else if (args[1] == "meta")
         {
-            init_re_env();
-
             auto path = args.size() > 2 && args[2].front() != '.' ? args[2] : ".";
+
+            context.SetVar(kBuildPathVar, std::string{path});
+            init_re_env();
 
             context.LoadCachedParams(path);
             context.UpdateOutputSettings();
