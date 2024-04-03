@@ -102,7 +102,7 @@ cxxenv.clang-cl:
 
 cxx-header-projection: false
 
-inherit-caller-in-deps: false
+inherit-caller-in-deps: true
 
 arch.x64:
     # Conan uses x86_64 to refer to x64. Re uses x64.
