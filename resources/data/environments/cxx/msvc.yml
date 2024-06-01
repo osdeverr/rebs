@@ -120,6 +120,10 @@ build-options:
 
     build-debug-info:
         true:
+            compiler: [/Z7]
+        embedded:
+            compiler: [/Z7]
+        separate:
             compiler: [/Zi]
 
     build-link-debug-info:

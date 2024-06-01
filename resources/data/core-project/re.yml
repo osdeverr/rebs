@@ -150,13 +150,10 @@ cxxenv.msvc|clang-cl:
 
             msvc.whole-program-optimization: true
 
-    config.release.debinfo:
-        cxx-build-options:
             build-debug-info: true
 
     config.debug:
         cxx-build-options:
-            build-debug-info: true
             msvc.runtime-library: multithreaded-dll-debug
 
     cxx-build-options:
