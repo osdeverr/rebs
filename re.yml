@@ -5,7 +5,7 @@ platform.windows:
   # cxx-env: clang-cl
   cxx-build-flags:
     compiler:
-      - "/EHsc /Zi /wd4251 /wd4275 /wd4996 /sdl- /utf-8"
+      - "/EHsc /Z7 /wd4251 /wd4275 /wd4996 /sdl- /utf-8"
 
   config.release:
     cxxenv.msvc|clang-cl:
