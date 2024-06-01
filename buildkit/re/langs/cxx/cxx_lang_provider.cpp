@@ -111,11 +111,10 @@ namespace re
         auto &target_vars = target.target_var_scope.emplace(&target.local_var_ctx, "target", &target);
         auto &vars = target.build_var_scope.emplace(&target.local_var_ctx, "build", &target_vars);
 
-        std::unordered_map<std::string, std::string> cond_desc = {{"target-type", TargetTypeToString(target.type)},
-                                                                  {"platform", vars.ResolveLocal("platform")},
-                                                                  {"host-platform", vars.ResolveLocal("host-platform")},
-                                                                  {"config", vars.ResolveLocal("configuration")},
-                                                                  {"load-context", vars.ResolveLocal("load-context")}};
+        std::unordered_map<std::string, std::string> cond_desc = {
+            {"target-type", TargetTypeToString(target.type)},      {"platform", vars.ResolveLocal("platform")},
+            {"host-platform", vars.ResolveLocal("host-platform")}, {"config", vars.ResolveLocal("configuration")},
+            {"load-context", vars.ResolveLocal("load-context")},   {"runtime", vars.ResolveLocal("runtime")}};
 
         target.resolved_config = GetResolvedTargetCfg(target, cond_desc);
 

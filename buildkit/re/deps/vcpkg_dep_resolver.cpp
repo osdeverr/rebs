@@ -20,8 +20,15 @@ namespace re
         auto re_platform = scope.ResolveLocal("platform");
         auto re_config = scope.ResolveLocal("configuration");
 
+        auto lib_type = scope.ResolveLocal("vcpkg-library-type");
+
         auto at_prefix = (dep.version.size() && dep.ns == "vcpkg") ? fmt::format("-{}", dep.version) : "";
         // fmt::print(" / dbg - ns='{}' atp='{}'\n", dep.ns, at_prefix);
+
+        if (!lib_type.empty() && lib_type != "dynamic")
+        {
+            at_prefix = fmt::format("-{}", lib_type) + at_prefix;
+        }
 
         auto cache_path = fmt::format("{}{}-{}-{}-{}", dep.name, at_prefix, re_arch, re_platform, re_config);
 
