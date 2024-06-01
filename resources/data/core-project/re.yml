@@ -136,6 +136,15 @@ config.release.debinfo:
 cxx-build-options:
     cxx-exceptions: on
 
+# By default, use the dynamic runtime.
+runtime: dynamic
+    
+runtime.static:
+    vcpkg-library-type: static
+
+runtime.dynamic:
+    vcpkg-library-type: dynamic
+
 # Thanks K2Re8 for the right flags!
 cxxenv.msvc|clang-cl:
     config.release:
@@ -146,8 +155,6 @@ cxxenv.msvc|clang-cl:
             msvc.optimization-generate-intrinsics: true
             msvc.buffer-security-check: false
 
-            msvc.runtime-library: multithreaded-dll
-
             msvc.whole-program-optimization: true
 
             build-debug-info: true
@@ -155,6 +162,24 @@ cxxenv.msvc|clang-cl:
     config.debug:
         cxx-build-options:
             msvc.runtime-library: multithreaded-dll-debug
+
+    runtime.static:            
+        config.release:
+            cxx-build-options:
+                msvc.runtime-library: multithreaded-static
+
+        config.debug:
+            cxx-build-options:
+                msvc.runtime-library: multithreaded-static-debug
+                
+    runtime.dynamic:      
+        config.release:
+            cxx-build-options:
+                msvc.runtime-library: multithreaded-dll
+
+        config.debug:
+            cxx-build-options:
+                msvc.runtime-library: multithreaded-dll-debug
 
     cxx-build-options:
         warning-level: 3
@@ -211,3 +236,5 @@ load-context.standalone:
 
 package-sources:
     re: https://re.plakmp.com
+
+vcpkg-library-type: dynamic
