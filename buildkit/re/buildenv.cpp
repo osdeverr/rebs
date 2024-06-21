@@ -906,6 +906,9 @@ namespace re
 
     void BuildEnv::RunAutomaticStructuredTasks(Target *target, const NinjaBuildDesc *desc, std::string_view stage)
     {
+        if (target->parent)
+            RunAutomaticStructuredTasks(target->parent, desc, stage);
+
         if (auto tasks = (target->resolved_config ? target->resolved_config : target->config)["tasks"])
         {
             for (auto kv : tasks)

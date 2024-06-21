@@ -525,8 +525,20 @@ namespace re
 
         for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pBuildTarget))
         {
+            mEnv->RunActionsCategorized(dep, &desc, "pre-source-translate");
+            mEnv->RunAutomaticStructuredTasks(dep, &desc, "pre-source-translate");
+        }
+
+        for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pBuildTarget))
+        {
             for (auto &[key, object] : dep->features)
                 object->ProcessTargetPreBuild(*dep);
+        }
+
+        for (auto &dep : mEnv->GetSingleTargetDepSet(desc.pBuildTarget))
+        {
+            mEnv->RunActionsCategorized(dep, &desc, "post-source-translate");
+            mEnv->RunAutomaticStructuredTasks(dep, &desc, "post-source-translate");
 
             mEnv->RunActionsCategorized(dep, &desc, "pre-build");
             mEnv->RunAutomaticStructuredTasks(dep, &desc, "pre-build");

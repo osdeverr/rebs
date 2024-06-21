@@ -9,5 +9,6 @@ namespace re
         static constexpr auto kFeatureName = "source-translation";
 
         void ProcessTargetPostInit(Target &target);
+        void ProcessTargetPreBuild(Target &target);
     };
 }
