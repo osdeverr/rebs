@@ -6,6 +6,8 @@
 // #include <boost/algorithm/string.hpp>
 #include <ulib/format.h>
 #include <ulib/string.h>
+#include <iostream>
+
 
 namespace re
 {
@@ -93,8 +95,39 @@ namespace re
         while (p)
         {
             genealogy.insert(genealogy.begin(), p);
+            if (std::find(genealogy.begin(), genealogy.end(), p->parent) != genealogy.end())
+            {
+                std::system("pause");
+
+                if (p->parent)
+                {
+                    fmt::print("p->name: {}\n", p->name);
+                    fmt::print("p->path: {}\n", p->path.generic_string());
+                    fmt::print("p->module: {}\n", p->module);
+                    fmt::print("p->type: {}\n", TargetTypeToString(p->type));
+
+                    fmt::print("p->parent->name: {}\n", p->parent->name);
+                    fmt::print("p->parent->path: {}\n", p->parent->path.generic_string());
+                    fmt::print("p->parent->module: {}\n", p->parent->module);
+                    fmt::print("p->parent->type: {}\n", TargetTypeToString(p->parent->type));
+
+                    fmt::print("p->parent->resolved_config:\n");
+                    std::cout << p->parent->resolved_config << std::endl;
+
+                    fmt::print("p->parent->config:\n");
+                    std::cout << p->parent->config << std::endl;
+
+                }
+
+                break;
+            }
+                
+
             p = p->parent;
         }
+
+    
+
 
         TargetConfig result{YAML::NodeType::Map};
 

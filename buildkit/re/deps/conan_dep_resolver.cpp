@@ -5,6 +5,7 @@
 #include <re/yaml_merge.h>
 
 #include <fstream>
+#include <iostream>
 
 namespace re
 {
@@ -40,12 +41,18 @@ namespace re
 
             auto conan_arch = re_arch;
             auto conan_build_type = re_config;
+            
+            if (auto overridden = scope.GetVar("conan-arch-name"))
+                conan_arch = *overridden;
 
-            if (auto overridden = target.resolved_config["conan-arch-name"])
-                conan_arch = overridden.Scalar();
+            if (auto overridden = scope.GetVar("conan-build-type"))
+                conan_build_type = *overridden;
 
-            if (auto overridden = target.resolved_config["conan-build-type"])
-                conan_build_type = overridden.Scalar();
+            // fmt::print("conan arch: {}\n", conan_arch);
+            // fmt::print("target.name: {}\n", target.name);
+            // fmt::print("scope.ResolveLocal: {}\n", scope.ResolveLocal("conan-arch-name"));
+            // fmt::print("resolved_config: \n");
+            // std::cout << target.resolved_config << std::endl;
 
             fs::create_directories(pkg_cached);
 
@@ -140,7 +147,11 @@ namespace re
 
         YAML::Node build_info = YAML::Load(build_info_file);
 
-        auto conan_lib_suffix = target.resolved_config["conan-lib-suffix"].Scalar();
+        std::string conan_lib_suffix = "";
+        if (auto suffix = scope.GetVar("conan-lib-suffix"))
+            conan_lib_suffix = *suffix;
+
+        // auto conan_lib_suffix = target.resolved_config["conan-lib-suffix"].Scalar();
 
         auto load_conan_dependency = [this, conan_lib_suffix, &re_arch, &re_platform, &re_config, &bv_scope,
                                       &target](YAML::Node data) {
