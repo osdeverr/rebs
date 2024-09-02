@@ -117,14 +117,12 @@ namespace re
         if (!name.empty() && name.front() == '.')
         {
             name.erase(0, 1);
+        }
 
-            if (parent)
-                module = ModulePathCombine(parent->module, name);
-        }
+        if (parent)
+            module = ModulePathCombine(parent->module, name);
         else
-        {
             module = name;
-        }
 
         if (parent)
             root_path = parent->root_path;
@@ -424,8 +422,8 @@ namespace re
         if (dep.name.empty())
             RE_THROW TargetDependencyException(pTarget, "dependency {} does not have a name specified", str);
 
-        if (pTarget)
-            dep.name = ResolveTargetParentRef(dep.name, pTarget);
+        // if (pTarget)
+        //     dep.name = ResolveTargetParentRef(dep.name, pTarget);
 
         return dep;
     }

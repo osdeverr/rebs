@@ -19,6 +19,10 @@
 
 #include <ulib/env.h>
 
+#include <iostream>
+#include <ulib/json.h>
+#include <ulib/yaml_json.h>
+
 namespace re
 {
     void PopulateTargetChildSet(Target *pTarget, std::vector<Target *> &to)
@@ -34,6 +38,8 @@ namespace re
     {
         if (std::find(to.begin(), to.end(), pTarget) != to.end())
             return;
+
+        // std::cout << pTarget->resolved_config << std::endl;
 
         if (pTarget->resolved_config && !pTarget->resolved_config["enabled"].as<bool>())
         {
@@ -142,6 +148,39 @@ namespace re
     std::unique_ptr<Target> BuildEnv::LoadFreeTarget(const fs::path &path, const Target *ancestor,
                                                      const TargetDependency *dep_source)
     {
+        // {
+        //     const Target *p = ancestor;
+        //     if (p)
+        //     {
+        //         fmt::print("\nancestor:\n");
+        //         fmt::print("p->name: {}\n", p->name);
+        //         fmt::print("p->path: {}\n", p->path.generic_string());
+        //         fmt::print("p->module: {}\n", p->module);
+        //         fmt::print("p->type: {}\n", TargetTypeToString(p->type));
+        //         fmt::print("p: 0x{:X}\n", uint64_t(p));
+
+        //         if (p->parent)
+        //         {
+        //             fmt::print("p->parent->name: {}\n", p->parent->name);
+        //             fmt::print("p->parent->path: {}\n", p->parent->path.generic_string());
+        //             fmt::print("p->parent->module: {}\n", p->parent->module);
+        //             fmt::print("p->parent->type: {}\n", TargetTypeToString(p->parent->type));
+        //             fmt::print("p->parent: 0x{:X}\n", uint64_t(p->parent));
+        //         }
+
+        //         if (p->root)
+        //         {
+        //             fmt::print("p->root->name: {}\n", p->root->name);
+        //             fmt::print("p->root->path: {}\n", p->root->path.generic_string());
+        //             fmt::print("p->root->module: {}\n", p->root->module);
+        //             fmt::print("p->root->type: {}\n", TargetTypeToString(p->root->type));
+        //             fmt::print("p->root: 0x{:X}\n", uint64_t(p->root));
+        //         }
+
+        //         fmt::print("\n");
+        //     }
+        // }
+
         std::unique_ptr<Target> target = nullptr;
 
         for (auto &middleware : mTargetLoadMiddlewares)
@@ -166,7 +205,11 @@ namespace re
             target = std::make_unique<Target>(path, mTheCoreProjectTarget.get());
         }
 
-        target->parent = mTheCoreProjectTarget.get();
+        if (mRootTargets.size() > 0)
+            target->parent = target->root = mRootTargets.front().get();
+        else
+            target->parent = mTheCoreProjectTarget.get();
+
         target->root = target.get();
 
         return target;
@@ -585,6 +628,53 @@ namespace re
         mTargetLoadMiddlewares.push_back(middleware);
     }
 
+    Target *FindDeepNeighborTarget(const Target *target, std::string_view name)
+    {
+        while (name.size() && name.front() == '.')
+            name.remove_prefix(1);
+
+        if (!target || !target->parent)
+        {
+            return nullptr;
+        }
+
+        for (auto &child : target->parent->children)
+        {
+            // fmt::print("{} -> {}\n", name, child->name);
+
+            ulib::string_view childName = child->name;
+            while (childName.starts_with('.'))
+                childName.remove_prefix(1);
+
+            if (childName == name)
+            {
+                return child.get();
+            }
+        }
+
+        return FindDeepNeighborTarget(target->parent, name);
+    }
+
+    Target* GetDeepSiblingDep(const Target* target, ulib::string_view name)
+    {
+        while (name.starts_with("."))
+            name.remove_prefix(1);
+
+        ulib::list<ulib::string> components = name.split(".");
+        if (components.empty())
+            return nullptr;
+
+        auto result = FindDeepNeighborTarget(target, components[0]);
+        for (size_t i = 1; i < components.size(); i++)
+        {
+            result = result->FindChild(components[i]);
+            if (!result)
+                return nullptr;
+        }
+
+        return result;
+    }
+
     bool BuildEnv::ResolveTargetDependencyImpl(const Target &target, const TargetDependency &dep,
                                                std::vector<Target *> &out, bool use_external)
     {
@@ -592,7 +682,7 @@ namespace re
 
         if (dep.ns.empty())
         {
-            auto result = GetTargetOrNull(dep.name);
+            auto result = GetDeepSiblingDep(&target, dep.name);
 
             // Arch coercion - this is SOMETIMES very useful
             if (result)
@@ -767,11 +857,22 @@ namespace re
 
                 auto [scope, context] = target.GetBuildVarScope();
 
-                if (scope.ResolveLocal("inherit-caller-in-deps") == "true")
+                // if (scope.ResolveLocal("inherit-caller-in-deps") == "true")
                 {
                     // EVIL HACK
-                    result->root = target.root;
-                    result->parent = result->root;
+                    // if (target.root && !target.root->name.empty())
+                    // {
+                    //     ulib::string rootParentName = "[nullptr]";
+                    //     if (target.root->parent)
+                    //         rootParentName = target.root->parent->name;
+
+                    //     fmt::print("EVIL HACK PAUSE. name: {}, root->name: {}, root->parent.name: {}\n", target.name,
+                    //                target.root->name, rootParentName);
+                    //     // std::system("pause");
+                    // }
+
+                    // result->root = target.root;
+                    // result->parent = result->root;
                 }
 
                 if (!result->resolved_config)
