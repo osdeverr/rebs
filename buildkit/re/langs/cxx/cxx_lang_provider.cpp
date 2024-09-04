@@ -153,6 +153,7 @@ namespace re
             vars.SetVar("platform-default-flags-" + kv.first.Scalar(), vars.Resolve(kv.second.Scalar()));
 
         cond_desc["arch"] = vars.ResolveLocal("arch");
+        cond_desc["runtime"] = vars.ResolveLocal("runtime");
         cond_desc["cxx-env"] = env_cached_name;
         cond_desc["cxxenv"] = env_cached_name;
 
