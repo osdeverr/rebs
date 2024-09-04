@@ -154,6 +154,7 @@ namespace re
             vars.SetVar(ulib::string{"platform-default-flags-"} + kv.name(), vars.Resolve(kv.value().scalar()));
 
         cond_desc["arch"] = vars.ResolveLocal("arch");
+        cond_desc["runtime"] = vars.ResolveLocal("runtime");
         cond_desc["cxx-env"] = env_cached_name;
         cond_desc["cxxenv"] = env_cached_name;
 

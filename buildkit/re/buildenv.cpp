@@ -883,8 +883,11 @@ namespace re
                     auto re_platform = scope.ResolveLocal("platform");
                     auto re_config = scope.ResolveLocal("configuration");
 
-                    result->resolved_config = GetResolvedTargetCfg(
-                        *result, {{"arch", re_arch}, {"platform", re_platform}, {"config", re_config}});
+                    result->resolved_config =
+                        GetResolvedTargetCfg(*result, {{"arch", re_arch},
+                                                       {"platform", re_platform},
+                                                       {"config", re_config},
+                                                       {"runtime", scope.ResolveLocal("runtime")}});
 
                     result->LoadConditionalDependencies();
                 }
