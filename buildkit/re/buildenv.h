@@ -31,7 +31,7 @@ namespace re
     /**
      * @brief A function capable of resolving target dependencies.
      */
-    using TargetDepResolver = std::function<bool(const Target &, const TargetDependency &, std::vector<Target *> &)>;
+    using TargetDepResolver = std::function<bool(const Target &, const TargetDependency &, ulib::list<Target *> &)>;
 
     /**
      * @brief Populates the specified collection with a flat target dependency set, resolving all target dependences in
@@ -42,7 +42,7 @@ namespace re
      * @param dep_resolver The dependency resolver to use
      * @param throw_on_missing Throw exceptions if any dependency is missing
      */
-    void PopulateTargetDependencySet(Target *pTarget, std::vector<Target *> &to, TargetDepResolver dep_resolver = {},
+    void PopulateTargetDependencySet(Target *pTarget, ulib::list<Target *> &to, TargetDepResolver dep_resolver = {},
                                      bool throw_on_missing = true);
 
     /**
@@ -123,12 +123,12 @@ namespace re
          */
         bool CanLoadTargetFrom(const fs::path &path);
 
-        std::vector<Target *> GetSingleTargetDepSet(Target *pTarget);
-        std::vector<Target *> GetSingleTargetLocalDepSet(Target *pTarget);
-        std::vector<Target *> GetTargetsInDependencyOrder();
+        ulib::list<Target *> GetSingleTargetDepSet(Target *pTarget);
+        ulib::list<Target *> GetSingleTargetLocalDepSet(Target *pTarget);
+        ulib::list<Target *> GetTargetsInDependencyOrder();
 
-        void AddLangProvider(std::string_view name, ILangProvider *provider);
-        ILangProvider *GetLangProvider(std::string_view name) override;
+        void AddLangProvider(ulib::string_view name, ILangProvider *provider);
+        ILangProvider *GetLangProvider(ulib::string_view name) override;
 
         ILangProvider *InitializeTargetLinkEnv(Target *target, NinjaBuildDesc &desc);
         void InitializeTargetLinkEnvWithDeps(Target *target, NinjaBuildDesc &desc);
@@ -137,30 +137,30 @@ namespace re
         void PopulateBuildDescWithDeps(Target *target, NinjaBuildDesc &desc);
         void PopulateFullBuildDesc(NinjaBuildDesc &desc);
 
-        void RunTargetAction(const NinjaBuildDesc *desc, const Target &target, const std::string &type,
+        void RunTargetAction(const NinjaBuildDesc *desc, const Target &target, ulib::string_view type,
                              const TargetConfig &data);
 
-        void RunActionsCategorized(Target *target, const NinjaBuildDesc *desc, std::string_view run_type);
+        void RunActionsCategorized(Target *target, const NinjaBuildDesc *desc, ulib::string_view run_type);
 
-        void RunAutomaticStructuredTasks(Target *target, const NinjaBuildDesc *desc, std::string_view stage);
+        void RunAutomaticStructuredTasks(Target *target, const NinjaBuildDesc *desc, ulib::string_view stage);
 
-        void RunStructuredTask(Target *target, const NinjaBuildDesc *desc, std::string_view name,
-                               std::string_view stage);
+        void RunStructuredTask(Target *target, const NinjaBuildDesc *desc, ulib::string_view name,
+                               ulib::string_view stage);
 
         void RunStructuredTaskData(Target *target, const NinjaBuildDesc *desc, const TargetConfig &task,
-                                   std::string_view name, std::string_view stage);
+                                   ulib::string_view name, ulib::string_view stage);
 
         void RunPostBuildActions(Target *target, const NinjaBuildDesc &desc);
         void RunInstallActions(Target *target, const NinjaBuildDesc &desc);
 
-        void AddDepResolver(std::string_view name, IDepResolver *resolver);
+        void AddDepResolver(ulib::string_view name, IDepResolver *resolver);
 
-        void AddTargetFeature(std::string_view name, ITargetFeature *feature);
+        void AddTargetFeature(ulib::string_view name, ITargetFeature *feature);
         void AddTargetFeature(ITargetFeature *feature);
 
         void AddTargetLoadMiddleware(ITargetLoadMiddleware *middleware);
 
-        IDepResolver *GetDepResolver(const std::string &name);
+        IDepResolver *GetDepResolver(ulib::string_view name);
 
         void DebugShowVisualBuildInfo(const Target *pTarget = nullptr, int depth = 0);
 
@@ -171,7 +171,7 @@ namespace re
          */
         void SetDepsVersionCache(DepsVersionCache *cache);
 
-        inline Target *GetTargetOrNull(const std::string &module)
+        inline Target *GetTargetOrNull(ulib::string_view module)
         {
             auto it = mTargetMap.find(module);
 
@@ -184,14 +184,14 @@ namespace re
     private:
         std::unique_ptr<Target> mTheCoreProjectTarget;
 
-        std::vector<std::unique_ptr<Target>> mRootTargets;
+        ulib::list<std::unique_ptr<Target>> mRootTargets;
         std::unordered_map<std::string, Target *> mTargetMap;
 
         std::unordered_map<std::string, ILangProvider *> mLangProviders;
         std::unordered_map<std::string, IDepResolver *> mDepResolvers;
         std::unordered_map<std::string, ITargetFeature *> mTargetFeatures;
 
-        std::vector<ITargetLoadMiddleware *> mTargetLoadMiddlewares;
+        ulib::list<ITargetLoadMiddleware *> mTargetLoadMiddlewares;
 
         LocalVarScope mVars;
         IUserOutput *mOut;
@@ -202,18 +202,18 @@ namespace re
 
         void PopulateTargetMap(Target *pTarget);
 
-        void AppendDepsAndSelf(Target *pTarget, std::vector<Target *> &to, bool throw_on_missing = true,
+        void AppendDepsAndSelf(Target *pTarget, ulib::list<Target *> &to, bool throw_on_missing = true,
                                bool use_external = true);
 
         void RunActionList(const NinjaBuildDesc *desc, Target *target, const TargetConfig &list,
-                           std::string_view run_type, const std::string &default_run_type);
+                           ulib::string_view run_type, ulib::string_view default_run_type);
 
         void InstallPathToTarget(const Target *pTarget, const fs::path &from);
 
-        bool ResolveTargetDependencyImpl(const Target &target, const TargetDependency &dep, std::vector<Target *> &out,
+        bool ResolveTargetDependencyImpl(const Target &target, const TargetDependency &dep, ulib::list<Target *> &out,
                                          bool use_external = true);
 
         void PerformCopyToDependentsImpl(const Target &target, const Target *dependent, const NinjaBuildDesc *desc,
-                                         const fs::path &from, const std::string &to);
+                                         const fs::path &from, ulib::string_view to);
     };
 } // namespace re

@@ -22,9 +22,9 @@ namespace re
         auto &target_vars = target.target_var_scope.emplace(&target.local_var_ctx, "target", &target);
         auto &vars = target.build_var_scope.emplace(&target.local_var_ctx, "build", &target_vars);
 
-        vars.SetVar("arch", target.config["arch"].Scalar());
-        vars.SetVar("configuration", target.config["configuration"].Scalar());
-        vars.SetVar("platform", target.config["platform"].Scalar());
+        vars.SetVar("arch", target.config["arch"].scalar());
+        vars.SetVar("configuration", target.config["configuration"].scalar());
+        vars.SetVar("platform", target.config["platform"].scalar());
 
         std::unordered_map<std::string, std::string> configuration = {
             {"arch", vars.ResolveLocal("arch")},
@@ -37,15 +37,15 @@ namespace re
 
     bool CMakeLangProvider::InitBuildTargetRules(NinjaBuildDesc &desc, const Target &target)
     {
-        if (auto build_script = target.resolved_config["cmake-out-build-script"])
+        if (auto build_script = target.resolved_config.search("cmake-out-build-script"))
         {
-            if (std::find(desc.subninjas.begin(), desc.subninjas.end(), build_script.Scalar()) == desc.subninjas.end())
-                desc.subninjas.push_back(build_script.Scalar());
+            if (std::find(desc.subninjas.begin(), desc.subninjas.end(), std::string{build_script->scalar()}) == desc.subninjas.end())
+                desc.subninjas.push_back(build_script->scalar());
         }
 
-        if (auto cmake_meta = target.resolved_config["cmake-meta"]["targets"][target.name])
-            if (auto location = cmake_meta["location"])
-                desc.artifacts[&target] = location.Scalar();
+        if (auto cmake_meta = target.resolved_config["cmake-meta"]["targets"].search(target.name))
+            if (auto location = cmake_meta->search("location"))
+                desc.artifacts[&target] = location->scalar();
 
         return true;
     }

@@ -7,6 +7,9 @@
 #include <fstream>
 #include <iostream>
 
+#include <futile/futile.h>
+#include <ulib/format.h>
+
 namespace re
 {
     Target *ConanDepResolver::ResolveTargetDependency(const Target &target, const TargetDependency &dep,
@@ -41,7 +44,7 @@ namespace re
 
             auto conan_arch = re_arch;
             auto conan_build_type = re_config;
-            
+
             if (auto overridden = scope.GetVar("conan-arch-name"))
                 conan_arch = *overridden;
 
@@ -62,7 +65,7 @@ namespace re
 
                 conanfile << "[requires]\n";
 
-                conanfile << dep.name << "/";
+                conanfile << std::string_view{dep.name} << "/";
 
                 if (dep.version_kind == DependencyVersionKind::RawTag)
                 {
@@ -72,12 +75,12 @@ namespace re
                     }
                     else
                     {
-                        conanfile << dep.version;
+                        conanfile << std::string_view{dep.version};
                     }
                 }
                 else
                 {
-                    conanfile << "[" << dep.version_kind_str << dep.version << "]";
+                    conanfile << "[" << std::string_view{dep.version_kind_str} << std::string_view{dep.version} << "]";
                 }
 
                 conanfile << "\n";
@@ -103,7 +106,7 @@ namespace re
                             }
                         }
 
-                        conanfile << dep.name << ":" << s << "\n";
+                        conanfile << std::string_view{dep.name} << ":" << std::string_view{s} << "\n";
                     }
                 }
 
@@ -143,60 +146,70 @@ namespace re
                        "[{}] Package {} already available\n", target.module, dep.raw);
         }
 
-        std::ifstream build_info_file{build_info_path};
+        ulib::yaml build_info = ulib::yaml::parse(futile::open(build_info_path).read());
 
-        YAML::Node build_info = YAML::Load(build_info_file);
-
-        std::string conan_lib_suffix = "";
+        ulib::string conan_lib_suffix = "";
         if (auto suffix = scope.GetVar("conan-lib-suffix"))
             conan_lib_suffix = *suffix;
 
-        // auto conan_lib_suffix = target.resolved_config["conan-lib-suffix"].Scalar();
+        // auto conan_lib_suffix = target.resolved_config["conan-lib-suffix"].scalar();
 
         auto load_conan_dependency = [this, conan_lib_suffix, &re_arch, &re_platform, &re_config, &bv_scope,
-                                      &target](YAML::Node data) {
+                                      &target](ulib::yaml data) {
             auto [scope, context] = bv_scope;
 
-            auto name = data["name"].Scalar();
-            auto version = data["version"].Scalar();
-            auto path = data["rootpath"].Scalar();
+            auto name = data["name"].scalar();
+            auto version = data["version"].scalar();
+            auto path = data["rootpath"].scalar();
 
-            auto cache_path = fmt::format("conan-dep.{}_{}-{}-{}-{}", name, version, re_arch, re_platform, re_config);
+            auto cache_path = ulib::format("conan-dep.{}_{}-{}-{}-{}", name, version, re_arch, re_platform, re_config);
 
             if (auto &cached = mTargetCache[cache_path])
                 return cached.get();
 
-            YAML::Node config{YAML::NodeType::Map};
+            ulib::yaml config{ulib::yaml::value_t::map};
 
             config["name"] = name;
             config["version"] = version;
             config["is-external-dep"] = "true";
 
-            for (auto inc_path : data["include_paths"])
-                config["cxx-include-dirs"].push_back(inc_path.Scalar());
+            if (auto paths = data.search("include_paths"))
+                if (paths->is_sequence())
+                    for (auto inc_path : *paths)
+                        config["cxx-include-dirs"].push_back(inc_path.scalar());
 
-            for (auto lib_path : data["lib_paths"])
-                config["cxx-lib-dirs"].push_back(lib_path.Scalar());
+            if (auto paths = data.search("lib_paths"))
+                if (paths->is_sequence())
+                    for (auto lib_path : *paths)
+                        config["cxx-lib-dirs"].push_back(lib_path.scalar());
 
-            for (auto bin_path : data["bin_paths"])
-            {
-                YAML::Node entry{YAML::NodeType::Map};
+            if (auto paths = data.search("bin_paths"))
+                if (paths->is_sequence())
+                    for (auto bin_path : *paths)
+                    {
+                        ulib::yaml entry{ulib::yaml::value_t::map};
 
-                entry["copy-to-deps"]["from"] = bin_path.Scalar();
-                entry["copy-to-deps"]["to"] = ".";
+                        entry["copy-to-deps"]["from"] = bin_path.scalar();
+                        entry["copy-to-deps"]["to"] = ".";
 
-                config["actions"].push_back(entry);
-            }
+                        config["actions"].push_back(entry);
+                    }
 
-            for (auto lib : data["libs"])
-                config["cxx-link-deps"].push_back(lib.Scalar() + conan_lib_suffix);
+            if (auto libs = data.search("libs"))
+                if (libs->is_sequence())
+                    for (auto lib : data["libs"])
+                        config["cxx-link-deps"].push_back(lib.scalar() + conan_lib_suffix.ToView());
 
             // TODO: This will not work properly on Windows!
-            for (auto lib : data["system_libs"])
-                config["cxx-global-link-deps"].push_back(lib.Scalar() + conan_lib_suffix);
+            if (auto libs = data.search("system_libs"))
+                if (libs->is_sequence())
+                    for (auto lib : *libs)
+                        config["cxx-global-link-deps"].push_back(lib.scalar() + conan_lib_suffix.ToView());
 
-            for (auto def : data["defines"])
-                config["cxx-compile-definitions"][def.Scalar()] = "1";
+            if (auto defs = data.search("defines"))
+                if (defs->is_sequence())
+                    for (auto def : *defs)
+                        config["cxx-compile-definitions"][def.scalar()] = "1";
 
             auto dep_target = std::make_unique<Target>(path, cache_path, TargetType::StaticLibrary, config);
 
@@ -218,7 +231,7 @@ namespace re
             return result.get();
         };
 
-        YAML::Node config{YAML::NodeType::Map};
+        ulib::yaml config{ulib::yaml::value_t::map};
 
         config["is-external-dep"] = "true";
 
@@ -248,7 +261,7 @@ namespace re
         package_target->config["platform"] = re_platform;
         package_target->config["configuration"] = re_config;
 
-        if (dep.extra_config)
+        if (!dep.extra_config.is_null())
             MergeYamlNode(package_target->config, dep.extra_config);
 
         package_target->resolved_config = package_target->config;
@@ -265,21 +278,16 @@ namespace re
 
     bool ConanDepResolver::SaveDependencyToPath(const TargetDependency &dep, const fs::path &path)
     {
-        YAML::Node config;
+        ulib::yaml config;
 
         config["type"] = "project";
         config["name"] = dep.name;
 
-        config["deps"] = YAML::Node{YAML::NodeType::Sequence};
+        config["deps"] = ulib::yaml{ulib::yaml::value_t::sequence};
         config["deps"].push_back(dep.ToString());
 
-        YAML::Emitter emitter;
-        emitter << config;
-
         fs::create_directories(path);
-
-        std::ofstream of{path / "re.yml"};
-        of << emitter.c_str();
+        futile::open(path / "re.yml", "w").write(config.dump());
 
         return true;
     }

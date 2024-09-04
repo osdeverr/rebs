@@ -21,6 +21,7 @@ deps:
   - github:osdeverr/futile ^3.0.0 [/futile]
   - github:k2rate/ulib-json ^1.2.5
   - github:k2rate/ulib-yaml-json ^1.0.0
+  - github:k2rate/ulib-yaml ^1.0.0
 
 platform.windows:
   deps:

@@ -8,77 +8,71 @@
 
 namespace re
 {
-    void MergeYamlNode(YAML::Node target, const YAML::Node &source, bool overridden)
+    void MergeYamlNode(ulib::yaml& target, const ulib::yaml &source, bool overridden)
     {
-        switch (source.Type())
+        switch (source.type())
         {
-        case YAML::NodeType::Scalar:
-            target = source.Scalar();
-            break;
-        case YAML::NodeType::Map:
+        case ulib::yaml::value_t::map:
             MergeYamlMap(target, source, overridden);
             break;
-        case YAML::NodeType::Sequence:
+        case ulib::yaml::value_t::sequence:
             MergeYamlSequences(target, source, overridden);
             break;
-        case YAML::NodeType::Null:
+        default:
             target = source;
             break;
-            // throw std::runtime_error("merge_node: Null source nodes not supported");
-        case YAML::NodeType::Undefined:
-            RE_THROW std::runtime_error("MergeNode: Undefined source nodes not supported");
         }
     }
 
-    void MergeYamlMap(YAML::Node &target, const YAML::Node &source, bool overridden)
+    void MergeYamlMap(ulib::yaml &target, const ulib::yaml &source, bool overridden)
     {
         if (overridden)
         {
-            target = Clone(source);
+            target = source;
             return;
         }
 
-        for (const auto &j : source)
+        for (const auto &j : source.items())
         {
-            auto key = j.first.Scalar();
+            auto key = j.name();
 
             constexpr auto kOverridePrefix = "override.";
 
             if (overridden || key.find(kOverridePrefix) == 0)
             {
                 RE_TRACE("OVERRIDE PREFIX found on {}\n", key);
-                MergeYamlNode(target[key.substr(sizeof kOverridePrefix + 1)], j.second, true);
+                MergeYamlNode(target[key.substr(sizeof kOverridePrefix + 1)], j.value(), true);
             }
             else
             {
                 RE_TRACE("Not overriding {}\n", key);
-                MergeYamlNode(target[key], j.second);
+                MergeYamlNode(target[key], j.value());
             }
         }
     }
 
-    void MergeYamlSequences(YAML::Node &target, const YAML::Node &source, bool overridden)
+    void MergeYamlSequences(ulib::yaml &target, const ulib::yaml &source, bool overridden)
     {
         if (overridden)
         {
-            RE_TRACE("{} - override enabled, will copy over\n", target.Scalar());
+            RE_TRACE("{} - override enabled, will copy over\n", target.scalar());
 
-            target = YAML::Clone(source);
+            target = source;
             return;
         }
         else
-            RE_TRACE("{} - override disabled\n", target.Scalar());
+            RE_TRACE("{} - override disabled\n", target.scalar());
 
         for (std::size_t i = 0; i != source.size(); ++i)
         {
-            RE_TRACE("  Adding {}\n", source[i].Scalar());
-            target.push_back(YAML::Clone(source[i]));
+            RE_TRACE("  Adding {}\n", source[i].scalar());
+            target.push_back(source[i]);
         }
     }
 
-    YAML::Node MergeYamlNodes(const YAML::Node &defaultNode, const YAML::Node &overrideNode)
+    ulib::yaml MergeYamlNodes(const ulib::yaml &defaultNode, const ulib::yaml &overrideNode)
     {
-        auto cloned = Clone(defaultNode);
+        auto cloned = defaultNode;
         MergeYamlNode(cloned, overrideNode);
         return cloned;
     }

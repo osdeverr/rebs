@@ -115,6 +115,8 @@ int main(int argc, const char **argv)
 
 #endif
 
+    // std::system("pause");
+
     // auto code = __std_fs_code_page();
     // __std_fs_code_page();
     // sizeof(code);
@@ -417,10 +419,7 @@ int main(int argc, const char **argv)
             {
                 // Print the current config and quit.
 
-                YAML::Emitter emitter;
-                emitter << yaml;
-
-                fmt::print("{}\n", emitter.c_str());
+                fmt::print("{}\n", yaml.dump());
 
                 return 0;
             }
@@ -502,7 +501,7 @@ int main(int argc, const char **argv)
                 targets.erase(std::remove_if(targets.begin(), targets.end(),
                                              [&context](auto pTarget) {
                                                  return !pTarget->build_var_scope ||
-                                                        pTarget->resolved_config["is-external-dep"].Scalar() == "true";
+                                                        pTarget->resolved_config["is-external-dep"].scalar() == "true";
                                              }),
                               targets.end());
             }
@@ -638,7 +637,7 @@ int main(int argc, const char **argv)
             {
                 auto &exe_path = it->second;
 
-                std::vector<std::string> run_args(args.begin() + 2, args.end());
+                ulib::list<ulib::string> run_args(args.begin() + 2, args.end());
 
                 auto working_dir = context.GetVar("working-dir").value_or(exe_path.parent_path().u8string());
 
@@ -678,7 +677,9 @@ int main(int argc, const char **argv)
             auto maybe_partial_build = handle_partial_build(&target, partial_build_filter);
             auto desc = context.GenerateBuildDescForTarget(target, maybe_partial_build);
 
-            std::vector<std::string> run_args(args.begin() + 2, args.end());
+            ulib::list<ulib::string> run_args;
+            for (auto it = args.begin() + 2; it != args.end(); it++)
+                run_args.push_back(*it);
 
             auto working_dir = context.GetVar("working-dir").value_or(".");
             return re::RunProcessOrThrow("tool", "", run_args, true, false, working_dir);
@@ -795,7 +796,7 @@ int main(int argc, const char **argv)
                 for (const auto& arg : env_cfg["args"])
                 {
                     auto index = i++;
-                    auto& name = arg_names.emplace_back(arg.as<std::string>());
+                    auto& name = arg_names.emplace_back(arg.scalar());
 
                     if (args.size() < index)
                         throw std::runtime_error("missing argument '" + name + "'");
@@ -805,7 +806,7 @@ int main(int argc, const char **argv)
 
                 for (const auto& cmd : env_cfg["run"])
                 {
-                    auto expanded = fmt::vformat(cmd.as<std::string>(), store);
+                    auto expanded = fmt::vformat(cmd.scalar(), store);
                     auto code = std::system(expanded.data());
 
                     if (code != 0)

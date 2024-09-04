@@ -12,7 +12,7 @@
 #include <boost/exception/all.hpp>
 #include <boost/stacktrace.hpp>
 
-#include <fmt/format.h>
+#include <ulib/format.h>
 
 #include <stack>
 #include <yaml-cpp/yaml.h>
@@ -77,7 +77,7 @@ namespace re
          */
         template <class F, class... Args>
         Exception(const F &format, Args &&...args)
-            : std::runtime_error{fmt::format(format, std::forward<Args>(args)...)}
+            : std::runtime_error{ulib::format(format, std::forward<Args>(args)...)}
         {
         }
     };

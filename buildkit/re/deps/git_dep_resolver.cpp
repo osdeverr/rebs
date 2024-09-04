@@ -25,7 +25,7 @@ namespace re
     }
 
     Target *GitDepResolver::ResolveGitDependency(const Target &target, const TargetDependency &dep,
-                                                 std::string_view url, std::string branch, DepsVersionCache *cache)
+                                                 ulib::string_view url, ulib::string branch, DepsVersionCache *cache)
     {
         if (cache)
         {
@@ -165,7 +165,7 @@ namespace re
         result->config["platform"] = re_platform;
         result->config["configuration"] = re_config;
 
-        if (dep.extra_config)
+        if (!dep.extra_config.is_null())
             MergeYamlNode(result->config, dep.extra_config);
 
         result->var_parent = target.var_parent;
@@ -182,17 +182,17 @@ namespace re
         return result.get();
     }
 
-    void GitDepResolver::DownloadGitDependency(std::string_view url, std::string_view branch, const fs::path &to)
+    void GitDepResolver::DownloadGitDependency(ulib::string_view url, ulib::string_view branch, const fs::path &to)
     {
-        std::vector<std::string> cmdline = {"git", "clone", "--depth", "1"};
+        ulib::list<ulib::string> cmdline = {"git", "clone", "--depth", "1"};
 
         if (!branch.empty())
         {
             cmdline.emplace_back("--branch");
-            cmdline.emplace_back(branch.data());
+            cmdline.emplace_back(branch);
         }
 
-        cmdline.emplace_back(url.data());
+        cmdline.emplace_back(url);
         cmdline.emplace_back(to.u8string());
 
         RunProcessOrThrow("git", {}, cmdline, false, true);

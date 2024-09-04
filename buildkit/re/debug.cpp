@@ -1,6 +1,7 @@
 #include "debug.h"
 
 #include <fmt/color.h>
+#include <ulib/string.h>
 
 namespace re
 {
@@ -22,7 +23,7 @@ namespace re
 		);
 	}
 
-	std::string PerfProfile::ToString() const
+	ulib::string PerfProfile::ToString() const
 	{
 		auto point = mFinished ? mEndTime : std::chrono::high_resolution_clock::now();
 		auto delta = point - mBeginTime;
@@ -31,7 +32,7 @@ namespace re
 		auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
 		auto s = ms / 1000.f;
 
-		return fmt::format(
+		return ulib::format(
 			"{}s / {}ms / {}ns", s, ms, ns
 		);
 	}
