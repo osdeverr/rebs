@@ -4,6 +4,7 @@
 #include <re/user_output.h>
 
 #include "environment_var_namespace.h"
+#include <ulib/yaml.h>
 
 namespace re
 {
@@ -20,23 +21,23 @@ namespace re
             return mVars;
         }
 
-        inline void SetVar(const std::string &key, std::string value)
+        inline void SetVar(ulib::string_view key, std::string value)
         {
             mVars.SetVar(key, value);
         }
-        inline std::optional<std::string> GetVar(const std::string &key)
+        inline std::optional<ulib::string> GetVar(ulib::string_view key)
         {
             return mVars.GetVar(key);
         }
-        inline void RemoveVar(const std::string &key)
+        inline void RemoveVar(ulib::string_view key)
         {
             mVars.RemoveVar(key);
         }
 
         Target &LoadTarget(const fs::path &path);
 
-        YAML::Node LoadCachedParams(const fs::path &path);
-        void SaveCachedParams(const fs::path &path, const YAML::Node &node);
+        ulib::yaml LoadCachedParams(const fs::path &path);
+        void SaveCachedParams(const fs::path &path, const ulib::yaml &node);
 
         void ResolveAllTargetDependencies(Target *pRootTarget);
 

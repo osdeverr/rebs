@@ -1,5 +1,5 @@
 #pragma once
-#include <string_view>
+#include <ulib/string.h>
 #include "lang_provider.h"
 
 namespace re
@@ -9,6 +9,6 @@ namespace re
 	public:
 		virtual ~ILangLocator() = default;
 
-		virtual ILangProvider* GetLangProvider(std::string_view name) = 0;
+		virtual ILangProvider* GetLangProvider(ulib::string_view name) = 0;
 	};
 }

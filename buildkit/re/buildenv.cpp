@@ -25,7 +25,7 @@
 
 namespace re
 {
-    void PopulateTargetChildSet(Target *pTarget, std::vector<Target *> &to)
+    void PopulateTargetChildSet(Target *pTarget, ulib::list<Target *> &to)
     {
         to.push_back(pTarget);
 
@@ -33,7 +33,7 @@ namespace re
             PopulateTargetChildSet(child.get(), to);
     }
 
-    void PopulateTargetDependencySet(Target *pTarget, std::vector<Target *> &to, TargetDepResolver dep_resolver,
+    void PopulateTargetDependencySet(Target *pTarget, ulib::list<Target *> &to, TargetDepResolver dep_resolver,
                                      bool throw_on_missing)
     {
         if (std::find(to.begin(), to.end(), pTarget) != to.end())
@@ -41,7 +41,7 @@ namespace re
 
         // std::cout << pTarget->resolved_config << std::endl;
 
-        if (pTarget->resolved_config && !pTarget->resolved_config["enabled"].as<bool>())
+        if (pTarget->resolved_config.is_map() && !pTarget->resolved_config["enabled"].get<bool>())
         {
             RE_TRACE(" PopulateTargetDependencySet: Skipping '{}' because it's not enabled\n", pTarget->module);
             return;
@@ -79,7 +79,7 @@ namespace re
                 {
                     PopulateTargetDependencySet(t, to, dep_resolver, throw_on_missing);
 
-                    std::vector<Target *> kids;
+                    ulib::list<Target *> kids;
                     PopulateTargetChildSet(t, kids);
 
                     for (auto &needed : kids)
@@ -89,7 +89,7 @@ namespace re
                     }
 
                     /*
-                                        std::vector<Target *> dependents_needed;
+                                        ulib::list<Target *> dependents_needed;
                                         PopulateTargetDependencySet(t, dependents_needed, dep_resolver,
                        throw_on_missing);
 
@@ -113,7 +113,7 @@ namespace re
         if (std::find(to.begin(), to.end(), pTarget) != to.end())
             return;
 
-        if (pTarget->resolved_config && !pTarget->resolved_config["enabled"].as<bool>())
+        if (pTarget->resolved_config.is_map() && !pTarget->resolved_config["enabled"].get<bool>())
         {
             RE_TRACE(" PopulateTargetDependencySetNoResolve: Skipping '{}' because it's not enabled\n",
                      pTarget->module);
@@ -260,23 +260,23 @@ namespace re
         return mTheCoreProjectTarget.get();
     }
 
-    std::vector<Target *> BuildEnv::GetSingleTargetDepSet(Target *pTarget)
+    ulib::list<Target *> BuildEnv::GetSingleTargetDepSet(Target *pTarget)
     {
-        std::vector<Target *> result;
+        ulib::list<Target *> result;
         AppendDepsAndSelf(pTarget, result);
         return result;
     }
 
-    std::vector<Target *> BuildEnv::GetSingleTargetLocalDepSet(Target *pTarget)
+    ulib::list<Target *> BuildEnv::GetSingleTargetLocalDepSet(Target *pTarget)
     {
-        std::vector<Target *> result;
+        ulib::list<Target *> result;
         AppendDepsAndSelf(pTarget, result, false, false);
         return result;
     }
 
-    std::vector<Target *> BuildEnv::GetTargetsInDependencyOrder()
+    ulib::list<Target *> BuildEnv::GetTargetsInDependencyOrder()
     {
-        std::vector<Target *> result;
+        ulib::list<Target *> result;
 
         for (auto &target : mRootTargets)
             AppendDepsAndSelf(target.get(), result);
@@ -284,12 +284,12 @@ namespace re
         return result;
     }
 
-    void BuildEnv::AddLangProvider(std::string_view name, ILangProvider *provider)
+    void BuildEnv::AddLangProvider(ulib::string_view name, ILangProvider *provider)
     {
         mLangProviders[name.data()] = provider;
     }
 
-    ILangProvider *BuildEnv::GetLangProvider(std::string_view name)
+    ILangProvider *BuildEnv::GetLangProvider(ulib::string_view name)
     {
         return mLangProviders[name.data()];
     }
@@ -297,25 +297,25 @@ namespace re
     ILangProvider *BuildEnv::InitializeTargetLinkEnv(Target *target, NinjaBuildDesc &desc)
     {
         auto link_cfg = target->GetCfgEntry<TargetConfig>("link-with", re::CfgEntryKind::Recursive)
-                            .value_or(YAML::Node{YAML::NodeType::Null});
+                            .value_or(ulib::yaml{ulib::yaml::value_t::null});
         std::optional<std::string> link_language;
 
-        if (link_cfg.IsMap())
+        if (link_cfg.is_map())
         {
-            if (auto value = link_cfg[TargetTypeToString(target->type)])
+            if (auto value = link_cfg.search(TargetTypeToString(target->type)))
             {
-                if (!value.IsNull())
-                    link_language = value.as<std::string>();
+                if (!value->is_null())
+                    link_language = value->scalar();
             }
-            else if (auto value = link_cfg["default"])
+            else if (auto value = link_cfg.search("default"))
             {
-                if (!value.IsNull())
-                    link_language = value.as<std::string>();
+                if (!value->is_null())
+                    link_language = value->scalar();
             }
         }
-        else if (!link_cfg.IsNull())
+        else if (!link_cfg.is_null())
         {
-            link_language = link_cfg.as<std::string>();
+            link_language = link_cfg.scalar();
         }
 
         ILangProvider *link_provider = link_language ? GetLangProvider(*link_language) : nullptr;
@@ -347,7 +347,7 @@ namespace re
 
     void BuildEnv::InitializeTargetLinkEnvWithDeps(Target *target, NinjaBuildDesc &desc)
     {
-        std::vector<Target *> deps;
+        ulib::list<Target *> deps;
         AppendDepsAndSelf(target, deps, false, false);
 
         for (auto &dep : deps)
@@ -357,11 +357,11 @@ namespace re
     void BuildEnv::PopulateBuildDesc(Target *target, NinjaBuildDesc &desc)
     {
         auto langs = target->GetCfgEntry<TargetConfig>("langs", CfgEntryKind::Recursive)
-                         .value_or(TargetConfig{YAML::NodeType::Sequence});
+                         .value_or(TargetConfig{ulib::yaml::value_t::sequence});
 
         ILangProvider *link_provider = InitializeTargetLinkEnv(target, desc);
 
-        if (target->resolved_config && !target->resolved_config["enabled"].as<bool>())
+        if (target->resolved_config.is_map() && !target->resolved_config["enabled"].get<bool>())
         {
             RE_TRACE(" PopulateBuildDesc: Skipping '{}' because it's not enabled\n", target->module);
             return;
@@ -369,7 +369,7 @@ namespace re
 
         for (const auto &lang : langs)
         {
-            auto lang_id = lang.as<std::string>();
+            auto lang_id = lang.scalar();
 
             auto provider = GetLangProvider(lang_id);
             if (!provider)
@@ -408,7 +408,7 @@ namespace re
     }
 
     void BuildEnv::PerformCopyToDependentsImpl(const Target &target, const Target *dependent,
-                                               const NinjaBuildDesc *desc, const fs::path &from, const std::string &to)
+                                               const NinjaBuildDesc *desc, const fs::path &from, ulib::string_view to)
     {
         auto path = GetEscapedModulePath(*dependent);
 
@@ -455,13 +455,13 @@ namespace re
             PerformCopyToDependentsImpl(target, inner_dep, desc, from, to);
     }
 
-    void BuildEnv::RunTargetAction(const NinjaBuildDesc *desc, const Target &target, const std::string &type,
+    void BuildEnv::RunTargetAction(const NinjaBuildDesc *desc, const Target &target, ulib::string_view type,
                                    const TargetConfig &data)
     {
         if (type == "copy")
         {
-            auto from = target.build_var_scope->Resolve(data["from"].as<std::string>());
-            auto to = target.build_var_scope->Resolve(data["to"].as<std::string>());
+            auto from = target.build_var_scope->Resolve(data["from"].scalar());
+            auto to = target.build_var_scope->Resolve(data["to"].scalar());
 
             auto from_path = fs::path{from};
             auto to_path = fs::path{to};
@@ -476,8 +476,8 @@ namespace re
         }
         else if (type == "copy-to-deps")
         {
-            auto from = target.build_var_scope->Resolve(data["from"].as<std::string>());
-            auto to = data["to"].as<std::string>();
+            auto from = target.build_var_scope->Resolve(data["from"].scalar());
+            auto to = data["to"].scalar();
 
             auto from_path = fs::path{from};
 
@@ -494,24 +494,26 @@ namespace re
         }
         else if (type == "run")
         {
-            if (data.IsMap())
+            if (data.is_map())
             {
-                auto command = data["command"].as<std::string>();
+                auto command = data["command"].scalar();
 
-                std::vector<std::string> args;
+                ulib::list<ulib::string> args;
 
                 args.push_back(target.build_var_scope->Resolve(command));
 
-                for (auto &arg : data["args"])
-                    args.push_back(target.build_var_scope->Resolve(arg.Scalar()));
+                if (auto args_field = data.search("args"))
+                    if (args_field->is_sequence())
+                        for (auto &arg : *args_field)
+                            args.push_back(target.build_var_scope->Resolve(arg.scalar()));
 
                 RunProcessOrThrow(args.front(), {}, args, true, true, target.path.u8string());
             }
             else
             {
-                auto command = target.build_var_scope->Resolve(data.as<std::string>());
+                auto command = target.build_var_scope->Resolve(data.scalar());
 
-                std::vector<std::string> args;
+                ulib::list<ulib::string> args;
                 std::istringstream iss{command};
                 std::string temp;
 
@@ -523,13 +525,13 @@ namespace re
         }
         else if (type == "shell-run")
         {
-            auto command = target.build_var_scope->Resolve(data["command"].as<std::string>());
+            auto command = target.build_var_scope->Resolve(data["command"].scalar());
 
             std::system(command.data());
         }
         else if (type == "command")
         {
-            auto command = target.build_var_scope->Resolve(data.as<std::string>());
+            auto command = target.build_var_scope->Resolve(data.scalar());
             std::system(command.data());
         }
         else if (type == "install")
@@ -539,8 +541,8 @@ namespace re
             fs::path artifact_dir = desc->out_dir / desc->GetArtifactDirectory(GetEscapedModulePath(target));
             fs::path from = desc->out_dir / desc->GetArtifactDirectory(GetEscapedModulePath(target));
 
-            if (data["from"])
-                from /= target.build_var_scope->Resolve(data["from"].as<std::string>());
+            if (data.search("from"))
+                from /= target.build_var_scope->Resolve(data["from"].scalar());
 
             auto do_install = [this, &artifact_dir, &from, &target, desc, style](const std::string &path,
                                                                                  bool create_dir) {
@@ -559,21 +561,21 @@ namespace re
 
             mOut->Info(style, " * Installed {} to:\n", target.module);
 
-            if (auto to_v = data["to"])
+            if (auto to_v = data.search("to"))
             {
-                if (to_v.IsSequence())
-                    for (const auto &v : to_v)
-                        do_install(v.as<std::string>(), true);
+                if (to_v->is_sequence())
+                    for (const auto &v : *to_v)
+                        do_install(v.scalar(), true);
                 else
-                    do_install(to_v.Scalar(), true);
+                    do_install(to_v->scalar(), true);
             }
-            else if (auto to_v = data["to-file"])
+            else if (auto to_v = data.search("to-file"))
             {
-                if (to_v.IsSequence())
-                    for (const auto &v : to_v)
-                        do_install(v.as<std::string>(), false);
+                if (to_v->is_sequence())
+                    for (const auto &v : *to_v)
+                        do_install(v.scalar(), false);
                 else
-                    do_install(to_v.Scalar(), false);
+                    do_install(to_v->scalar(), false);
             }
 
             mOut->Info(style, "\n");
@@ -597,7 +599,7 @@ namespace re
     {
         if (auto path = pTarget->GetCfgEntry<TargetConfig>("install", CfgEntryKind::Recursive))
         {
-            auto path_str = path->as<std::string>();
+            auto path_str = path->scalar();
 
             mOut->Info({}, "Installing {} - {} => {}\n", pTarget->module, from.u8string(), path_str);
 
@@ -608,12 +610,12 @@ namespace re
         }
     }
 
-    void BuildEnv::AddDepResolver(std::string_view name, IDepResolver *resolver)
+    void BuildEnv::AddDepResolver(ulib::string_view name, IDepResolver *resolver)
     {
         mDepResolvers[name.data()] = resolver;
     }
 
-    void BuildEnv::AddTargetFeature(std::string_view name, ITargetFeature *feature)
+    void BuildEnv::AddTargetFeature(ulib::string_view name, ITargetFeature *feature)
     {
         mTargetFeatures[name.data()] = feature;
     }
@@ -628,7 +630,7 @@ namespace re
         mTargetLoadMiddlewares.push_back(middleware);
     }
 
-    Target *FindDeepNeighborTarget(const Target *target, std::string_view name)
+    Target *FindDeepNeighborTarget(const Target *target, ulib::string_view name)
     {
         while (name.size() && name.front() == '.')
             name.remove_prefix(1);
@@ -655,7 +657,7 @@ namespace re
         return FindDeepNeighborTarget(target->parent, name);
     }
 
-    Target* GetDeepSiblingDep(const Target* target, ulib::string_view name)
+    Target *GetDeepSiblingDep(const Target *target, ulib::string_view name)
     {
         while (name.starts_with("."))
             name.remove_prefix(1);
@@ -676,7 +678,7 @@ namespace re
     }
 
     bool BuildEnv::ResolveTargetDependencyImpl(const Target &target, const TargetDependency &dep,
-                                               std::vector<Target *> &out, bool use_external)
+                                               ulib::list<Target *> &out, bool use_external)
     {
         out.clear();
 
@@ -689,7 +691,7 @@ namespace re
             {
                 if (dep.extra_config_hash)
                 {
-                    auto ecfg_name = fmt::format("ecfg-local.{}.{}", dep.name, dep.extra_config_hash);
+                    auto ecfg_name = ulib::format("ecfg-local.{}.{}", dep.name, dep.extra_config_hash);
                     auto ecfg_existing = GetTargetOrNull(ecfg_name);
 
                     if (!ecfg_existing)
@@ -754,7 +756,7 @@ namespace re
                     if (filter.front() == '/')
                         continue;
 
-                    ulib::list<ulib::string> parts = ulib::split(filter, ".");
+                    ulib::list<ulib::string> parts = filter.split(".");
                     auto temp = result;
 
                     for (auto &part : parts)
@@ -786,7 +788,7 @@ namespace re
                 if (!used)
                     RE_THROW TargetDependencyException(&target, "uses-dependency '{}' not found", dep.ToString());
 
-                std::vector<Target *> result;
+                ulib::list<Target *> result;
 
                 if (!ResolveTargetDependencyImpl(target, *used, result, use_external))
                     RE_THROW TargetDependencyException(&target, "unresolved uses-dependency '{}' <- '{}'",
@@ -852,7 +854,7 @@ namespace re
                 result->config["root-dir"] = result->path.generic_u8string();
                 result->config["is-external-dep"] = "true";
 
-                if (result->resolved_config)
+                if (result->resolved_config.is_map())
                     result->resolved_config["is-external-dep"] = "true";
 
                 auto [scope, context] = target.GetBuildVarScope();
@@ -875,7 +877,7 @@ namespace re
                     // result->parent = result->root;
                 }
 
-                if (!result->resolved_config)
+                if (!result->resolved_config.is_map())
                 {
                     auto re_arch = scope.ResolveLocal("arch");
                     auto re_platform = scope.ResolveLocal("platform");
@@ -921,105 +923,111 @@ namespace re
             PopulateTargetMap(child.get());
     }
 
-    void BuildEnv::AppendDepsAndSelf(Target *pTarget, std::vector<Target *> &to, bool throw_on_missing,
+    void BuildEnv::AppendDepsAndSelf(Target *pTarget, ulib::list<Target *> &to, bool throw_on_missing,
                                      bool use_external)
     {
         PopulateTargetDependencySet(
             pTarget, to,
             [this, &to, pTarget, throw_on_missing, use_external](const Target &target, const TargetDependency &dep,
-                                                                 std::vector<Target *> &out) {
+                                                                 ulib::list<Target *> &out) {
                 return ResolveTargetDependencyImpl(target, dep, out, use_external);
             },
             throw_on_missing);
     }
 
     void BuildEnv::RunActionList(const NinjaBuildDesc *desc, Target *target, const TargetConfig &list,
-                                 std::string_view run_type, const std::string &default_run_type)
+                                 ulib::string_view run_type, ulib::string_view default_run_type)
     {
         auto old_path = ulib::getpath();
 
-        auto path_cfg = target->resolved_config["env-path"];
-
-        for (const auto &path : path_cfg)
-        {
-            auto final_path = target->build_var_scope->Resolve(path.Scalar());
-            ulib::add_path(final_path);
-        }
-
-        for (const auto &v : list)
-        {
-            for (const auto &kv : v)
-            {
-                auto type = kv.first.as<std::string>();
-                auto &data = kv.second;
-
-                std::string run = default_run_type;
-                RE_TRACE("{} -> action {}\n", target->module, type);
-
-                bool should_run = (run_type == default_run_type);
-
-                if (data.IsMap())
+        if (auto path_cfg = target->resolved_config.search("env-path"))
+            if (path_cfg->is_sequence())
+                for (const auto &path : *path_cfg)
                 {
-                    if (auto run_val = data["on"])
-                    {
-                        should_run = false;
-
-                        if (run_val.IsScalar())
-                            should_run = (run_type == run_val.as<std::string>());
-                        else
-                            for (const auto &v : run_val)
-                                if (run_type == v.as<std::string>())
-                                {
-                                    should_run = true;
-                                    break;
-                                }
-                    }
+                    auto final_path = target->build_var_scope->Resolve(path.scalar());
+                    ulib::add_path(final_path);
                 }
 
-                if (should_run)
-                    RunTargetAction(desc, *target, type, data);
+        if (list.is_sequence())
+        {
+            for (const auto &v : list)
+            {
+                for (const auto &kv : v.items())
+                {
+                    auto type = kv.name();
+                    auto &data = kv.value();
+
+                    std::string run = default_run_type;
+                    RE_TRACE("{} -> action {}\n", target->module, type);
+
+                    bool should_run = (run_type == default_run_type);
+
+                    if (data.is_map())
+                    {
+                        if (auto run_val = data.search("on"))
+                        {
+                            should_run = false;
+
+                            if (run_val->is_scalar())
+                                should_run = (run_type == run_val->scalar());
+                            else
+                                for (const auto &v : *run_val)
+                                    if (run_type == v.scalar())
+                                    {
+                                        should_run = true;
+                                        break;
+                                    }
+                        }
+                    }
+
+                    if (should_run)
+                        RunTargetAction(desc, *target, type, data);
+                }
             }
         }
 
         ulib::setpath(old_path);
     }
 
-    void BuildEnv::RunActionsCategorized(Target *target, const NinjaBuildDesc *desc, std::string_view run_type)
+    void BuildEnv::RunActionsCategorized(Target *target, const NinjaBuildDesc *desc, ulib::string_view run_type)
     {
-        if (auto actions = (target->resolved_config ? target->resolved_config : target->config)["actions"])
+        auto &cfg = (target->resolved_config.is_map() ? target->resolved_config : target->config);
+        if (auto actions = cfg.search("actions"))
         {
-            if (actions.IsMap())
+            if (actions->is_map())
             {
-                for (const auto &kv : actions)
+                for (const auto &kv : actions->items())
                 {
-                    auto type = kv.first.as<std::string>();
-                    auto &data = kv.second;
+                    auto type = kv.name();
+                    auto &data = kv.value();
 
                     RunActionList(desc, target, data, run_type, type);
                 }
             }
             else
             {
-                RunActionList(desc, target, actions, run_type, "post-build");
+                RunActionList(desc, target, *actions, run_type, "post-build");
             }
         }
     }
 
-    void BuildEnv::RunAutomaticStructuredTasks(Target *target, const NinjaBuildDesc *desc, std::string_view stage)
+    void BuildEnv::RunAutomaticStructuredTasks(Target *target, const NinjaBuildDesc *desc, ulib::string_view stage)
     {
         if (target->parent)
             RunAutomaticStructuredTasks(target->parent, desc, stage);
 
-        if (auto tasks = (target->resolved_config ? target->resolved_config : target->config)["tasks"])
+        auto &cfg = (target->resolved_config.is_map() ? target->resolved_config : target->config);
+        if (auto tasks = cfg.search("tasks"))
         {
-            for (auto kv : tasks)
+            for (auto &kv : tasks->items())
             {
-                auto name = kv.first.as<std::string>();
-                auto &task = kv.second;
+                auto name = kv.name();
+                auto &task = kv.value();
 
-                if (task.IsMap())
+                if (task.is_map())
                 {
-                    if (task["run"] && task["run"].Scalar() == "always")
+                    auto run_field = task.search("run");
+                    if (run_field && run_field->scalar() == "always")
                     {
                         RunStructuredTaskData(target, desc, task, name, stage);
                     }
@@ -1028,60 +1036,62 @@ namespace re
         }
     }
 
-    void BuildEnv::RunStructuredTask(Target *target, const NinjaBuildDesc *desc, std::string_view name,
-                                     std::string_view stage)
+    void BuildEnv::RunStructuredTask(Target *target, const NinjaBuildDesc *desc, ulib::string_view name,
+                                     ulib::string_view stage)
     {
-        if (auto tasks = (target->resolved_config ? target->resolved_config : target->config)["tasks"])
+        auto &cfg = (target->resolved_config.is_map() ? target->resolved_config : target->config);
+        if (auto tasks = cfg.search("tasks"))
         {
-            if (auto task = tasks[name.data()])
+            if (auto task = tasks->search(name.data()))
             {
-                RunStructuredTaskData(target, desc, task, name, stage);
+                RunStructuredTaskData(target, desc, *task, name, stage);
             }
         }
     }
 
     void BuildEnv::RunStructuredTaskData(Target *target, const NinjaBuildDesc *desc, const TargetConfig &task,
-                                         std::string_view name, std::string_view stage)
+                                         ulib::string_view name, ulib::string_view stage)
     {
         // TODO: this is problematic and needs to be improved somehow
-        if (auto deps = task["deps"])
+        if (auto deps = task.search("deps"))
         {
-            for (auto dep_task : deps)
+            for (auto dep_task : *deps)
             {
                 if (desc)
                 {
                     for (auto &dep : GetSingleTargetDepSet(desc->pBuildTarget))
-                        RunStructuredTask(dep, desc, dep_task.Scalar(), stage);
+                        RunStructuredTask(dep, desc, dep_task.scalar(), stage);
                 }
                 else
                 {
-                    RunStructuredTask(target, desc, dep_task.Scalar(), stage);
+                    RunStructuredTask(target, desc, dep_task.scalar(), stage);
                 }
             }
         }
 
-        if (auto stage_actions = task[stage.data()])
+        if (auto stage_actions = task.search(stage.data()))
         {
-            auto completion_key = fmt::format("{} / {} [{}]", target->module, name, stage);
+            auto completion_key = ulib::format("{} / {} [{}]", target->module, name, stage);
 
             if (mCompletedActions.find(completion_key) != mCompletedActions.end())
                 return;
 
             const auto kStyle = fg(fmt::color::blue_violet) | fmt::emphasis::bold;
 
-            if (!task["silent"] || task["silent"].as<bool>() != true)
+            auto silent_field = task.search("silent");
+            if (!silent_field || silent_field->get<bool>() != true)
             {
                 mOut->Info(kStyle, " - Running task ");
                 mOut->Info(kStyle | fmt::emphasis::underline, "{}\n\n", completion_key);
             }
 
-            RunActionList(desc, target, stage_actions, stage, stage.data());
+            RunActionList(desc, target, *stage_actions, stage, stage.data());
 
             mCompletedActions.insert(completion_key);
         }
     }
 
-    IDepResolver *BuildEnv::GetDepResolver(const std::string &name)
+    IDepResolver *BuildEnv::GetDepResolver(ulib::string_view name)
     {
         return mDepResolvers[name];
     }
@@ -1186,9 +1196,7 @@ namespace re
 
             if (mVars.GetVar("target-configs").value_or("false") == "true")
             {
-                YAML::Emitter emitter;
-                emitter << pTarget->resolved_config;
-                mOut->Info({}, "{}", emitter.c_str());
+                mOut->Info({}, "{}", pTarget->resolved_config.dump().c_str());
             }
         }
     }

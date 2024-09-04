@@ -4,7 +4,7 @@
 
 namespace re
 {
-    std::optional<std::string> EnvironmentVarNamespace::GetVar(const std::string &key) const
+    std::optional<ulib::string> EnvironmentVarNamespace::GetVar(ulib::string_view key) const
     {
         if (auto var = ulib::getenv(ulib::u8(key)))
             return ulib::sstr(*var);

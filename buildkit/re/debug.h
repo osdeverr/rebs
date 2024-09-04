@@ -1,5 +1,5 @@
 #pragma once
-#include <fmt/format.h>
+#include <ulib/format.h>
 #include <string>
 #include <chrono>
 
@@ -26,10 +26,10 @@ namespace re
 
 		void Print();
 
-		std::string ToString() const;
+		ulib::string ToString() const;
 
 	private:
-		std::string mName;
+		ulib::string  mName;
 
 		std::chrono::high_resolution_clock::time_point mBeginTime = std::chrono::high_resolution_clock::now();
 		std::chrono::high_resolution_clock::time_point mEndTime;

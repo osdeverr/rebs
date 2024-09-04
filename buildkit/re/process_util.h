@@ -8,10 +8,11 @@
 #include "error.h"
 #include "fs.h"
 
+#include <ulib/string.h>
 
 namespace re
 {
-    int RunProcessOrThrow(std::string_view program_name, const fs::path &path, std::vector<std::string> cmdline,
+    int RunProcessOrThrow(ulib::string_view program_name, const fs::path &path, const ulib::list<ulib::string>& cmdline,
                                  bool output, bool throw_on_bad_exit, std::optional<fs::path> working_directory = std::nullopt);
 
 // #ifdef WIN32

@@ -6,9 +6,11 @@
 #include <re/target_cfg_utils.h>
 #include <re/yaml_merge.h>
 
-#include <fmt/format.h>
-
 #include <fstream>
+#include <futile/futile.h>
+#include <ulib/fmt/list.h>
+#include <ulib/format.h>
+#include <ulib/strutility.h>
 
 namespace re
 {
@@ -16,7 +18,7 @@ namespace re
     {
         inline TargetConfig GetRecursiveMapCfg(const Target &leaf, std::string_view key)
         {
-            auto result = TargetConfig{YAML::NodeType::Map};
+            auto result = TargetConfig{ulib::yaml::value_t::map};
             auto p = &leaf;
 
             while (p)
@@ -32,7 +34,7 @@ namespace re
 
         inline TargetConfig GetRecursiveSeqCfg(const Target &leaf, std::string_view key)
         {
-            auto result = TargetConfig{YAML::NodeType::Sequence};
+            auto result = TargetConfig{ulib::yaml::value_t::sequence};
             auto p = &leaf;
 
             while (p)
@@ -49,45 +51,44 @@ namespace re
         inline void AppendIncludeDirs(const Target &target, const TargetConfig &cfg,
                                       std::unordered_set<std::string> &dirs, const LocalVarScope &vars)
         {
-            if (target.type != TargetType::Project && !cfg["no-auto-include-dirs"])
+            if (target.type != TargetType::Project && !cfg.search("no-auto-include-dirs"))
             {
-                auto root_path = cfg["cxx-root-include-path"].Scalar();
+                auto root_path = cfg["cxx-root-include-path"].scalar();
                 // fmt::print("AppendIncludeDirs: {} => root: {}\n", target.module, root_path);
                 dirs.insert(root_path);
             }
 
-            auto extra_includes = cfg["cxx-include-dirs"];
+            if (auto extra_includes = cfg.search("cxx-include-dirs"))
+                if (extra_includes->is_sequence())
+                    for (const auto &v : *extra_includes)
+                    {
+                        const auto &v_s = v.scalar();
 
-            for (const auto &v : extra_includes)
-            {
-                const auto &v_s = v.Scalar();
+                        auto dir = fs::path{vars.Resolve(v_s)};
 
-                auto dir = fs::path{vars.Resolve(v_s)};
+                        if (!dir.is_absolute())
+                            dir = target.path / dir;
 
-                if (!dir.is_absolute())
-                    dir = target.path / dir;
-
-                dirs.insert(dir.u8string());
-            }
+                        dirs.insert(dir.u8string());
+                    }
         }
 
         inline void AppendLinkFlags(const Target &target, const TargetConfig &cfg, const std::string &cxx_lib_dir_tpl,
                                     std::vector<std::string> &out_flags, std::vector<std::string> &out_deps,
                                     const LocalVarScope &vars)
         {
-            auto link_lib_dirs = cfg["cxx-lib-dirs"];
+            auto link_lib_dirs = cfg.search("cxx-lib-dirs");
+            if (link_lib_dirs && link_lib_dirs->is_sequence())
+                for (const auto &dir : *link_lib_dirs)
+                {
+                    auto formatted = vars.Resolve(dir.scalar());
+                    out_flags.push_back(fmt::format(cxx_lib_dir_tpl, fmt::arg("directory", formatted)));
+                }
 
-            for (const auto &dir : link_lib_dirs)
-            {
-                auto formatted = vars.Resolve(dir.as<std::string>());
-
-                out_flags.push_back(fmt::format(cxx_lib_dir_tpl, fmt::arg("directory", formatted)));
-            }
-
-            auto extra_link_deps = cfg["cxx-link-deps"];
-
-            for (const auto &dep : extra_link_deps)
-                out_deps.push_back(fmt::format("\"{}\"", vars.Resolve(dep.as<std::string>())));
+            auto extra_link_deps = cfg.search("cxx-link-deps");
+            if (extra_link_deps && extra_link_deps->is_sequence())
+                for (const auto &dep : *extra_link_deps)
+                    out_deps.push_back(fmt::format("\"{}\"", vars.Resolve(dep.scalar())));
         }
 
     } // namespace
@@ -120,12 +121,12 @@ namespace re
 
         // Choose and load the correct build environment.
 
-        auto env_cfg = target.resolved_config["cxx-env"];
+        auto env_cfg = target.resolved_config.search("cxx-env");
         if (!env_cfg)
             RE_THROW TargetLoadException(&target, "C++ environment type not specified anywhere in the target tree");
 
         auto &env_cached_name = desc.state["re_cxx_env_for_" + path];
-        env_cached_name = vars.Resolve(env_cfg.Scalar());
+        env_cached_name = vars.Resolve(env_cfg->scalar());
 
         /////////////////////////////////////////////////////////////////
 
@@ -134,11 +135,11 @@ namespace re
         //
         CxxBuildEnvData &env = LoadEnvOrThrow(env_cached_name, target);
 
-        if (auto vars_cfg = env["vars"])
-            for (const auto &kv : vars_cfg)
+        if (auto vars_cfg = env.search("vars"))
+            for (const auto &kv : vars_cfg->items())
             {
-                auto key = kv.first.as<std::string>();
-                auto value = kv.second.as<std::string>();
+                auto key = kv.name();
+                auto value = kv.value().scalar();
 
                 vars.SetVar(key, value);
 
@@ -149,8 +150,8 @@ namespace re
                     */
             }
 
-        for (const auto &kv : env["default-flags"])
-            vars.SetVar("platform-default-flags-" + kv.first.Scalar(), vars.Resolve(kv.second.Scalar()));
+        for (const auto &kv : env["default-flags"].items())
+            vars.SetVar(ulib::string{"platform-default-flags-"} + kv.name(), vars.Resolve(kv.value().scalar()));
 
         cond_desc["arch"] = vars.ResolveLocal("arch");
         cond_desc["cxx-env"] = env_cached_name;
@@ -168,19 +169,21 @@ namespace re
         vars.SetVar("target-root", vars.GetVar("root-dir").value());
         vars.SetVar("build-root", desc.pRootTarget->path.u8string());
 
-        for (auto with : target.resolved_config["with"])
+        if (auto withs_ref = target.resolved_config.search("with"))
         {
-            fs::path path = vars.Resolve(with.Scalar());
+            auto withs = *withs_ref;
+            for (auto &with : withs)
+            {
+                fs::path path = vars.Resolve(with.scalar());
 
-            if (!path.is_absolute())
-                path = target.path / path;
+                if (!path.is_absolute())
+                    path = target.path / path;
 
-            std::ifstream file{path};
+                auto config = ulib::yaml::parse(futile::open(path).read());
 
-            auto config = YAML::Load(file);
-
-            MergeYamlNode(target.config, config);
-            target.resolved_config = GetResolvedTargetCfg(target, cond_desc);
+                MergeYamlNode(target.config, config);
+                target.resolved_config = GetResolvedTargetCfg(target, cond_desc);
+            }
         }
 
         auto &meta = desc.meta["targets"][target.path.u8string()];
@@ -199,8 +202,9 @@ namespace re
 
         std::string extension = "";
 
-        if (auto out_ext = target.resolved_config["out-ext"])
-            extension = out_ext.Scalar();
+        if (auto out_ext = target.resolved_config.search("out-ext"))
+            if (out_ext->is_scalar())
+                extension = out_ext->scalar();
 
         if (!extension.empty())
         {
@@ -214,15 +218,15 @@ namespace re
         target.resolved_config["cxx-root-include-path"] = target.path.u8string();
 
         // Forward the C++ build tools definitions to the build system
-        for (const auto &kv : env["tools"])
+        for (const auto &kv : env["tools"].items())
         {
-            auto name = kv.first.Scalar();
-            auto tool_path = vars.Resolve(kv.second.Scalar());
+            auto name = kv.name();
+            auto tool_path = vars.Resolve(kv.value().scalar());
 
-            desc.tools.push_back(BuildTool{"cxx_" + name + "_" + path, tool_path});
+            desc.tools.push_back(BuildTool{ulib::string{"cxx_"} + name + "_" + path, tool_path});
 
             meta["tools"][name] = tool_path;
-            vars.SetVar("cxx.tool." + name, tool_path);
+            vars.SetVar(ulib::string{"cxx.tool."} + name, tool_path);
         }
     }
 
@@ -241,8 +245,7 @@ namespace re
         //	fmt::print(" *** '{}' -> {}={}\n", target.module, k, v);
 
         auto &config = target.resolved_config;
-
-        if (!config["enabled"].as<bool>())
+        if (!config["enabled"].get<bool>())
             return false;
 
         auto &meta = desc.meta["targets"][target.path.u8string()]["cxx"];
@@ -250,10 +253,15 @@ namespace re
         TargetConfig definitions = config["cxx-compile-definitions"];
         TargetConfig definitions_pub = config["cxx-compile-definitions-public"];
 
+        if (!definitions.is_map())
+            definitions = TargetConfig{ulib::yaml::value_t::map};
+        if (!definitions_pub.is_map())
+            definitions_pub = TargetConfig{ulib::yaml::value_t::map};
+
         // Make the local definitions supersede all platform ones
-        for (const auto &def : env["platform-definitions"])
-            if (!definitions[def.first])
-                definitions[def.first] = def.second;
+        for (const auto &def : env["platform-definitions"].items())
+            if (!definitions.search(def.name()))
+                definitions[def.name()] = def.value();
 
         std::vector<const Target *> include_deps;
         PopulateTargetDependencySetNoResolve(&target, include_deps);
@@ -266,23 +274,23 @@ namespace re
 
         std::vector<std::string> extra_flags;
 
-        std::string cpp_std = config["cxx-standard"].Scalar();
+        std::string cpp_std = config["cxx-standard"].scalar();
 
         if (cpp_std == "20" && env_name == "gcc") // HACK
             cpp_std = "2a";
 
         meta["standard"] = "c++" + cpp_std;
 
-        extra_flags.push_back(fmt::format(templates["cxx-module-output"].as<std::string>(),
-                                          fmt::arg("directory", fmt::format("$re_target_object_directory_{}", path))));
+        extra_flags.push_back(ulib::format(templates["cxx-module-output"].scalar(),
+                                           fmt::arg("directory", fmt::format("$re_target_object_directory_{}", path))));
 
-        auto cxx_include_dir = templates["cxx-include-dir"].as<std::string>();
-        auto cxx_module_lookup_dir = templates["cxx-module-lookup-dir"].as<std::string>();
+        auto cxx_include_dir = templates["cxx-include-dir"].scalar();
+        auto cxx_module_lookup_dir = templates["cxx-module-lookup-dir"].scalar();
 
         std::vector<std::string> deps_list;
         std::vector<std::string> extra_link_flags;
 
-        auto cxx_lib_dir = templates["cxx-lib-dir"].as<std::string>();
+        auto cxx_lib_dir = templates["cxx-lib-dir"].scalar();
 
         std::unordered_set<std::string> include_dirs;
 
@@ -292,28 +300,32 @@ namespace re
         {
             auto &config = target->resolved_config;
 
-            if (!config)
+            if (!config.is_map())
             {
                 // fmt::print(" Target '{}' does not have a resolved config.\n", target->module);
                 continue;
             }
 
-            auto dependency_defines = config["cxx-compile-definitions-public"];
+            // auto &dependency_defines = config["cxx-compile-definitions-public"];
 
-            for (const std::pair<YAML::Node, YAML::Node> &kv : dependency_defines)
+            if (auto dependency_defines = config.search("cxx-compile-definitions-public"))
             {
-                auto name = kv.first.as<std::string>();
-                auto value = kv.second.as<std::string>();
+                if (dependency_defines->is_map())
+                    for (const auto &kv : dependency_defines->items())
+                    {
+                        auto name = kv.name();
+                        auto value = kv.value().scalar();
 
-                if (!definitions_pub[name])
-                    definitions_pub[name] = value;
+                        if (!definitions_pub.search(name))
+                            definitions_pub[name] = value;
+                    }
             }
 
             AppendIncludeDirs(*target, config, include_dirs, vars);
 
             // TODO: Make this only work with modules enabled???
-            extra_flags.push_back(
-                fmt::format(cxx_module_lookup_dir, fmt::arg("directory", fmt::format("$builddir/{}", target->module))));
+            extra_flags.push_back(ulib::format(cxx_module_lookup_dir,
+                                               fmt::arg("directory", fmt::format("$builddir/{}", target->module))));
 
             // Link stuff
 
@@ -331,105 +343,127 @@ namespace re
 
             AppendLinkFlags(*target, config, cxx_lib_dir, extra_link_flags, deps_list, dep_vars);
 
-            for (const auto &dep : config["cxx-global-link-deps"])
-                global_link_deps.push_back(fmt::format("-l{}", vars.Resolve(dep.as<std::string>())));
+            if (auto deps = config.search("cxx-global-link-deps"))
+                if (deps->is_sequence())
+                    for (const auto &dep : *deps)
+                        global_link_deps.push_back(fmt::format("-l{}", vars.Resolve(dep.scalar())));
         }
 
-        auto parse_build_flags = [&extra_flags, &extra_link_flags, &vars, &target](auto extra) {
+        auto parse_build_flags = [&extra_flags, &extra_link_flags, &vars, &target](ulib::yaml extra) {
             constexpr auto kCompiler = "compiler";
             constexpr auto kLinker = "linker";
             constexpr auto kLinkerNoStatic = "linker.nostatic";
 
-            if (auto flags = extra[kCompiler])
+            if (extra.is_map())
             {
-                if (flags.IsScalar())
-                    extra_flags.push_back(vars.Resolve(flags.Scalar()));
-                else
-                    for (const auto &flag : flags)
-                        extra_flags.push_back(vars.Resolve(flag.Scalar()));
-            }
-
-            if (auto flags = extra[kLinker])
-            {
-                if (flags.IsScalar())
-                    extra_link_flags.push_back(vars.Resolve(flags.Scalar()));
-                else
-                    for (const auto &flag : flags)
-                        extra_link_flags.push_back(vars.Resolve(flag.Scalar()));
-            }
-
-            if (target.type != TargetType::StaticLibrary)
-            {
-                if (auto flags = extra[kLinkerNoStatic])
+                if (auto flags = extra.search(kCompiler))
                 {
-                    if (flags.IsScalar())
-                        extra_link_flags.push_back(vars.Resolve(flags.Scalar()));
+                    if (flags->is_scalar())
+                        extra_flags.push_back(vars.Resolve(flags->scalar()));
                     else
-                        for (const auto &flag : flags)
-                            extra_link_flags.push_back(vars.Resolve(flag.Scalar()));
+                        for (const auto &flag : *flags)
+                            extra_flags.push_back(vars.Resolve(flag.scalar()));
+                }
+
+                if (auto flags = extra.search(kLinker))
+                {
+                    if (flags->is_scalar())
+                        extra_link_flags.push_back(vars.Resolve(flags->scalar()));
+                    else
+                        for (const auto &flag : *flags)
+                            extra_link_flags.push_back(vars.Resolve(flag.scalar()));
+                }
+
+                if (target.type != TargetType::StaticLibrary)
+                {
+                    if (auto flags = extra.search(kLinkerNoStatic))
+                    {
+                        if (flags->is_scalar())
+                            extra_link_flags.push_back(vars.Resolve(flags->scalar()));
+                        else
+                            for (const auto &flag : *flags)
+                                extra_link_flags.push_back(vars.Resolve(flag.scalar()));
+                    }
                 }
             }
         };
 
-        YAML::Node extra_build_flags{YAML::NodeType::Map};
+        ulib::yaml extra_build_flags{ulib::yaml::value_t::map};
 
-        if (const auto &extra = config["cxx-build-flags"])
-            MergeYamlNode(extra_build_flags, extra);
+        if (const auto extra = config.search("cxx-build-flags"))
+            MergeYamlNode(extra_build_flags, *extra);
 
-        if (const auto &opts = config["cxx-build-options"])
+        if (const auto opts = config.search("cxx-build-options"))
         {
-            for (auto kv : opts)
+            // if (opts->is_null())
+            //     extra_build_flags = ulib::yaml{ulib::yaml::value_t::null};
+
+            if (opts->is_map())
             {
-                if (kv.second.IsNull())
-                    continue;
-
-                if (auto def = env["build-options"][kv.first.Scalar()])
+                for (auto &kv : opts->items())
                 {
-                    if (def.IsMap())
+                    if (kv.value().is_null())
+                        continue;
+
+                    if (auto def = env["build-options"].search(kv.name()))
                     {
-                        if (auto value = def[kv.second.Scalar()])
+                        if (def->is_map())
                         {
-                            MergeYamlNode(extra_build_flags, value);
-                        }
-                        else if (auto value = def["$value"])
-                        {
-                            // HACK: Format the value argument
-
-                            auto cloned = YAML::Clone(value);
-
-                            for (auto def_kv : cloned)
+                            if (auto value = def->search(kv.value().scalar()))
                             {
-                                if (def_kv.second.IsSequence())
-                                {
-                                    for (auto v : def_kv.second)
-                                        (YAML::Node) v = fmt::format(v.Scalar(), fmt::arg("value", kv.second.Scalar()));
-                                }
-                                else
-                                {
-                                    def_kv.second =
-                                        fmt::format(def_kv.second.Scalar(), fmt::arg("value", kv.second.Scalar()));
-                                }
+                                MergeYamlNode(extra_build_flags, *value);
                             }
+                            else if (auto value = def->search("$value"))
+                            {
+                                // HACK: Format the value argument
 
-                            MergeYamlNode(extra_build_flags, cloned);
-                        }
-                        else if (auto default_option = def["default"])
-                        {
-                            MergeYamlNode(extra_build_flags, default_option);
-                        }
-                        else
-                        {
-                            RE_THROW TargetConfigException(&target, "Unknown build option value '{}' = {}",
-                                                           kv.first.Scalar(), kv.second.Scalar());
+                                auto cloned = *value;
+
+                                for (auto &def_kv : cloned.items())
+                                {
+                                    if (def_kv.value().is_sequence())
+                                    {
+                                        for (auto &v : def_kv.value())
+                                            v = fmt::format(std::string{v.scalar()},
+                                                            fmt::arg("value", kv.value().scalar()));
+                                    }
+                                    else
+                                    {
+                                        def_kv.value() = fmt::format(std::string{def_kv.value().scalar()},
+                                                                     fmt::arg("value", kv.value().scalar()));
+                                    }
+                                }
+
+                                MergeYamlNode(extra_build_flags, cloned);
+                            }
+                            else if (auto default_option = def->search("default"))
+                            {
+                                MergeYamlNode(extra_build_flags, *default_option);
+                            }
+                            else
+                            {
+                                RE_THROW TargetConfigException(&target, "Unknown build option value '{}' = {}",
+                                                               kv.name(), kv.value().scalar());
+                            }
                         }
                     }
-                }
-                else
-                {
-                    RE_THROW TargetConfigException(&target, "Unknown build option '{}'", kv.first.Scalar());
+                    else
+                    {
+                        RE_THROW TargetConfigException(&target, "Unknown build option '{}'", kv.name());
+                    }
                 }
             }
+
+            // if (opts->is_null())
+            //     extra_build_flags = *opts;
         }
+
+        //  ulib::list<ulib::string> list{extra_flags.begin(), extra_flags.end()};
+        // fmt::print("ky\n");
+
+        // fmt::print("extra flags: {}\n", ulib::join(extra_flags, ", "));
+        // fmt::print("extra build flags: {}\n", extra_build_flags.dump());
+        // fmt::print("config: {}\n", config.dump());
 
         parse_build_flags(extra_build_flags);
 
@@ -438,41 +472,41 @@ namespace re
         // fmt::print("{}\n", em.c_str());
 
         for (auto &dir : include_dirs)
-            extra_flags.push_back(fmt::format(cxx_include_dir, fmt::arg("directory", dir)));
+            extra_flags.push_back(ulib::format(cxx_include_dir, fmt::arg("directory", dir)));
 
         meta["include_dirs"] = include_dirs;
 
-        for (const std::pair<YAML::Node, YAML::Node> &kv : definitions_pub)
+        for (const auto &kv : definitions_pub.items())
         {
-            auto name = kv.first.as<std::string>();
-            auto value = kv.second.as<std::string>();
+            auto name = kv.name();
+            auto value = kv.value().scalar();
 
-            if (!definitions[name])
+            if (!definitions.search(name))
                 definitions[name] = value;
         }
 
         /////////////////////////////////////////////////////////////////
 
-        auto cxx_compile_definition = templates["cxx-compile-definition"].as<std::string>();
-        auto cxx_compile_definition_no_value = templates["cxx-compile-definition-no-value"].as<std::string>();
+        auto cxx_compile_definition = templates["cxx-compile-definition"].scalar();
+        auto cxx_compile_definition_no_value = templates["cxx-compile-definition-no-value"].scalar();
 
-        for (const auto &kv : definitions)
+        for (const auto &kv : definitions.items())
         {
-            auto name = vars.Resolve(kv.first.Scalar());
+            auto name = vars.Resolve(kv.name());
 
-            if (kv.second.IsScalar())
+            if (kv.value().is_scalar())
             {
-                auto value = vars.Resolve(kv.second.Scalar());
+                auto value = vars.Resolve(kv.value().scalar());
 
                 extra_flags.push_back(
-                    fmt::format(cxx_compile_definition, fmt::arg("name", name), fmt::arg("value", value)));
+                    ulib::format(cxx_compile_definition, fmt::arg("name", name), fmt::arg("value", value)));
 
                 meta["definitions"].push_back(name + "=" + value);
             }
             else
             {
                 extra_flags.push_back(
-                    fmt::format(cxx_compile_definition_no_value, fmt::arg("name", vars.Resolve(name))));
+                    ulib::format(cxx_compile_definition_no_value, fmt::arg("name", vars.Resolve(name))));
 
                 meta["definitions"].push_back(name);
             }
@@ -490,7 +524,7 @@ namespace re
 
         // Create build rules
 
-        auto use_rspfiles = env["use-rspfiles"].as<bool>();
+        auto use_rspfiles = env["use-rspfiles"].get<bool>();
 
         BuildRule rule_cxx;
 
@@ -498,7 +532,7 @@ namespace re
         rule_cxx.tool = "cxx_compiler_" + path;
 
         rule_cxx.cmdline =
-            fmt::format(vars.Resolve(templates["compiler-cmdline"].as<std::string>()), fmt::arg("flags", flags_base),
+            fmt::format(vars.Resolve(templates["compiler-cmdline"].scalar()).c_str(), fmt::arg("flags", flags_base),
                         fmt::arg("input", "$in"), fmt::arg("output", "$out"));
 
         if (use_rspfiles)
@@ -510,9 +544,9 @@ namespace re
 
         rule_cxx.description = "Building C++ source $in";
 
-        if (auto rule_vars = env["custom-rule-vars"])
-            for (const auto &var : rule_vars)
-                rule_cxx.vars[var.first.as<std::string>()] = vars.Resolve(var.second.as<std::string>());
+        if (auto rule_vars = env.search("custom-rule-vars"))
+            for (const auto &var : rule_vars->items())
+                rule_cxx.vars[var.name()] = vars.Resolve(var.value().scalar());
 
         std::string extra_link_flags_str = "";
 
@@ -544,7 +578,7 @@ namespace re
         rule_link.tool = "cxx_linker_" + path;
 
         rule_link.cmdline = fmt::format(
-            vars.Resolve(templates["linker-cmdline"].as<std::string>()),
+            vars.Resolve(templates["linker-cmdline"].scalar()).c_str(),
             fmt::arg("flags", "$target_custom_flags " + extra_link_flags_str), fmt::arg("link_deps", deps_input),
             fmt::arg("global_link_deps", global_deps_input), fmt::arg("input", "$in"), fmt::arg("output", "$out"));
 
@@ -563,7 +597,7 @@ namespace re
         rule_lib.tool = "cxx_archiver_" + path;
 
         rule_lib.cmdline = fmt::format(
-            vars.Resolve(templates["archiver-cmdline"].as<std::string>()),
+            vars.Resolve(templates["archiver-cmdline"].scalar()).c_str(),
             fmt::arg("flags", "$target_custom_flags " + extra_link_flags_str), fmt::arg("link_deps", deps_input),
             fmt::arg("global_link_deps", global_deps_input), fmt::arg("input", "$in"), fmt::arg("output", "$out"));
 
@@ -596,13 +630,17 @@ namespace re
 
         bool eligible = false;
 
-        for (const auto &ext : env["supported-extensions"])
-            if (file.extension == ext.as<std::string>())
-                eligible = true;
+        if (auto exts = env.search("supported-extensions"))
+            if (exts->is_sequence())
+                for (const auto &ext : *exts)
+                    if (ext.scalar() == file.extension)
+                        eligible = true;
 
-        for (const auto &ext : target.resolved_config["cxx-supported-extensions"])
-            if (file.extension == ext.as<std::string>())
-                eligible = true;
+        if (auto exts = env.search("cxx-supported-extensions"))
+            if (exts->is_sequence())
+                for (const auto &ext : *exts)
+                    if (ext.scalar() == file.extension)
+                        eligible = true;
 
         if (!eligible)
             return;
@@ -616,7 +654,7 @@ namespace re
 
         auto local_path = fs::relative(file.path, target.path).generic_u8string();
 
-        auto extension = env["default-extensions"]["object"].as<std::string>();
+        auto extension = env["default-extensions"]["object"].scalar();
 
         BuildTarget build_target;
 
@@ -632,22 +670,21 @@ namespace re
 
         if (file.extension == "c")
         {
-            build_target.vars["target_custom_flags"].append(env["templates"]["compile-as-c"].Scalar());
+            build_target.vars["target_custom_flags"].append(env["templates"]["compile-as-c"].scalar());
 
-            std::string c_std = target.resolved_config["c-standard"].Scalar();
+            std::string c_std = target.resolved_config["c-standard"].scalar();
 
-            auto c_std_flag = fmt::format(env["templates"]["c-standard"].as<std::string>(), fmt::arg("version", c_std));
-            build_target.vars["target_custom_flags"].append(" " + c_std_flag);
+            auto c_std_flag = ulib::format(env["templates"]["c-standard"].scalar(), fmt::arg("version", c_std));
+            build_target.vars["target_custom_flags"].append(ulib::string{" "} + c_std_flag);
         }
         else
         {
-            std::string cpp_std = target.resolved_config["cxx-standard"].Scalar();
+            std::string cpp_std = target.resolved_config["cxx-standard"].scalar();
 
-            auto cpp_std_flag =
-                fmt::format(env["templates"]["cxx-standard"].as<std::string>(), fmt::arg("version", cpp_std));
-            build_target.vars["target_custom_flags"].append(" " + cpp_std_flag);
+            auto cpp_std_flag = ulib::format(env["templates"]["cxx-standard"].scalar(), fmt::arg("version", cpp_std));
+            build_target.vars["target_custom_flags"].append(ulib::string{" "} + cpp_std_flag);
 
-            // build_target.vars["target_custom_flags"].append(env["templates"]["compile-as-cpp"].Scalar());
+            // build_target.vars["target_custom_flags"].append(env["templates"]["compile-as-cpp"].scalar());
         }
 
         // fmt::print(" [DBG] Target '{}' has object '{}'->'{}'\n", path, build_target.in, build_target.out);
@@ -682,8 +719,7 @@ namespace re
             break;
         case TargetType::SharedLibrary:
             link_target.vars["target_custom_flags"].append(" ");
-            link_target.vars["target_custom_flags"].append(
-                env["templates"]["link-as-shared-library"].as<std::string>());
+            link_target.vars["target_custom_flags"].append(env["templates"]["link-as-shared-library"].scalar());
             break;
         case TargetType::Project:
             link_target.rule = "phony";
@@ -735,17 +771,17 @@ namespace re
         {
             // std::ifstream stream{ (mEnvSearchPath / name.data() / ".yml") };
 
-            auto &data =
-                (mEnvCache[name.data()] = YAML::LoadFile(mEnvSearchPath.u8string() + "/" + name.data() + ".yml"));
+            auto &data = (mEnvCache[name.data()] = ulib::yaml::parse(
+                              futile::open(mEnvSearchPath.u8string() + "/" + name.data() + ".yml").read()));
 
-            if (auto inherits = data["inherits"])
-                for (const auto &v : inherits)
+            if (auto inherits = data.search("inherits"))
+                for (const auto &v : *inherits)
                 {
-                    auto &other = LoadEnvOrThrow(v.as<std::string>(), invokee);
+                    auto &other = LoadEnvOrThrow(v.scalar(), invokee);
 
-                    for (const auto &pair : other)
-                        if (!data[pair.first])
-                            data[pair.first] = pair.second;
+                    for (const auto &pair : other.items())
+                        if (!data.search(pair.name()))
+                            data[pair.name()] = pair.value();
                 }
 
             return data;

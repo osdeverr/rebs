@@ -11,7 +11,7 @@
 
 namespace re
 {
-	using CxxBuildEnvData = YAML::Node;
+	using CxxBuildEnvData = ulib::yaml;
 
 	class CxxLangProvider : public ILangProvider
 	{

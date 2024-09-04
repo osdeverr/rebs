@@ -8,6 +8,7 @@
 #include <re/yaml_merge.h>
 
 #include <fstream>
+#include <futile/futile.h>
 
 namespace re
 {
@@ -118,7 +119,7 @@ namespace re
                        "[{}] Package {} already available\n", target.module, dep_str);
         }
 
-        YAML::Node config{YAML::NodeType::Map};
+        ulib::yaml config{ulib::yaml::value_t::map};
 
         if (fs::exists(path / "include"))
         {
@@ -142,7 +143,7 @@ namespace re
 
         if (fs::exists(path / "bin"))
         {
-            YAML::Node entry{YAML::NodeType::Map};
+            ulib::yaml entry{ulib::yaml::value_t::map};
 
             entry["copy-to-deps"]["from"] = (path / "bin").u8string();
             entry["copy-to-deps"]["to"] = ".";
@@ -153,43 +154,43 @@ namespace re
         auto package_target =
             std::make_unique<Target>(path.u8string(), "vcpkg." + cache_path, TargetType::StaticLibrary, config);
 
-        YAML::Node vcpkg_json = YAML::LoadFile((vcpkg_root / "ports" / dep.name / "vcpkg.json").u8string());
+        ulib::yaml vcpkg_json = ulib::yaml::parse(futile::open(vcpkg_root / "ports" / dep.name / "vcpkg.json").read());
 
-        auto append_deps_from = [this, &dep, &target, &package_target, &re_platform, cache](auto json) {
-            if (auto deps = json["dependencies"])
+        auto append_deps_from = [this, &dep, &target, &package_target, &re_platform, cache](ulib::yaml json) {
+            if (auto deps = json.search("dependencies"))
             {
-                for (auto vcdep : deps)
+                for (auto &vcdep : *deps)
                 {
                     TargetDependency pkg_dep;
 
                     pkg_dep.ns = "vcpkg-dep";
 
-                    if (vcdep.IsMap())
+                    if (vcdep.is_map())
                     {
-                        pkg_dep.name = vcdep["name"].Scalar();
+                        pkg_dep.name = vcdep["name"].scalar();
 
-                        if (auto ver = vcdep["version"])
-                            pkg_dep.version = ver.Scalar();
-                        else if (auto ver = vcdep["version>="])
-                            pkg_dep.version = ">=" + ver.Scalar();
-                        else if (auto ver = vcdep["version>"])
-                            pkg_dep.version = ">" + ver.Scalar();
-                        else if (auto ver = vcdep["version<="])
-                            pkg_dep.version = "<=" + ver.Scalar();
-                        else if (auto ver = vcdep["version<"])
-                            pkg_dep.version = "<" + ver.Scalar();
+                        if (auto ver = vcdep.search("version"))
+                            pkg_dep.version = ver->scalar();
+                        else if (auto ver = vcdep.search("version>="))
+                            pkg_dep.version = ulib::string{">="} + ver->scalar();
+                        else if (auto ver = vcdep.search("version>"))
+                            pkg_dep.version = ulib::string{">"} + ver->scalar();
+                        else if (auto ver = vcdep.search("version<="))
+                            pkg_dep.version = ulib::string{"<="} + ver->scalar();
+                        else if (auto ver = vcdep.search("version<"))
+                            pkg_dep.version = ulib::string{"<"} + ver->scalar();
 
-                        if (auto platform = vcdep["platform"])
+                        if (auto platform = vcdep.search("platform"))
                         {
                             auto eligible = true;
-                            auto str = platform.Scalar();
+                            auto str = platform->scalar();
 
                             if (str.front() == '!')
                             {
-                                if (re_platform == str.substr(1))
+                                if (str.substr(1) == re_platform)
                                     eligible = false;
                             }
-                            else if (re_platform != str)
+                            else if (str != re_platform)
                             {
                                 eligible = false;
                             }
@@ -197,14 +198,14 @@ namespace re
                             if (!eligible)
                             {
                                 // fmt::print(" ! EVIL dep {} has wrong platform '{}'\n", pkg_dep.name,
-                                // platform.Scalar());
+                                // platform.scalar());
                                 continue;
                             }
                         }
                     }
                     else
                     {
-                        pkg_dep.name = vcdep.Scalar();
+                        pkg_dep.name = vcdep.scalar();
                     }
 
                     pkg_dep.raw = fmt::format("{}:{}@{}", pkg_dep.ns, pkg_dep.name, pkg_dep.version);
@@ -225,10 +226,12 @@ namespace re
 
         append_deps_from(vcpkg_json);
 
-        for (auto feature : vcpkg_json["default-features"])
-        {
-            append_deps_from(vcpkg_json["features"][feature.Scalar()]);
-        }
+        if (auto features = vcpkg_json.search("default-features"))
+            if (features->is_sequence())
+                for (auto feature : *features)
+                {
+                    append_deps_from(vcpkg_json["features"][feature.scalar()]);
+                }
 
         package_target->root_path = target.root_path;
 
@@ -240,7 +243,7 @@ namespace re
         package_target->config["platform"] = re_platform;
         package_target->config["configuration"] = re_config;
 
-        if (dep.extra_config)
+        if (!dep.extra_config.is_null())
             MergeYamlNode(package_target->config, dep.extra_config);
 
         package_target->resolved_config = package_target->config;
@@ -271,21 +274,16 @@ namespace re
 
     bool VcpkgDepResolver::SaveDependencyToPath(const TargetDependency &dep, const fs::path &path)
     {
-        YAML::Node config;
+        ulib::yaml config;
 
         config["type"] = "project";
         config["name"] = dep.name;
 
-        config["deps"] = YAML::Node{YAML::NodeType::Sequence};
+        config["deps"] = ulib::yaml{ulib::yaml::value_t::sequence};
         config["deps"].push_back(dep.ToString());
 
-        YAML::Emitter emitter;
-        emitter << config;
-
         fs::create_directories(path);
-
-        std::ofstream of{path / "re.yml"};
-        of << emitter.c_str();
+        futile::open(path / "re.yml", "w").write(config.dump());
 
         return true;
     }
