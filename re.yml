@@ -1,9 +1,8 @@
 type: project
 name: re
 
-runtime: static
-
 platform.windows:
+  runtime: static
 
   # cxx-env: clang-cl
   cxx-build-flags:
