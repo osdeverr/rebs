@@ -12,6 +12,7 @@ deps:
   - vcpkg:yaml-cpp
   - vcpkg:magic-enum
   - vcpkg:cpp-httplib
+  - vcpkg:openssl
   - github:osdeverr/fmt @re-9.1.0-1
   - github:osdeverr/re-ninja@v1.7 [.libtool]
   - github:osdeverr/semverpp@v1.1.8-no-tests [semverpp]
@@ -22,13 +23,6 @@ deps:
   - github:zwalloc/ulib-json ^1.2.5
   - github:zwalloc/ulib-yaml-json ^1.0.0
   - github:zwalloc/ulib-yaml ^1.0.0
-
-platform.windows:
-  deps:
-    - vcpkg:openssl@static-md
-platform.!windows:
-  deps:
-    - vcpkg:openssl
 
 actions:
   - run:
