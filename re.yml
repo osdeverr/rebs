@@ -1,7 +1,10 @@
 type: project
 name: re
 
+runtime: static
+
 platform.windows:
+
   # cxx-env: clang-cl
   cxx-build-flags:
     compiler:
