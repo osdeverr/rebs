@@ -2,7 +2,7 @@ type: project
 name: re
 
 platform.windows:
-  runtime: static
+  # runtime: static
 
   # cxx-env: clang-cl
   cxx-build-flags:

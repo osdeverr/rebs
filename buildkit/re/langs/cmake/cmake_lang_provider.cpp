@@ -22,9 +22,19 @@ namespace re
         auto &target_vars = target.target_var_scope.emplace(&target.local_var_ctx, "target", &target);
         auto &vars = target.build_var_scope.emplace(&target.local_var_ctx, "build", &target_vars);
 
-        vars.SetVar("arch", target.config["arch"].scalar());
-        vars.SetVar("configuration", target.config["configuration"].scalar());
-        vars.SetVar("platform", target.config["platform"].scalar());
+        auto set_config_var_or_null = [&](ulib::string_view key) {
+            if (auto arch = target.config.search(key))
+            {
+                if (arch->is_scalar())
+                    vars.SetVar(key, arch->scalar());
+                else
+                    vars.SetVar(key, "");
+            }
+        };
+
+        set_config_var_or_null("arch");
+        set_config_var_or_null("configuration");
+        set_config_var_or_null("platform");
 
         std::unordered_map<std::string, std::string> configuration = {
             {"arch", vars.ResolveLocal("arch")},
@@ -39,7 +49,8 @@ namespace re
     {
         if (auto build_script = target.resolved_config.search("cmake-out-build-script"))
         {
-            if (std::find(desc.subninjas.begin(), desc.subninjas.end(), std::string{build_script->scalar()}) == desc.subninjas.end())
+            if (std::find(desc.subninjas.begin(), desc.subninjas.end(), std::string{build_script->scalar()}) ==
+                desc.subninjas.end())
                 desc.subninjas.push_back(build_script->scalar());
         }
 

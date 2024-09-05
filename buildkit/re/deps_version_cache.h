@@ -59,7 +59,7 @@ namespace re
             const Target& target,
             const TargetDependency& dep,
             ulib::string_view name,
-            std::function<ulib::list<ulib::string>(const re::TargetDependency&, ulib::string_view)> get_available_versions
+            std::function<std::vector<std::string>(const re::TargetDependency &, const std::string&)> get_available_versions
         );
 
         /**
