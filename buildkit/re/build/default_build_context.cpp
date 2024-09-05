@@ -191,7 +191,9 @@ namespace re
 
     void DefaultBuildContext::SaveCachedParams(const fs::path &path, const ulib::yaml &node)
     {
-        futile::open(path / "re.user.yml").write(node.dump());
+        // std::system("pause");
+        // fmt::print("Saving: {}\nto: {}\n", node.dump().c_str(), (path / "re.user.yml").u8string().c_str());
+        futile::open(path / "re.user.yml", "w").write(node.dump());
     }
 
     void DefaultBuildContext::ResolveAllTargetDependencies(Target *pRootTarget)

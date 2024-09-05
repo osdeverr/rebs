@@ -107,14 +107,14 @@ namespace re
 
             if (dep_source && !dep_source->extra_config.is_null())
             {
-                auto parse_config_for_target = [&cmdline, &arch, &platform,
-                                                &config](const ulib::yaml& node, const ulib::list<ulib::string> &targets) {
+                auto parse_config_for_target = [&cmdline, &arch, &platform, &config](
+                                                   const ulib::yaml &node, const ulib::list<ulib::string> &targets) {
                     std::string defs_private, defs_public;
 
-                    for (auto& kv : node["cxx-compile-definitions"].items())
+                    for (auto &kv : node["cxx-compile-definitions"].items())
                         defs_private.append(fmt::format("{}={};", kv.name(), kv.value().scalar()));
 
-                    for (auto& kv : node["cxx-compile-definitions-public"].items())
+                    for (auto &kv : node["cxx-compile-definitions-public"].items())
                         defs_public.append(fmt::format("{}={};", kv.name(), kv.value().scalar()));
 
                     for (auto &target : targets)
@@ -137,7 +137,7 @@ namespace re
                 else
                     parse_config_for_target(resolved, dep_source->filters);
 
-                for (auto& kv : resolved.items())
+                for (auto &kv : resolved.items())
                 {
                     constexpr auto kCMakeTargetPrefix = "cmake-target.";
 
@@ -198,7 +198,7 @@ namespace re
         target->name = target->module =
             fmt::format("cmake.{}.{}", path_hash, canonical_path.filename().generic_u8string());
 
-        for (auto& kv : cmake_meta["targets"].items())
+        for (auto &kv : cmake_meta["targets"].items())
         {
             TargetConfig child_config{ulib::yaml::value_t::map};
 
@@ -220,10 +220,13 @@ namespace re
 
             for (auto dir : kv.value()["include-dirs"])
             {
-                auto s = dir.scalar();
+                if (dir.is_scalar())
+                {
+                    auto s = dir.scalar();
 
-                if (!s.empty())
-                    child_config["cxx-include-dirs"].push_back(s);
+                    if (!s.empty())
+                        child_config["cxx-include-dirs"].push_back(s);
+                }
             }
 
             auto child = std::make_unique<Target>(path, kv.name(), type, child_config);
@@ -235,7 +238,7 @@ namespace re
         {
             if (auto child = target->FindChild(kv.name()))
             {
-                for (auto dep_str : kv.value()["cmake-deps"].items())
+                for (auto dep_str : kv.value()["cmake-deps"])
                 {
                     if (dep_str.scalar().empty() || dep_str.scalar().find('-') == 0)
                         continue;
