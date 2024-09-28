@@ -23,6 +23,8 @@
 #include <ulib/json.h>
 #include <ulib/yaml_json.h>
 
+#include <futile/futile.h>
+
 namespace re
 {
     void PopulateTargetChildSet(Target *pTarget, ulib::list<Target *> &to)
@@ -947,8 +949,24 @@ namespace re
             if (path_cfg->is_sequence())
                 for (const auto &path : *path_cfg)
                 {
-                    auto final_path = target->build_var_scope->Resolve(path.scalar());
-                    ulib::add_path(final_path);
+                    try
+                    {
+                        auto final_path = target->build_var_scope->Resolve(path.scalar());
+                        ulib::add_path(final_path);
+                    }
+                    catch (re::VarSubstitutionException &ex)
+                    {
+                        if (!std::filesystem::exists("out"))
+                            std::filesystem::create_directory("out");
+
+                        futile::open("out/warnings.log", "a")
+                            .write(ulib::format("[RunActionList] [{}]: Can't resolve: {}. Full Exception: {}\n", target->name,
+                                                ulib::str(path.scalar()).c_str(), ex.what()));
+
+                        // this->mOut->Trace(fmt::fg(fmt::color::yellow),
+                        //                  "[RunActionList] [{}]: Can't resolve: {}\n", target->name,
+                        //                  ulib::str(path.scalar()).c_str());
+                    }
                 }
 
         if (list.is_sequence())

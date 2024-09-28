@@ -238,23 +238,27 @@ namespace re
         {
             if (auto child = target->FindChild(kv.name()))
             {
-                for (auto dep_str : kv.value()["cmake-deps"])
+                if (auto cmake_deps = kv.value().search("cmake-deps"))
                 {
-                    if (dep_str.scalar().empty() || dep_str.scalar().find('-') == 0)
-                        continue;
+                    for (auto dep_str : *cmake_deps)
+                    {
+                        if (dep_str.scalar().empty() || dep_str.scalar().find('-') == 0)
+                            continue;
 
-                    if (auto target_dep = target->FindChild(dep_str.scalar()))
-                    {
-                        auto dependency = ParseTargetDependency(ulib::string_view{"cmake-ref:"} + dep_str.scalar());
-                        dependency.resolved = {target_dep};
-                        child->dependencies.emplace_back(dependency);
-                    }
-                    else
-                    {
-                        mOut->Warn(fg(fmt::color::dim_gray) | fmt::emphasis::bold,
-                                   " ! CMakeTargetLoadMiddleware: Target '{}' has unknown CMake dependency '{}' - this "
-                                   "may or may not be an error\n",
-                                   child->name, dep_str.scalar());
+                        if (auto target_dep = target->FindChild(dep_str.scalar()))
+                        {
+                            auto dependency = ParseTargetDependency(ulib::string_view{"cmake-ref:"} + dep_str.scalar());
+                            dependency.resolved = {target_dep};
+                            child->dependencies.emplace_back(dependency);
+                        }
+                        else
+                        {
+                            mOut->Warn(
+                                fg(fmt::color::dim_gray) | fmt::emphasis::bold,
+                                " ! CMakeTargetLoadMiddleware: Target '{}' has unknown CMake dependency '{}' - this "
+                                "may or may not be an error\n",
+                                child->name, dep_str.scalar());
+                        }
                     }
                 }
             }
