@@ -133,11 +133,15 @@ namespace re
 
         if (fs::exists(path / "lib"))
         {
+            std::vector<std::string> link_deps;
             for (auto &file : fs::directory_iterator{path / "lib"})
             {
                 if (file.is_regular_file() && file.path().extension() != ".pdb")
-                    config["cxx-link-deps"].push_back(file.path().u8string());
+                    link_deps.push_back(file.path().u8string());
             }
+
+            for (auto it = link_deps.rbegin(); it != link_deps.rend(); it++)
+                config["cxx-link-deps"].push_back(*it);
         }
 
         if (fs::exists(path / "bin"))

@@ -323,7 +323,7 @@ namespace re
 
             if (target->type == TargetType::StaticLibrary && has_any_eligible_sources)
             {
-                deps_list.push_back("\"$cxx_artifact_" + res_path + "\"");
+                deps_list.insert(deps_list.begin(), "\"$cxx_artifact_" + res_path + "\"");
             }
 
             auto dep_vars = LocalVarScope{&target->local_var_ctx, "dep-target", &target->GetBuildVarScope().first};
