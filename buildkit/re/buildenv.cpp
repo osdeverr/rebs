@@ -49,19 +49,22 @@ namespace re
             return;
         }
 
-        for (auto &[name, dep] : pTarget->used_mapping)
-        {
-            RE_TRACE(" PopulateTargetDependencySet: Attempting to resolve uses-mapping '{}' <- '{}'\n", pTarget->module,
-                     dep->ToString());
+        // for (auto &[name, dep] : pTarget->used_mapping)
+        // {
+        //     RE_TRACE(" PopulateTargetDependencySet: Attempting to resolve uses-mapping '{}' <- '{}'\n", pTarget->module,
+        //              dep->ToString());
 
-            if (!dep_resolver(*pTarget, *dep, dep->resolved))
-            {
-                RE_TRACE("     failed\n");
+        //     fmt::print("dep: {}\n", dep->ToString());   
 
-                if (throw_on_missing)
-                    RE_THROW TargetDependencyException(pTarget, "unresolved uses-map dependency {}", dep->name);
-            }
-        }
+        //     if (dep->resolved.empty() && !dep_resolver(*pTarget, *dep, dep->resolved))
+        //     {
+        //         fmt::print("failed dep: {}\n", dep->ToString());   
+        //         RE_TRACE("     failed\n");
+
+        //         if (throw_on_missing)
+        //             RE_THROW TargetDependencyException(pTarget, "unresolved uses-map dependency {}", dep->name);
+        //     }
+        // }
 
         for (auto &dep : pTarget->dependencies)
         {
@@ -687,6 +690,7 @@ namespace re
         if (dep.ns.empty())
         {
             auto result = GetDeepSiblingDep(&target, dep.name);
+            // fmt::print("ResolveTargetDependencyImpl: target: {}\n", target.name);
 
             // Arch coercion - this is SOMETIMES very useful
             if (result)
@@ -717,6 +721,8 @@ namespace re
 
                     result = ecfg_existing;
                 }
+
+                // fmt::print("target.build_var_scope = {}, result->build_var_scope = {}\n", target.build_var_scope.has_value(), result->build_var_scope.has_value());
 
                 if (target.build_var_scope && result->build_var_scope)
                 {
