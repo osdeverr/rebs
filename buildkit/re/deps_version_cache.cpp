@@ -2,14 +2,14 @@
 
 namespace re
 {
-    std::string DepsVersionCache::GetLatestVersionMatchingRequirements(
-        const Target &target, const TargetDependency &dep, std::string_view name,
-        std::function<std::vector<std::string>(const re::TargetDependency &, std::string_view)> get_available_versions)
+    ulib::string DepsVersionCache::GetLatestVersionMatchingRequirements(
+        const Target &target, const TargetDependency &dep, ulib::string_view name,
+        std::function<std::vector<std::string>(const re::TargetDependency &, const std::string&)> get_available_versions)
     {
         if (dep.version_kind == DependencyVersionKind::RawTag)
             return dep.version;
 
-        std::string kind_str = "@";
+        ulib::string kind_str = "@";
 
         switch (dep.version_kind)
         {
@@ -36,7 +36,7 @@ namespace re
             break;
         };
 
-        auto existing_key = fmt::format("{}:{}{}{}", dep.ns, dep.name, kind_str, dep.version);
+        auto existing_key = ulib::format("{}:{}{}{}", dep.ns, dep.name, kind_str, dep.version);
 
         auto &existing = mData[existing_key];
 
@@ -53,7 +53,7 @@ namespace re
                                       [&pred, &value](const auto &x) {
                                           try
                                           {
-                                              return !(pred(semverpp::version{x}, value));
+                                              return !(pred(semverpp::version{std::string(x)}, value));
                                           }
                                           catch (semverpp::invalid_version)
                                           {
@@ -114,7 +114,7 @@ namespace re
         fmt::print("\n # result: {} -> [\n", dep.raw);
 
         for (auto &ver : available)
-            fmt::print("    {} @ {}\n", ver, semverpp::version{ver}.string());
+            fmt::print("    {} @ {}\n", ver, semverpp::version{std::string(ver)}.string());
 
         fmt::print("]\n");
 

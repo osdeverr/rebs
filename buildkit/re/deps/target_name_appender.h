@@ -3,5 +3,5 @@
 
 namespace re
 {
-    void AppendTargetNameSuffix(Target *pTarget, const std::string &suffix);
+    void AppendTargetNameSuffix(Target *pTarget, ulib::string_view suffix);
 }

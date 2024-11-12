@@ -4,6 +4,7 @@
 #include <re/target_cfg_utils.h>
 
 #include <fstream>
+#include <futile/futile.h>
 
 namespace re
 {
@@ -55,11 +56,11 @@ namespace re
             if (auto flags = scope.GetVar("platform-link-paths"))
                 link_flags += scope.Resolve(*flags);
 
-            if (auto standard = ancestor->resolved_config["cxx-standard"])
-                cxx_std_override = standard.Scalar();
+            if (auto standard = ancestor->resolved_config.search("cxx-standard"))
+                cxx_std_override = standard->scalar();
 
-            if (auto build_type = ancestor->resolved_config["cmake-build-type"])
-                config = build_type.Scalar();
+            if (auto build_type = ancestor->resolved_config.search("cmake-build-type"))
+                config = build_type->scalar();
         }
 
         // HACK: PLEASE add something better later
@@ -80,17 +81,16 @@ namespace re
         if (ancestor && ancestor->build_var_scope->GetVar("cmake-reconfigure").value_or("false") == "true")
             should_rebuild = true;
 
-        YAML::Node cmake_meta{YAML::NodeType::Undefined};
+        ulib::yaml cmake_meta{ulib::yaml::value_t::null};
 
         if (fs::exists(meta_path))
         {
-            std::ifstream file{meta_path};
-            cmake_meta = YAML::Load(file);
+            cmake_meta = ulib::yaml::parse(futile::open(meta_path).read());
 
             should_rebuild = false;
 
             if (!should_rebuild && dep_source &&
-                cmake_meta["last-build-ecfg-hash"].as<std::size_t>() != dep_source->extra_config_data_hash)
+                cmake_meta["last-build-ecfg-hash"].get<std::size_t>() != dep_source->extra_config_data_hash)
                 should_rebuild = true;
         }
 
@@ -98,24 +98,24 @@ namespace re
         {
             mOut->Info(fg(fmt::color::dim_gray) | fmt::emphasis::bold, "     Rebuilding CMake cache...\n\n");
 
-            std::vector<std::string> cmdline = {"cmake", "-G", "Ninja"};
+            ulib::list<ulib::string> cmdline = {"cmake", "-G", "Ninja"};
 
             cmdline.emplace_back("-DRE_ORIGINAL_CMAKE_DIR=" + canonical_path.generic_u8string());
             cmdline.emplace_back("-DRE_BIN_OUT_DIR=" + bin_dir.generic_u8string());
             cmdline.emplace_back("-DRE_ADAPTED_META_FILE=" + meta_path.generic_u8string());
             cmdline.emplace_back("-DCMAKE_BUILD_TYPE=" + config);
 
-            if (dep_source && dep_source->extra_config)
+            if (dep_source && !dep_source->extra_config.is_null())
             {
-                auto parse_config_for_target = [&cmdline, &arch, &platform,
-                                                &config](YAML::Node node, const std::vector<std::string> &targets) {
+                auto parse_config_for_target = [&cmdline, &arch, &platform, &config](
+                                                   const ulib::yaml &node, const ulib::list<ulib::string> &targets) {
                     std::string defs_private, defs_public;
 
-                    for (auto kv : node["cxx-compile-definitions"])
-                        defs_private.append(fmt::format("{}={};", kv.first.Scalar(), kv.second.Scalar()));
+                    for (auto &kv : node["cxx-compile-definitions"].items())
+                        defs_private.append(fmt::format("{}={};", kv.name(), kv.value().scalar()));
 
-                    for (auto kv : node["cxx-compile-definitions-public"])
-                        defs_public.append(fmt::format("{}={};", kv.first.Scalar(), kv.second.Scalar()));
+                    for (auto &kv : node["cxx-compile-definitions-public"].items())
+                        defs_public.append(fmt::format("{}={};", kv.name(), kv.value().scalar()));
 
                     for (auto &target : targets)
                     {
@@ -125,8 +125,8 @@ namespace re
                             fmt::format("-DRE_CUSTOM_COMPILE_DEFINITIONS_PUBLIC_{}={}", target, defs_public));
                     }
 
-                    for (auto kv : node["cmake-extra-options"])
-                        cmdline.emplace_back(fmt::format("-D{}={}", kv.first.Scalar(), kv.second.Scalar()));
+                    for (auto kv : node["cmake-extra-options"].items())
+                        cmdline.emplace_back(fmt::format("-D{}={}", kv.name(), kv.value().scalar()));
                 };
 
                 auto resolved = GetFlatResolvedTargetCfg(dep_source->extra_config,
@@ -137,12 +137,12 @@ namespace re
                 else
                     parse_config_for_target(resolved, dep_source->filters);
 
-                for (auto kv : resolved)
+                for (auto &kv : resolved.items())
                 {
                     constexpr auto kCMakeTargetPrefix = "cmake-target.";
 
-                    if (kv.first.Scalar().find(kCMakeTargetPrefix) == 0)
-                        parse_config_for_target(kv.second, {kv.first.Scalar().substr(sizeof kCMakeTargetPrefix)});
+                    if (kv.name().find(kCMakeTargetPrefix) == 0)
+                        parse_config_for_target(kv.value(), {kv.name().substr(sizeof kCMakeTargetPrefix)});
                 }
             }
 
@@ -177,9 +177,9 @@ namespace re
         }
 
         std::ifstream file{meta_path};
-        cmake_meta = YAML::Load(file);
+        cmake_meta = ulib::yaml::parse(futile::open(meta_path).read());
 
-        TargetConfig target_config{YAML::NodeType::Map};
+        TargetConfig target_config{ulib::yaml::value_t::map};
 
         target_config["arch"] = arch;
         target_config["configuration"] = config;
@@ -198,13 +198,13 @@ namespace re
         target->name = target->module =
             fmt::format("cmake.{}.{}", path_hash, canonical_path.filename().generic_u8string());
 
-        for (auto kv : cmake_meta["targets"])
+        for (auto &kv : cmake_meta["targets"].items())
         {
-            TargetConfig child_config{YAML::NodeType::Map};
+            TargetConfig child_config{ulib::yaml::value_t::map};
 
             TargetType type = TargetType::Custom;
 
-            auto cmake_type = kv.second["cmake-type"].Scalar();
+            auto cmake_type = kv.value()["cmake-type"].scalar();
 
             if (cmake_type == "STATIC_LIBRARY" || cmake_type == "INTERFACE_LIBRARY")
                 type = TargetType::StaticLibrary;
@@ -215,43 +215,50 @@ namespace re
             else
                 continue;
 
-            if (auto location = kv.second["location"])
-                child_config["cxx-link-deps"].push_back(location.Scalar());
+            if (auto location = kv.value().search("location"))
+                child_config["cxx-link-deps"].push_back(location->scalar());
 
-            for (auto dir : kv.second["include-dirs"])
+            for (auto dir : kv.value()["include-dirs"])
             {
-                auto s = dir.Scalar();
+                if (dir.is_scalar())
+                {
+                    auto s = dir.scalar();
 
-                if (!s.empty())
-                    child_config["cxx-include-dirs"].push_back(s);
+                    if (!s.empty())
+                        child_config["cxx-include-dirs"].push_back(s);
+                }
             }
 
-            auto child = std::make_unique<Target>(path, kv.first.Scalar(), type, child_config);
+            auto child = std::make_unique<Target>(path, kv.name(), type, child_config);
             child->parent = target.get();
             target->children.emplace_back(std::move(child));
         }
 
-        for (auto kv : cmake_meta["targets"])
+        for (auto kv : cmake_meta["targets"].items())
         {
-            if (auto child = target->FindChild(kv.first.Scalar()))
+            if (auto child = target->FindChild(kv.name()))
             {
-                for (auto dep_str : kv.second["cmake-deps"])
+                if (auto cmake_deps = kv.value().search("cmake-deps"))
                 {
-                    if (dep_str.Scalar().empty() || dep_str.Scalar().find('-') == 0)
-                        continue;
+                    for (auto dep_str : *cmake_deps)
+                    {
+                        if (dep_str.scalar().empty() || dep_str.scalar().find('-') == 0)
+                            continue;
 
-                    if (auto target_dep = target->FindChild(dep_str.Scalar()))
-                    {
-                        auto dependency = ParseTargetDependency("cmake-ref:" + dep_str.Scalar());
-                        dependency.resolved = {target_dep};
-                        child->dependencies.emplace_back(dependency);
-                    }
-                    else
-                    {
-                        mOut->Warn(fg(fmt::color::dim_gray) | fmt::emphasis::bold,
-                                   " ! CMakeTargetLoadMiddleware: Target '{}' has unknown CMake dependency '{}' - this "
-                                   "may or may not be an error\n",
-                                   child->name, dep_str.Scalar());
+                        if (auto target_dep = target->FindChild(dep_str.scalar()))
+                        {
+                            auto dependency = ParseTargetDependency(ulib::string_view{"cmake-ref:"} + dep_str.scalar());
+                            dependency.resolved = {target_dep};
+                            child->dependencies.emplace_back(dependency);
+                        }
+                        else
+                        {
+                            mOut->Warn(
+                                fg(fmt::color::dim_gray) | fmt::emphasis::bold,
+                                " ! CMakeTargetLoadMiddleware: Target '{}' has unknown CMake dependency '{}' - this "
+                                "may or may not be an error\n",
+                                child->name, dep_str.scalar());
+                        }
                     }
                 }
             }

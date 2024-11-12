@@ -3,8 +3,8 @@
 #include <re/process_util.h>
 
 // #include <boost/algorithm/string.hpp>
-#include <ulib/string.h>
 #include <ulib/format.h>
+#include <ulib/string.h>
 
 namespace re
 {
@@ -20,59 +20,66 @@ namespace re
                 continue;
 
             auto in_path = source.path;
-            auto base_path = source.path.lexically_relative(target.path).u8string();
+            ulib::string base_path = source.path.lexically_relative(target.path).u8string();
 
             int num_steps = 0;
 
-            for (auto step : target.resolved_config["source-translation-steps"])
+            if (auto steps = target.resolved_config.search("source-translation-steps"))
             {
-                auto vars = LocalVarScope{&*target.build_var_scope, "translation"};
-
-                auto step_suffix = fmt::format("_st_step{}", num_steps);
-
-                auto step_name = step["name"];
-
-                auto out_ext_node = step["out-extension"];
-                auto out_ext = out_ext_node ? out_ext_node.Scalar() : source.extension;
-
-                auto out_path = out_root / (base_path + step_suffix + "." + out_ext);
-
-                vars.SetVar("source-file", in_path.generic_u8string());
-                vars.SetVar("out-file", out_path.generic_u8string());
-
-                auto extensions = step["extensions"];
-
-                bool supported = false;
-
-                if (extensions)
+                if (steps->is_sequence())
                 {
-                    for (auto extension : extensions)
+                    for (auto step : *steps)
                     {
-                        if (source.extension == extension.Scalar())
+                        auto vars = LocalVarScope{&*target.build_var_scope, "translation"};
+
+                        auto step_suffix = ulib::format("_st_step{}", num_steps);
+
+                        auto step_name = step["name"];
+
+                        auto out_ext_node = step["out-extension"];
+                        ulib::string out_ext =
+                            !out_ext_node.is_null() ? out_ext_node.scalar() : ulib::string_view{source.extension};
+
+                        auto out_path = out_root / (base_path + step_suffix + "." + out_ext);
+
+                        vars.SetVar("source-file", in_path.generic_u8string());
+                        vars.SetVar("out-file", out_path.generic_u8string());
+
+                        bool supported = false;
+
+                        auto extensions = step.search("extensions");
+                        if (extensions)
+                        {
+                            for (auto extension : *extensions)
+                            {
+                                if (extension.scalar() == source.extension)
+                                {
+                                    supported = true;
+                                    break;
+                                }
+                            }
+                        }
+                        else
                         {
                             supported = true;
-                            break;
                         }
+
+                        if (!supported)
+                            continue;
+
+                        // fmt::print("translating {} -> {}\n", source.path.generic_u8string(),
+                        // out_path.generic_u8string());
+
+                        target.unused_sources.push_back(source);
+
+                        source.path = out_path;
+                        source.extension = out_ext;
+
+                        in_path = out_path;
+
+                        num_steps++;
                     }
                 }
-                else
-                {
-                    supported = true;
-                }
-
-                if (!supported)
-                    continue;
-
-                // fmt::print("translating {} -> {}\n", source.path.generic_u8string(), out_path.generic_u8string());
-
-                target.unused_sources.push_back(source);
-
-                source.path = out_path;
-                source.extension = out_ext;
-
-                in_path = out_path;
-
-                num_steps++;
             }
         }
     }
@@ -86,7 +93,7 @@ namespace re
         for (auto &source : target.unused_sources)
         {
             auto in_path = source.path;
-            auto base_path = source.path.lexically_relative(target.path).u8string();
+            ulib::string base_path = source.path.lexically_relative(target.path).u8string();
 
             int num_steps = 0;
 
@@ -94,12 +101,10 @@ namespace re
             {
                 auto vars = LocalVarScope{&*target.build_var_scope, "translation_exec"};
 
-                auto step_suffix = fmt::format("_st_step{}", num_steps);
+                ulib::string step_suffix = ulib::format("_st_step{}", num_steps);
 
-                auto step_name = step["name"];
-
-                auto out_ext_node = step["out-extension"];
-                auto out_ext = out_ext_node ? out_ext_node.Scalar() : source.extension;
+                auto out_ext_node = step.search("out-extension");
+                auto out_ext = out_ext_node ? out_ext_node->scalar() : ulib::string_view{source.extension};
 
                 auto out_path = out_root / (base_path + step_suffix + "." + out_ext);
 
@@ -108,7 +113,7 @@ namespace re
 
                 auto extensions = step["extensions"];
 
-                ulib::string sc = step["command"].Scalar();
+                ulib::string sc = step["command"].scalar();
                 ulib::list<ulib::string> command = sc.split(" ");
 
                 for (auto &part : command)
@@ -116,11 +121,9 @@ namespace re
 
                 fs::create_directories(out_path.parent_path());
 
-                std::vector<std::string> ccommand;
-                for (auto &str : command)
-                    ccommand.push_back(str);
-
-                re::RunProcessOrThrow(step_name ? step_name.Scalar() : step_suffix.substr(1), {}, ccommand, true, true);
+                auto step_name = step.search("name");
+                re::RunProcessOrThrow(step_name ? step_name->scalar() : step_suffix.substr(1), {}, command, true,
+                                      true);
 
                 // fmt::print("translating {} -> {}\n", source.path.generic_u8string(), out_path.generic_u8string());
 

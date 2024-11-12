@@ -25,6 +25,8 @@
 
 #include <semverpp/version.hpp>
 
+#include <ulib/yaml.h>
+
 namespace re
 {
     /**
@@ -67,7 +69,7 @@ namespace re
      *
      * @throws Exception Thrown if the string does not represent a valid target type.
      */
-    TargetType TargetTypeFromString(const std::string &type);
+    TargetType TargetTypeFromString(ulib::string_view type);
 
     /**
      * @brief Converts a TargetType to a string.
@@ -77,7 +79,7 @@ namespace re
      */
     const char *TargetTypeToString(TargetType type);
 
-    using TargetConfig = YAML::Node;
+    using TargetConfig = ulib::yaml;
 
     /**
      * @brief An option determining whether to search a target config option recursively in the target's parents.
@@ -171,22 +173,22 @@ namespace re
         /**
          * @brief The dependency's original string representation.
          */
-        std::string raw;
+        ulib::string raw;
 
         /**
          * @brief The dependency namespace to search in.
          */
-        std::string ns;
+        ulib::string ns;
 
         /**
          * @brief The dependency's name (can include just a name, a path, a link or anything)
          */
-        std::string name;
+        ulib::string name;
 
         /**
          * @brief The dependency's version. This should ideally be a valid SemVer value.
          */
-        std::string version;
+        ulib::string version;
 
         /**
          * @brief The dependency's version as a SemVer value.
@@ -201,14 +203,14 @@ namespace re
         /**
          * @brief The dependency's version kind as a string.
          */
-        std::string version_kind_str;
+        ulib::string version_kind_str;
 
         /**
          * @brief A list of "filters" for the dependency.
          *
          * These are in most cases subtargets to depend on, so as to not build parts of the dependency you don't need.
          */
-        std::vector<std::string> filters;
+        ulib::list<ulib::string> filters;
 
         /**
          * @brief This dependency's resulting resolved target list.
@@ -216,7 +218,7 @@ namespace re
          * This is filled at dependency resolution time. Dependencies whose TargetDependency::resolved
          * isn't empty are considered resolved and ignored in subsequent resolution passes.
          */
-        std::vector<Target *> resolved = {};
+        ulib::list<Target *> resolved = {};
 
         /**
          * @brief The extra config (eCfg) for this dependency.
@@ -224,7 +226,7 @@ namespace re
          * Extra configs allow dependents to manually override dependencies' target config fields.
          * This creates a _new_ target for every unique eCfg node there is under the hood.
          */
-        YAML::Node extra_config{YAML::NodeType::Undefined};
+        ulib::yaml extra_config{ulib::yaml::value_t::null};
 
         /**
          * @brief A unique value identifying this dependency's extra config node owner.
@@ -241,7 +243,7 @@ namespace re
          *
          * @return std::string The resulting string.
          */
-        std::string ToString() const;
+        ulib::string ToString() const;
     };
 
     /**
@@ -256,7 +258,7 @@ namespace re
      *
      * @throws TargetDependencyException Thrown if the string has an invalid format
      */
-    TargetDependency ParseTargetDependency(const std::string &str, const Target *pTarget = nullptr);
+    TargetDependency ParseTargetDependency(ulib::string_view str, const Target *pTarget = nullptr);
 
     /**
      * @brief Parses a YAML node into a TargetDependency object.
@@ -271,7 +273,7 @@ namespace re
      *
      * @throws TargetDependencyException Thrown if the node's depstring has an invalid format
      */
-    TargetDependency ParseTargetDependencyNode(YAML::Node node, const Target *pTarget = nullptr);
+    TargetDependency ParseTargetDependencyNode(const ulib::yaml& node, const Target *pTarget = nullptr);
 
     /**
      * @brief Combines two target module paths with respect to their possible emptiness.
@@ -285,14 +287,14 @@ namespace re
      *
      * @return std::string A module path that combines the two passed to this function.
      */
-    inline std::string ModulePathCombine(const std::string &a, const std::string &b)
+    inline ulib::string ModulePathCombine(ulib::string_view a, ulib::string_view b)
     {
         if (a.empty())
             return b;
         else if (b.empty())
             return a;
         else
-            return a + "." + b;
+            return ulib::str(a) + "." + b;
     }
 
     class Target;
@@ -573,7 +575,7 @@ namespace re
          * Resolved configs are only built once and are "flattened" with respect to their conditional sections and
          * inheritance.
          */
-        TargetConfig resolved_config{YAML::NodeType::Undefined};
+        TargetConfig resolved_config{ulib::yaml::value_t::null};
 
         /**
          * @brief A set of targets that depend on this target.
@@ -615,11 +617,11 @@ namespace re
          */
         std::unordered_map<std::string, ITargetFeature *> features;
 
-        std::optional<std::string> GetVar(const std::string &key) const;
+        std::optional<ulib::string> GetVar(ulib::string_view key) const;
 
         std::pair<const LocalVarScope &, VarContext &> GetBuildVarScope() const;
 
-        TargetDependency *GetUsedDependency(const std::string &name) const;
+        TargetDependency *GetUsedDependency(ulib::string_view name) const;
 
         Target *FindChild(std::string_view name) const;
 
@@ -662,12 +664,12 @@ namespace re
         template <class T>
         std::optional<T> GetCfgEntry(std::string_view key, CfgEntryKind kind = CfgEntryKind::NonRecursive) const
         {
-            if (auto node = config[key.data()])
+            if (auto node = config.search(key.data()))
             {
                 if constexpr (!std::is_same_v<T, TargetConfig>)
-                    return node.template as<T>();
+                    return node->get<T>();
                 else
-                    return node;
+                    return *node;
             }
             else if (kind == CfgEntryKind::Recursive && parent)
                 return parent->GetCfgEntry<T>(key, kind);

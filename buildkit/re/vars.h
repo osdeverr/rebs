@@ -13,7 +13,7 @@ namespace re
     {
         virtual ~IVarNamespace() = default;
 
-        virtual std::optional<std::string> GetVar(const std::string &key) const = 0;
+        virtual std::optional<ulib::string> GetVar(ulib::string_view key) const = 0;
     };
 
     using VarContext = std::unordered_map<std::string, const IVarNamespace *>;
@@ -28,20 +28,20 @@ namespace re
         }
     };
 
-    std::string VarSubstitute(const VarContext &ctx, const std::string &str, const std::string &default_namespace = "");
+    ulib::string VarSubstitute(const VarContext &ctx, ulib::string_view str, ulib::string_view default_namespace = "");
 
     class LocalVarScope : public IVarNamespace
     {
     public:
-        explicit LocalVarScope(VarContext *context, const std::string &alias = "",
-                               const IVarNamespace *parent = nullptr, const std::string &parent_alias = "");
+        explicit LocalVarScope(VarContext *context, ulib::string_view alias = "",
+                               const IVarNamespace *parent = nullptr, ulib::string_view parent_alias = "");
 
-        explicit LocalVarScope(const LocalVarScope *parent, const std::string &alias = "")
+        explicit LocalVarScope(const LocalVarScope *parent, ulib::string_view alias = "")
             : LocalVarScope{parent ? parent->mContext : nullptr, alias, parent}
         {
         }
 
-        explicit LocalVarScope(const std::string &alias) : LocalVarScope{{}, alias, nullptr}
+        explicit LocalVarScope(ulib::string_view alias) : LocalVarScope{{}, alias, nullptr}
         {
         }
 
@@ -52,17 +52,17 @@ namespace re
 
         void Adopt(VarContext *context, IVarNamespace *parent);
 
-        void AddNamespace(const std::string &name, IVarNamespace *ns);
+        void AddNamespace(ulib::string_view name, IVarNamespace *ns);
 
-        void SetVar(const std::string &key, std::string value);
+        void SetVar(ulib::string_view key, std::string value);
 
-        void RemoveVar(const std::string &key);
+        void RemoveVar(ulib::string_view key);
 
-        std::optional<std::string> GetVar(const std::string &key) const;
+        std::optional<ulib::string> GetVar(ulib::string_view key) const;
 
-        std::optional<std::string> GetVarNoRecurse(const std::string &key) const;
+        std::optional<ulib::string> GetVarNoRecurse(ulib::string_view key) const;
 
-        inline std::string Resolve(const std::string &str) const
+        inline ulib::string Resolve(ulib::string_view str) const
         {
             // fmt::print(" * Resolving '{}': ", str);
             auto result = VarSubstitute(*mContext, str, mLocalName);
@@ -70,7 +70,7 @@ namespace re
             return result;
         }
 
-        inline std::string ResolveLocal(const std::string &key) const
+        inline std::string ResolveLocal(ulib::string_view key) const
         {
             if (auto var = GetVar(key))
                 return Resolve(*var);
@@ -80,7 +80,7 @@ namespace re
                     mAlias, mParentAlias);
         }
 
-        inline LocalVarScope Subscope(const std::string &alias = "")
+        inline LocalVarScope Subscope(ulib::string_view alias = "")
         {
             return LocalVarScope{mContext, alias, this};
         }
@@ -94,9 +94,9 @@ namespace re
         VarContext *mContext;
         const IVarNamespace *mParent = nullptr;
 
-        std::string mLocalName;
-        std::string mAlias;
-        std::string mParentAlias;
+        ulib::string mLocalName;
+        ulib::string mAlias;
+        ulib::string mParentAlias;
 
         std::unordered_map<std::string, std::string> mVars;
 

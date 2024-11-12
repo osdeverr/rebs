@@ -5,12 +5,14 @@
 #include "ulib/process_exceptions.h"
 
 #include <fmt/format.h>
+#include <ulib/format.h>
+#include <ulib/fmt/list.h>
 
 #include <ulib/process.h>
 
 namespace re
 {
-    int RunProcessOrThrow(std::string_view program_name, const fs::path &path, std::vector<std::string> cmdline,
+    int RunProcessOrThrow(ulib::string_view program_name, const fs::path &path, const ulib::list<ulib::string>& cmdline,
                           bool output, bool throw_on_bad_exit, std::optional<fs::path> working_directory)
     {
         ulib::list<ulib::u8string> cmdline_u8;
@@ -21,7 +23,7 @@ namespace re
         if (path_proc.empty())
         {
             path_proc = fs::path{cmdline.front()};
-            cmdline_u8.erase(0);
+            cmdline_u8.erase(0, 1);
         }
 
         ulib::process process;
@@ -41,7 +43,7 @@ namespace re
 
             if (throw_on_bad_exit && exit_code != 0)
             {
-                RE_THROW ProcessRunException("{} failed: exit_code={}", program_name, exit_code);
+                RE_THROW ProcessRunException("{} {} failed: exit_code={}", program_name, cmdline_u8, exit_code);
             }
 
             return exit_code;

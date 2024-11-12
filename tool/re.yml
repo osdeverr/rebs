@@ -1,7 +1,9 @@
 type: executable
 name: .tool
 
+
 artifact-name: re
+
 
 deps:
   - .buildkit

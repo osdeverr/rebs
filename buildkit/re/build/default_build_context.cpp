@@ -170,31 +170,30 @@ namespace re
         return target;
     }
 
-    YAML::Node DefaultBuildContext::LoadCachedParams(const fs::path &path)
+    ulib::yaml DefaultBuildContext::LoadCachedParams(const fs::path &path)
     {
         std::ifstream file{path / "re.user.yml"};
 
         if (file.good())
         {
-            auto yaml = YAML::Load(file);
+            file.close();
 
-            for (const auto &kv : yaml)
-                mVars.SetVar(mVars.Resolve(kv.first.Scalar()), mVars.Resolve(kv.second.Scalar()));
+            auto yaml = ulib::yaml::parse(futile::open(path / "re.user.yml").read());
+
+            for (const auto &kv : yaml.items())
+                mVars.SetVar(mVars.Resolve(kv.name()), mVars.Resolve(kv.value().scalar()));
 
             return yaml;
         }
 
-        return YAML::Node{YAML::Null};
+        return ulib::yaml{};
     }
 
-    void DefaultBuildContext::SaveCachedParams(const fs::path &path, const YAML::Node &node)
+    void DefaultBuildContext::SaveCachedParams(const fs::path &path, const ulib::yaml &node)
     {
-        std::ofstream file{path / "re.user.yml"};
-
-        YAML::Emitter emitter;
-        emitter << node;
-
-        file << emitter.c_str();
+        // std::system("pause");
+        // fmt::print("Saving: {}\nto: {}\n", node.dump().c_str(), (path / "re.user.yml").u8string().c_str());
+        futile::open(path / "re.user.yml", "w").write(node.dump());
     }
 
     void DefaultBuildContext::ResolveAllTargetDependencies(Target *pRootTarget)
@@ -289,13 +288,13 @@ namespace re
         }
 
         // Setting up the package sources for this target
-        for (const auto &kv : desc.pRootTarget->resolved_config["package-sources"])
+        for (const auto &kv : desc.pRootTarget->resolved_config["package-sources"].items())
         {
-            auto repo_id = kv.first.Scalar();
+            auto repo_id = kv.name();
 
-            if (kv.second.IsScalar())
+            if (kv.value().is_scalar())
             {
-                auto client = RePackageClient{kv.second.Scalar()};
+                auto client = RePackageClient{kv.value().scalar()};
                 auto resolver = std::make_unique<RePackageDepResolver>(mEnv.get(), this, repo_id, std::move(client));
 
                 mEnv->AddDepResolver(repo_id, resolver.get());
@@ -303,13 +302,13 @@ namespace re
             }
             else
             {
-                auto &settings = kv.second;
+                auto &settings = kv.value();
 
-                auto client = RePackageClient{settings["url"].Scalar()};
+                auto client = RePackageClient{settings["url"].scalar()};
 
-                for (const auto &kv : settings["headers"])
+                for (const auto &kv : settings["headers"].items())
                 {
-                    client.AddRequestHeader(kv.first.Scalar(), kv.second.Scalar());
+                    client.AddRequestHeader(kv.name(), kv.value().scalar());
                 }
 
                 auto resolver = std::make_unique<RePackageDepResolver>(mEnv.get(), this, repo_id, std::move(client));
@@ -476,7 +475,7 @@ namespace re
 
         for (const auto &path : path_cfg)
         {
-            auto final_path = desc.pRootTarget->build_var_scope->Resolve(path.Scalar());
+            auto final_path = desc.pRootTarget->build_var_scope->Resolve(path.scalar());
             ulib::add_path(final_path);
         }
 
@@ -777,18 +776,10 @@ namespace re
 
         if (should_merge_configs)
         {
-            std::ifstream t1{dir / "re.yml._old"};
-            std::ifstream t2{template_dir / "re.yml"};
+            auto old_config = ulib::yaml::parse(futile::open(dir / "re.yml._old").read());
+            auto new_config = ulib::yaml::parse(futile::open(template_dir / "re.yml").read());
 
-            auto old_config = YAML::Load(t1);
-            auto new_config = YAML::Load(t2);
-
-            std::ofstream out{dir / "re.yml"};
-
-            YAML::Emitter emitter;
-            emitter << MergeYamlNodes(old_config, new_config);
-
-            out << emitter.c_str();
+            futile::open(dir / "re.yml").write(MergeYamlNodes(old_config, new_config).dump());
 
             Warn(fg(fmt::color::light_yellow),
                  "WARN: Merged the existing re.yml with the one specified in the '{}'"

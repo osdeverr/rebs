@@ -55,11 +55,11 @@ namespace re
          * 
          * @return std::string The most recent version that matches the specified requirements
          */
-        std::string GetLatestVersionMatchingRequirements(
+        ulib::string GetLatestVersionMatchingRequirements(
             const Target& target,
             const TargetDependency& dep,
-            std::string_view name,
-            std::function<std::vector<std::string>(const re::TargetDependency&, std::string_view)> get_available_versions
+            ulib::string_view name,
+            std::function<std::vector<std::string>(const re::TargetDependency &, const std::string&)> get_available_versions
         );
 
         /**
