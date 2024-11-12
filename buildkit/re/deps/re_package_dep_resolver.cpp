@@ -53,7 +53,7 @@ namespace re
 
                 auto &version = package->versions.at(latest_version);
 
-                version.link;
+                version.link; // :)
             }
             else
             {

@@ -11,16 +11,17 @@ namespace re
         const auto kOuterVarRegex = boost::xpressive::sregex::compile(R"(\$\{(.*?)\})");
         const auto kVarRegex = boost::xpressive::sregex::compile(R"((?:([^:|]+)?:\s*)?([^|\s]*)(?:\s*\|\s*(.*))?)");
 
-        std::string GetVarValue(const VarContext &ctx, const std::string &original, const std::string &var,
-                                const std::string &default_namespace)
+        ulib::string GetVarValue(const VarContext &ctx, ulib::string_view original, ulib::string_view var,
+                                ulib::string_view default_namespace)
         {
-            std::string ns = default_namespace;
-            std::string key = "";
-            std::string fallback = "";
+            ulib::string ns = default_namespace;
+            ulib::string key = "";
+            ulib::string fallback = "";
 
             boost::xpressive::smatch match;
 
-            if (!boost::xpressive::regex_match(var, match, kVarRegex))
+            std::string vvv{var};
+            if (!boost::xpressive::regex_match(vvv, match, kVarRegex))
                 RE_THROW VarSubstitutionException("invalid variable definition\n    in string '{}'", original);
 
             //////////////////////////////////////
@@ -42,10 +43,10 @@ namespace re
 
             if (it == ctx.end())
             {
-                std::string namespaces;
+                ulib::string namespaces;
 
                 for (auto &[key, _] : ctx)
-                    namespaces += fmt::format("\n    {}", key);
+                    namespaces += ulib::format("\n    {}", key);
 
                 RE_THROW VarSubstitutionException(
                     "var namespace '{}' not found\n    in string '{}'\n\n    Available namespaces:{}", ns, original,
@@ -74,20 +75,20 @@ namespace re
         }
     } // namespace
 
-    std::string VarSubstitute(const VarContext &ctx, const std::string &str, const std::string &default_namespace)
+    ulib::string VarSubstitute(const VarContext &ctx, ulib::string_view str, ulib::string_view default_namespace)
     {
         using namespace boost::xpressive;
 
         return regex_replace(
-            str, kOuterVarRegex,
+            std::string{str}, kOuterVarRegex,
             [&str, &ctx, &default_namespace](const smatch &match) {
                 return GetVarValue(ctx, str, match[1].str(), default_namespace);
             },
             regex_constants::match_any);
     }
 
-    LocalVarScope::LocalVarScope(VarContext *context, const std::string &alias, const IVarNamespace *parent,
-                                 const std::string &parent_alias)
+    LocalVarScope::LocalVarScope(VarContext *context, ulib::string_view alias, const IVarNamespace *parent,
+                                 ulib::string_view parent_alias)
         : mContext{context}, mAlias{alias}, mParent{parent}, mParentAlias{parent_alias}
     {
         Init();
@@ -129,23 +130,23 @@ namespace re
         Init();
     }
 
-    void LocalVarScope::AddNamespace(const std::string &name, IVarNamespace *ns)
+    void LocalVarScope::AddNamespace(ulib::string_view name, IVarNamespace *ns)
     {
         // fmt::print(" * [{}] Adding var namespace '{}'\n", mLocalName, name);
         (*mContext)[name] = ns;
     }
 
-    void LocalVarScope::SetVar(const std::string &key, std::string value)
+    void LocalVarScope::SetVar(ulib::string_view key, std::string value)
     {
         mVars[key] = std::move(value);
     }
 
-    void LocalVarScope::RemoveVar(const std::string &key)
+    void LocalVarScope::RemoveVar(ulib::string_view key)
     {
         mVars.erase(key);
     }
 
-    std::optional<std::string> LocalVarScope::GetVar(const std::string &key) const
+    std::optional<ulib::string> LocalVarScope::GetVar(ulib::string_view key) const
     {
         if (auto value = GetVarNoRecurse(key))
             return value;
@@ -153,7 +154,7 @@ namespace re
             return mParent ? mParent->GetVar(key) : std::nullopt;
     }
 
-    std::optional<std::string> LocalVarScope::GetVarNoRecurse(const std::string &key) const
+    std::optional<ulib::string> LocalVarScope::GetVarNoRecurse(ulib::string_view key) const
     {
         auto it = mVars.find(key);
 

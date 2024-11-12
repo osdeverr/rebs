@@ -25,6 +25,6 @@ namespace re
 
 		virtual Target* GetCoreTarget() = 0;
 		virtual void RegisterLocalTarget(Target* pTarget) = 0;
-		virtual IDepResolver* GetDepResolver(const std::string& name) = 0;
+		virtual IDepResolver* GetDepResolver(ulib::string_view name) = 0;
 	};
 }

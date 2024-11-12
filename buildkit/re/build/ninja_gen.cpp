@@ -4,6 +4,10 @@
 
 #include <fstream>
 
+#include <ulib/format.h>
+#include <ulib/fmt/list.h>
+#include <ulib/fmt/path.h>
+
 namespace re
 {
     class FmtOstreamWrapper

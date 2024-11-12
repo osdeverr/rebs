@@ -13,7 +13,7 @@ namespace re
     class RePackageDepResolver : public IDepResolver
     {
     public:
-        RePackageDepResolver(ITargetLoader *pLoader, IUserOutput *pOut, const std::string &repo_id,
+        RePackageDepResolver(ITargetLoader *pLoader, IUserOutput *pOut, ulib::string_view repo_id,
                              RePackageClient &&client)
             : mLoader{pLoader}, mOut{pOut}, mRepoId{repo_id}, mClient{std::move(client)}
         {
@@ -25,7 +25,7 @@ namespace re
         ITargetLoader *mLoader;
         IUserOutput *mOut;
 
-        std::string mRepoId;
+        ulib::string mRepoId;
         RePackageClient mClient;
 
         std::unordered_map<std::string, std::unique_ptr<Target>> mTargetCache;

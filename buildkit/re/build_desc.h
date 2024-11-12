@@ -20,16 +20,16 @@ namespace re
 
     struct BuildTool
     {
-        std::string name;
-        std::string path;
+        ulib::string name;
+        ulib::string path;
     };
 
     struct BuildRule
     {
-        std::string name;
-        std::string tool;
-        std::string cmdline;
-        std::string description;
+        ulib::string name;
+        ulib::string tool;
+        ulib::string cmdline;
+        ulib::string description;
 
         BuildVars vars;
     };
@@ -46,13 +46,13 @@ namespace re
     {
         BuildTargetType type;
 
-        std::string rule;
-        std::string in;
-        std::string out;
+        ulib::string rule;
+        ulib::string in;
+        ulib::string out;
 
         BuildVars vars;
 
-        std::vector<std::string> deps;
+        std::vector<ulib::string> deps;
 
         const Target *pSourceTarget = nullptr;
         const SourceFile *pSourceFile = nullptr;
@@ -62,8 +62,8 @@ namespace re
     {
         fs::path out_dir;
 
-        std::string object_out_format;
-        std::string artifact_out_format;
+        ulib::string object_out_format;
+        ulib::string artifact_out_format;
 
         // Vars that go in the very beginning of the build file
         BuildVars init_vars;
@@ -78,7 +78,7 @@ namespace re
         std::vector<BuildRule> rules;
         std::vector<BuildTarget> targets;
 
-        std::vector<std::string> subninjas;
+        std::vector<ulib::string> subninjas;
 
         Target *pRootTarget = nullptr;
         Target *pBuildTarget = nullptr;
@@ -87,17 +87,17 @@ namespace re
 
         tsl::ordered_map<const Target *, fs::path> artifacts;
 
-        std::string GetObjectDirectory(const std::string &module) const
+        ulib::string GetObjectDirectory(ulib::string_view module) const
         {
             return init_vars.at("re_target_object_directory_" + module);
         }
 
-        std::string GetArtifactDirectory(const std::string &module) const
+        ulib::string GetArtifactDirectory(ulib::string_view module) const
         {
             return init_vars.at("re_target_artifact_directory_" + module);
         }
 
-        bool HasArtifactsFor(const std::string &module) const
+        bool HasArtifactsFor(ulib::string_view module) const
         {
             return init_vars.find("re_target_artifact_directory_" + module) != init_vars.end();
         }

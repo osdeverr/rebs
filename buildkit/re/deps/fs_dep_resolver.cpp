@@ -42,7 +42,7 @@ namespace re
 		result->config["platform"] = re_platform;
 		result->config["configuration"] = re_config;
 
-		if (dep.extra_config)
+		if (!dep.extra_config.is_null())
 			MergeYamlNode(result->config, dep.extra_config);
 
 		result->var_parent = target.var_parent;

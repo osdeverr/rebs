@@ -11,6 +11,7 @@
 #include <re/yaml_merge.h>
 
 #include <ulib/string.h>
+#include <futile/futile.h>
 
 namespace re
 {
@@ -18,7 +19,7 @@ namespace re
         return std::tolower(lhs) == std::tolower(rhs);
     };
 
-    TargetType TargetTypeFromString(const std::string &type)
+    TargetType TargetTypeFromString(ulib::string_view type)
     {
         if (type == "project")
             return TargetType::Project;
@@ -63,9 +64,7 @@ namespace re
         RE_TRACE(" ***** LOADING TARGET: path = {}\n", path.generic_u8string());
 
         config_path = path / kTargetConfigFilename;
-
-        std::ifstream f{config_path};
-        config = YAML::Load(f);
+        config = ulib::yaml::parse(futile::open(config_path).read());
 
         // Load all config partitions
 
@@ -75,9 +74,7 @@ namespace re
 
             if (name.ends_with(".re.yml"))
             {
-                std::ifstream merge_f{entry.path()};
-                auto merge_c = YAML::Load(merge_f);
-
+                auto merge_c = ulib::yaml::parse(futile::open(entry.path()).read());
                 MergeYamlNode(config, merge_c);
             }
         }
@@ -117,14 +114,12 @@ namespace re
         if (!name.empty() && name.front() == '.')
         {
             name.erase(0, 1);
+        }
 
-            if (parent)
-                module = ModulePathCombine(parent->module, name);
-        }
+        if (parent)
+            module = ModulePathCombine(parent->module, name);
         else
-        {
             module = name;
-        }
 
         if (parent)
             root_path = parent->root_path;
@@ -135,9 +130,9 @@ namespace re
         auto used_key = key.empty() ? "deps" : key;
 
         // Use the relevant config instance.
-        auto deps = resolved_config ? resolved_config[used_key.data()] : config[used_key.data()];
+        auto& deps = resolved_config.is_map() ? resolved_config[used_key.data()] : config[used_key.data()];
 
-        if (deps)
+        if (!deps.is_null())
         {
             for (auto node : deps)
             {
@@ -156,13 +151,13 @@ namespace re
             }
         }
 
-        if (resolved_config && build_var_scope)
+        if (resolved_config.is_map() && build_var_scope)
         {
-            if (auto uses = resolved_config["uses"])
+            if (auto uses = resolved_config.search("uses"))
             {
-                for (const auto &kv : uses)
+                for (const auto &kv : uses->items())
                 {
-                    auto key = kv.first.Scalar();
+                    auto key = kv.name();
 
                     // fmt::print("{}\n", key);
 
@@ -171,7 +166,7 @@ namespace re
                     // TODO: Move to ParseTargetDependencyNode
                     if (!mapping)
                         mapping = std::make_unique<TargetDependency>(
-                            ParseTargetDependency(build_var_scope->Resolve(kv.second.Scalar()), this));
+                            ParseTargetDependency(build_var_scope->Resolve(kv.value().scalar()), this));
                 }
             }
         }
@@ -186,9 +181,10 @@ namespace re
 
         // features.clear();
 
-        for (auto v : resolved_config["features"])
-            if (!features[v.Scalar()])
-                features[v.Scalar()] = nullptr;
+        if (auto features_ = resolved_config.search("features"))
+            for (auto v : *features_)
+                if (!features[v.scalar()])
+                    features[v.scalar()] = nullptr;
     }
 
     void Target::LoadMiscConfig()
@@ -202,7 +198,7 @@ namespace re
 
             for (const auto& lang : *langs)
             {
-                auto id = lang.as<std::string>();
+                auto id = lang.scalar();
                 auto found = false;
 
                 for (auto& provider : lang_providers)
@@ -214,7 +210,7 @@ namespace re
                     if (auto provider = lang_locator->GetLangProvider(id))
                         lang_providers.push_back(provider);
                     else
-                        throw TargetLoadException("language provider " + lang.as<std::string>() + " not found");
+                        throw TargetLoadException("language provider " + lang.scalar() + " not found");
                 }
             }
         }
@@ -290,7 +286,7 @@ namespace re
         file << out.c_str();
     }
 
-    std::optional<std::string> Target::GetVar(const std::string &key) const
+    std::optional<ulib::string> Target::GetVar(ulib::string_view key) const
     {
         // fmt::print("target '{}'/'{}': ", module, key);
 
@@ -299,22 +295,29 @@ namespace re
         else if (key == "module")
             return module;
 
-        auto used_config = resolved_config ? resolved_config : config;
+        auto used_config = resolved_config.is_map() ? resolved_config : config;
+        auto vars = used_config.search("vars");
 
-        if (used_config["vars"] && used_config["vars"][key].IsDefined())
+        if (auto var = vars ? vars->search(key) : nullptr)
         {
+            if (!var->is_scalar())
+                return std::nullopt;
+
             // fmt::print("found in vars");
-            return used_config["vars"][key].as<std::string>();
+            return var->scalar();
         }
-        else if (used_config[key])
+        else if (auto var = used_config.search(key))
         {
+            if (!var->is_scalar())
+                return std::nullopt;
+
             // fmt::print("found in used vars");
-            return used_config[key].as<std::string>();
+            return var->scalar();
         }
         else if (auto entry = GetCfgEntry<std::string>(key, CfgEntryKind::Recursive))
         {
             // fmt::print("found in config with entry='{}'", entry.value());
-            return entry;
+            return *entry;
         }
         else if (auto var = parent ? parent->GetVar(key) : std::nullopt)
         {
@@ -343,7 +346,7 @@ namespace re
             RE_THROW TargetConfigException(this, "reached top of hierarchy without finding a valid build var scope");
     }
 
-    TargetDependency *Target::GetUsedDependency(const std::string &name) const
+    TargetDependency *Target::GetUsedDependency(ulib::string_view name) const
     {
         auto it = used_mapping.find(name);
 
@@ -371,11 +374,12 @@ namespace re
     const std::regex kTargetDepRegex{
         R"(\s?(?:([a-zA-Z0-9.-]*)(?::))?\s?([^\s@=<>~\^]*)\s*(?:(@|==|<|<=|>|>=|~|\^)\s*([a-zA-Z0-9._-]*))?\s*(?:(?:\[)(.+)(?:\]))?)"};
 
-    TargetDependency ParseTargetDependency(const std::string &str, const Target *pTarget)
+    TargetDependency ParseTargetDependency(ulib::string_view str, const Target *pTarget)
     {
         std::smatch match;
 
-        if (!std::regex_match(str, match, kTargetDepRegex))
+        const std::string rstr{str};
+        if (!std::regex_match(rstr, match, kTargetDepRegex))
             RE_THROW TargetDependencyException(pTarget, "dependency '{}' does not meet the format requirements", str);
 
         TargetDependency dep;
@@ -383,8 +387,9 @@ namespace re
         dep.raw = str;
         dep.ns = match[1].str();
         dep.name = match[2].str();
+        dep.version_kind_str = match[3].str();
 
-        auto &kind_str = (dep.version_kind_str = match[3].str());
+        auto &kind_str = dep.version_kind_str;
 
         if (kind_str == "@" || kind_str == "")
             dep.version_kind = DependencyVersionKind::RawTag;
@@ -408,7 +413,7 @@ namespace re
         dep.version = match[4].str();
 
         if (dep.version_kind != DependencyVersionKind::RawTag)
-            dep.version_sv = semverpp::version{dep.version};
+            dep.version_sv = semverpp::version{std::string(dep.version)};
 
         if (match[5].matched)
         {
@@ -424,30 +429,27 @@ namespace re
         if (dep.name.empty())
             RE_THROW TargetDependencyException(pTarget, "dependency {} does not have a name specified", str);
 
-        if (pTarget)
-            dep.name = ResolveTargetParentRef(dep.name, pTarget);
+        // if (pTarget)
+        //     dep.name = ResolveTargetParentRef(dep.name, pTarget);
 
         return dep;
     }
 
-    TargetDependency ParseTargetDependencyNode(YAML::Node node, const Target *pTarget)
+    TargetDependency ParseTargetDependencyNode(const ulib::yaml& node, const Target *pTarget)
     {
-        if (node.IsScalar())
+        if (node.is_scalar())
         {
-            return ParseTargetDependency(node.Scalar(), pTarget);
+            return ParseTargetDependency(node.scalar(), pTarget);
         }
-        else if (node.IsMap())
+        else if (node.is_map())
         {
             // HACK: This YAML library sucks.
-            for (auto kv : node)
+            for (auto& kv : node.items())
             {
-                auto result = ParseTargetDependency(kv.first.Scalar(), pTarget);
+                auto result = ParseTargetDependency(kv.name(), pTarget);
 
-                result.extra_config = YAML::Clone(kv.second);
-
-                YAML::Emitter emitter;
-                emitter << result.extra_config;
-                result.extra_config_data_hash = std::hash<std::string_view>{}(emitter.c_str());
+                result.extra_config = kv.value();
+                result.extra_config_data_hash = std::hash<std::string_view>{}(result.extra_config.dump());
 
                 if (pTarget)
                 {
@@ -463,14 +465,13 @@ namespace re
         }
         else
         {
-            auto mark = node.Mark();
-            RE_THROW TargetDependencyException(pTarget, "dependency node at {}:{} must be string or map", mark.line,
-                                               mark.column);
+            // auto mark = node.Mark();
+            RE_THROW TargetDependencyException(pTarget, "dependency node must be string or map");
             return {}; // Unreachable but the compiler complains
         }
     }
 
-    std::string TargetDependency::ToString() const
+    ulib::string TargetDependency::ToString() const
     {
         return raw;
     }

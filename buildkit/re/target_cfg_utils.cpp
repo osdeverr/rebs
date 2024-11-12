@@ -6,6 +6,8 @@
 // #include <boost/algorithm/string.hpp>
 #include <ulib/format.h>
 #include <ulib/string.h>
+#include <iostream>
+
 
 namespace re
 {
@@ -13,20 +15,19 @@ namespace re
                                           const std::unordered_map<std::string, std::string> &mappings)
     {
         // recurse the ky
-        auto result = Clone(cfg);
+        auto result = cfg;
 
-        if (cfg.IsMap())
+        if (cfg.is_map())
         {
-            for (auto &kv : cfg)
+            for (const auto &kv : cfg.items())
             {
-                std::string key = kv.first.as<std::string>();
+                ulib::string_view key = kv.name();
 
                 for (const auto &[category, value] : mappings)
                 {
                     if (key.find(category + ".") == 0)
                     {
-                        ulib::string raw = key.substr(category.size() + 1);
-
+                        ulib::string_view raw = key.substr(category.size() + 1);
                         ulib::list<ulib::string> categories = raw.split("|");
 
                         bool supported = (raw == "any");
@@ -50,21 +51,22 @@ namespace re
 
                         if (supported)
                         {
-                            if (kv.second.IsScalar() && kv.second.Scalar() == "unsupported")
+                            if (kv.value().is_scalar() && kv.value().scalar() == "unsupported")
                                 RE_THROW Exception("unsupported {} '{}'", category, value);
 
-                            auto cloned = GetFlatResolvedTargetCfg(kv.second, mappings);
+                            auto cloned = GetFlatResolvedTargetCfg(kv.value(), mappings);
 
-                            if (cloned.IsMap())
+                            if (cloned.is_map())
                             {
-                                for (auto inner_kv : cloned)
-                                    inner_kv.second = GetFlatResolvedTargetCfg(inner_kv.second, mappings);
+                                for (auto& inner_kv : cloned.items())
+                                    inner_kv.value() = GetFlatResolvedTargetCfg(inner_kv.value(), mappings);
                             }
 
                             MergeYamlNode(result, cloned);
                         }
 
-                        result.remove(key);
+                        if (result.is_map())
+                            result.remove(key);
                         break;
                     }
                 }
@@ -82,28 +84,59 @@ namespace re
 
         // Deps and uses are automatically recursed by Target facilities:
         // copying parent deps and uses into children would lead to a performance impact due to redundant regex parsing
-        auto top_deps = Clone(leaf_cfg["deps"]);
+        auto top_deps = leaf_cfg["deps"];
         // auto top_uses = Clone(leaf_cfg["uses"]);
 
-        auto top_actions = Clone(leaf_cfg["actions"]);
-        auto top_tasks = Clone(leaf_cfg["tasks"]);
+        auto top_actions = leaf_cfg["actions"];
+        auto top_tasks = leaf_cfg["tasks"];
 
         std::vector<const Target *> genealogy = {&leaf};
 
         while (p)
         {
             genealogy.insert(genealogy.begin(), p);
+            if (std::find(genealogy.begin(), genealogy.end(), p->parent) != genealogy.end())
+            {
+                std::system("pause");
+
+                if (p->parent)
+                {
+                    fmt::print("p->name: {}\n", p->name);
+                    fmt::print("p->path: {}\n", p->path.generic_string());
+                    fmt::print("p->module: {}\n", p->module);
+                    fmt::print("p->type: {}\n", TargetTypeToString(p->type));
+
+                    // fmt::print("p->parent->name: {}\n", p->parent->name);
+                    // fmt::print("p->parent->path: {}\n", p->parent->path.generic_string());
+                    // fmt::print("p->parent->module: {}\n", p->parent->module);
+                    // fmt::print("p->parent->type: {}\n", TargetTypeToString(p->parent->type));
+
+                    // fmt::print("p->parent->resolved_config:\n");
+                    // std::cout << p->parent->resolved_config << std::endl;
+
+                    // fmt::print("p->parent->config:\n");
+                    // std::cout << p->parent->config << std::endl;
+
+                }
+
+                break;
+            }
+                
+
             p = p->parent;
         }
 
-        TargetConfig result{YAML::NodeType::Map};
+    
+
+
+        TargetConfig result{ulib::yaml::value_t::map};
 
         for (auto &target : genealogy)
             MergeYamlNode(result, GetFlatResolvedTargetCfg(target->config, mappings));
 
         // Everything is always inherited from the core config target in the root target
         if (leaf.parent &&
-            (!leaf.parent->config["is-core-config"] || leaf.parent->config["is-core-config"].as<bool>() != true))
+            (!leaf.parent->config.search("is-core-config") || leaf.parent->config["is-core-config"].get<bool>() != true))
         {
             result["deps"] = top_deps;
             // result["uses"] = top_uses;
