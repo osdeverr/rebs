@@ -56,7 +56,7 @@ namespace re
 
         if (auto cmake_meta = target.resolved_config["cmake-meta"]["targets"].search(target.name))
             if (auto location = cmake_meta->search("location"))
-                desc.artifacts[&target] = location->scalar();
+                desc.artifacts[&target] = fs::path{location->scalar()};
 
         return true;
     }
