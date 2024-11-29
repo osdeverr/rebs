@@ -354,7 +354,7 @@ namespace re
 
         if (auto entry = target.GetCfgEntry<std::string>("out-dir"))
         {
-            out_dir = vars.Resolve(*entry);
+            out_dir = (fs::path)vars.Resolve(*entry);
 
             if (target.path <= fs::current_path() || out_dir.u8string().front() == '.')
                 out_dir = target.path / out_dir;
@@ -455,7 +455,7 @@ namespace re
         // Resolve all the paths
         for (auto it = desc.artifacts.begin(); it != desc.artifacts.end(); it++)
         {
-            it.value() = it->first->build_var_scope->Resolve(it->second.generic_u8string());
+            it.value() = (fs::path)it->first->build_var_scope->Resolve(it->second.generic_u8string());
         }
 
         desc.meta["root_target"] = target.root->module;
