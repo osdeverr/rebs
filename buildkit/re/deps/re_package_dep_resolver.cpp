@@ -3,7 +3,7 @@
 #include <re/deps_version_cache.h>
 #include <re/target.h>
 
-#include <magic_enum.hpp>
+#include <magic_enum/magic_enum.hpp>
 
 namespace re
 {

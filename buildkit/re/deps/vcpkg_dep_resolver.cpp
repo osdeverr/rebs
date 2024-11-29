@@ -234,7 +234,10 @@ namespace re
             if (features->is_sequence())
                 for (auto feature : *features)
                 {
-                    append_deps_from(vcpkg_json["features"][feature.scalar()]);
+                    // fmt::print("features: \n{}\n", vcpkg_json["features"].dump());
+                    // fmt::print("feature: \n{}\n", feature.dump());
+                    
+                    append_deps_from(vcpkg_json["features"][feature.is_map() ? feature["name"].scalar() : feature.scalar()]);
                 }
 
         package_target->root_path = target.root_path;
