@@ -1,7 +1,7 @@
 #include "re_package_client.h"
 #include "re/packages/re_package_client.h"
 
-#include <magic_enum.hpp>
+#include <magic_enum/magic_enum.hpp>
 
 #include <nlohmann/json.hpp>
 

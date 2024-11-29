@@ -40,7 +40,7 @@
 
 #include <fstream>
 
-#include <magic_enum.hpp>
+#include <magic_enum/magic_enum.hpp>
 #include <unordered_set>
 
 #include <futile/futile.h>
