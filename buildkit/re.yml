@@ -9,7 +9,6 @@ deps:
   - vcpkg:boost-exception
   - vcpkg:boost-stacktrace
   - vcpkg:boost-xpressive
-  - vcpkg:yaml-cpp
   - vcpkg:magic-enum
   - vcpkg:cpp-httplib
   - vcpkg:openssl
@@ -21,7 +20,6 @@ deps:
   - github:osdeverr/ulib-env ^1.0.0 [/ulib-env]
   - github:osdeverr/futile ^3.0.0 [/futile]
   - github:zwalloc/ulib-json ^1.2.5
-  - github:zwalloc/ulib-yaml-json ^1.0.0
   - github:zwalloc/ulib-yaml ^1.0.0
 
 actions:

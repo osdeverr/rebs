@@ -21,7 +21,6 @@
 
 #include <iostream>
 #include <ulib/json.h>
-#include <ulib/yaml_json.h>
 
 #include <futile/futile.h>
 
@@ -51,14 +50,15 @@ namespace re
 
         // for (auto &[name, dep] : pTarget->used_mapping)
         // {
-        //     RE_TRACE(" PopulateTargetDependencySet: Attempting to resolve uses-mapping '{}' <- '{}'\n", pTarget->module,
+        //     RE_TRACE(" PopulateTargetDependencySet: Attempting to resolve uses-mapping '{}' <- '{}'\n",
+        //     pTarget->module,
         //              dep->ToString());
 
-        //     fmt::print("dep: {}\n", dep->ToString());   
+        //     fmt::print("dep: {}\n", dep->ToString());
 
         //     if (dep->resolved.empty() && !dep_resolver(*pTarget, *dep, dep->resolved))
         //     {
-        //         fmt::print("failed dep: {}\n", dep->ToString());   
+        //         fmt::print("failed dep: {}\n", dep->ToString());
         //         RE_TRACE("     failed\n");
 
         //         if (throw_on_missing)
@@ -722,7 +722,8 @@ namespace re
                     result = ecfg_existing;
                 }
 
-                // fmt::print("target.build_var_scope = {}, result->build_var_scope = {}\n", target.build_var_scope.has_value(), result->build_var_scope.has_value());
+                // fmt::print("target.build_var_scope = {}, result->build_var_scope = {}\n",
+                // target.build_var_scope.has_value(), result->build_var_scope.has_value());
 
                 if (target.build_var_scope && result->build_var_scope)
                 {
@@ -966,8 +967,8 @@ namespace re
                             std::filesystem::create_directory("out");
 
                         futile::open("out/warnings.log", "a")
-                            .write(ulib::format("[RunActionList] [{}]: Can't resolve: {}. Full Exception: {}\n", target->name,
-                                                ulib::str(path.scalar()).c_str(), ex.what()));
+                            .write(ulib::format("[RunActionList] [{}]: Can't resolve: {}. Full Exception: {}\n",
+                                                target->name, ulib::str(path.scalar()).c_str(), ex.what()));
 
                         // this->mOut->Trace(fmt::fg(fmt::color::yellow),
                         //                  "[RunActionList] [{}]: Can't resolve: {}\n", target->name,
