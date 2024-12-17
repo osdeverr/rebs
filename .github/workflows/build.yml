@@ -37,7 +37,7 @@ jobs:
       - name: Setup Re
         uses: osdeverr/actions-setup-re@v4
         with:
-          re-version: <=0.6.8 # The latest stable Re release available for all major platforms
+          re-version: <=0.9.6 # The latest stable Re release available for all major platforms
 
       - name: Check Re version
         run: re version
